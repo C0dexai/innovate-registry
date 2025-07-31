@@ -1,27 +1,23 @@
 # Innovate Template Registry 🚀
 
-This directory contains base container templates for multi-environment orchestration.
+This repo provides a suite of development templates for rapid container orchestration or local setup.
+All templates run standalone—use Docker, or just run locally.
 
-## 📂 Templates
+## 📦 Templates
 
-- **Node Express Container** – Lightweight Node backend
-- **React SPA** – Frontend with React + Tailwind
-- **Python Flask API** – Python REST API base
-- **PHP Apache Container** – PHP running on Apache
-- **Fullstack MERN** – MongoDB + Express + React + Node
-- **Vanilla TypeScript** – Barebones TS starter
-- **Vite + TypeScript SPA** – SPA template
+| Template                | Dockerized | Standalone/Vanilla | Quick Start                       |
+|-------------------------|:----------:|:------------------:|-----------------------------------|
+| Node.js + Express       | 🐳 Yes     | 🧑‍💻 Yes           | `docker build ...` or `npm start` |
+| React SPA               | 🐳 Yes     | 🧑‍💻 Yes           | `docker build ...` or `npm start` |
+| Python Flask API        | 🐳 Yes     | 🧑‍💻 Yes           | `docker build ...` or `python app.py` |
+| PHP Apache              | 🐳 Yes     | 🧑‍💻 Yes           | `docker build ...` or drop into Apache/PHP server |
+| Fullstack MERN          | 🐳 Yes     | 🧑‍💻 Yes           | `docker-compose up` or run node/react separately |
+| Vanilla TypeScript      | No         | 🧑‍💻 Yes           | `npm install && npm start`        |
+| Vite + TypeScript SPA   | No         | 🧑‍💻 Yes           | `npm install && npm run dev`      |
 
-## 🔧 Usage
+## 🚀 Usage
 
-- Clone this repo
-- Navigate to desired container
-- Build & run:
-  ```bash
-  docker build -t my-container .
-  docker run -p 3000:3000 my-container
-  ```
-
-These templates are used by /innovate in AJENTIC NEXUS for dynamic container orchestration.
-
----
+**To use Docker:**
+```bash
+docker build -t my-container ./containers/node-express
+docker run -p 3000:3000 my-container
