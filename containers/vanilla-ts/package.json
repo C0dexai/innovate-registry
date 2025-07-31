@@ -1,0 +1,1 @@
+{ "name": "vanilla-ts", "version": "1.0.0", "scripts": { "start": "tsc && node dist/index.js", "build": "tsc" }, "devDependencies": { "typescript": "^5.4.0" } }

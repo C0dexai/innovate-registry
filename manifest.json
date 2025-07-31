@@ -1,0 +1,13 @@
+{
+  "project": "AJENTIC NEXUS Innovate Registry",
+  "version": "1.0.0",
+  "templates": [
+    { "name": "Node Express Container", "path": "containers/node-express", "description": "Basic Node.js + Express backend" },
+    { "name": "React SPA", "path": "containers/react-spa", "description": "Frontend single-page application" },
+    { "name": "Python Flask API", "path": "containers/flask-api", "description": "Python Flask REST API container" },
+    { "name": "PHP Apache Container", "path": "containers/php-apache", "description": "Classic PHP + Apache setup" },
+    { "name": "Fullstack MERN", "path": "containers/fullstack-mern", "description": "MongoDB + Express + React + Node fullstack" },
+    { "name": "Vanilla TypeScript", "path": "containers/vanilla-ts", "description": "Vanilla TypeScript app template" },
+    { "name": "Vite + TypeScript SPA", "path": "containers/vite-ts", "description": "Vite + TypeScript SPA template" }
+  ]
+}

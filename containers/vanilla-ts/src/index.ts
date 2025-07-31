@@ -1,0 +1,1 @@
+console.log("🚀 Vanilla TypeScript Container is running!");

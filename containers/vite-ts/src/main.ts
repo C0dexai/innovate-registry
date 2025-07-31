@@ -1,0 +1,1 @@
+document.querySelector<HTMLDivElement>("#app")!.innerHTML = `<h1>🚀 Vite + TypeScript SPA Container is ready!</h1>`;
