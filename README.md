@@ -21,3 +21,19 @@ All templates run standalone—use Docker, or just run locally.
 ```bash
 docker build -t my-container ./containers/node-express
 docker run -p 3000:3000 my-container
+
+cd containers/vanilla-ts
+npm install
+npm start
+
+📚 About
+Each template is ready for:
+
+Rapid orchestration
+
+DevOps or local development
+
+Future AI-powered extensions
+
+Drop issues or PRs for improvements.
+Brought to you by @C0dexai and the AI Family. 🦾
