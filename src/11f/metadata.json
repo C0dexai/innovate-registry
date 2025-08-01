@@ -1,0 +1,8 @@
+{
+  "name": "11 NINTH EDITION of Gemini WebDev Studio",
+  "description": "An AI-powered web development environment for building and previewing web applications with chat-based instructions, file management, and live previews. Features an administrative dashboard for managing models and services.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "prompt": ""
+}
