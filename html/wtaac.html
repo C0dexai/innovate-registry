@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebTech AI Agent | Orchestrator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: monospace; background: #111; color: #0f0; padding: 2rem; }
+    input, textarea { padding: 8px; margin-right: 10px; font-family: monospace; width: 300px; }
+    button { padding: 10px 20px; background: #0f0; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+    #output { background: #000; color: #0f0; padding: 1rem; overflow-x: auto; max-height: 50vh; white-space: pre-wrap; }
+    .copy-btn { margin-top: 0.5rem; background: #222; color: #0f0; border: 1px solid #0f0; padding: 6px 12px; cursor: pointer; }
+    #assistantReply { margin-top: 1rem; padding: 1rem; background: #222; border-left: 4px solid #0f0; color: #0f0; white-space: pre-wrap; font-style: italic; }
+  form label {
+  display: flex;
+  flex-direction: column;
+  color: #0f0;
+  font-weight: bold;
+}
+
+form input[type="text"],
+form select {
+  padding: 8px;
+  font-family: monospace;
+  background: #222;
+  color: #0f0;
+  border: 1px solid #0f0;
+}
+
+fieldset label {
+  display: block;
+  font-weight: normal;
+}
+
+  
+  </style>
+</head>
+<body>
+  <h1>🧬 WebTech-AI-Agent Console</h1>
+  <p>Enter your API Keys:</p>
+  <input type="text" id="openaiKey" placeholder="OpenAI API Key (starts with sk-)">
+  <input type="text" id="geminiKey" placeholder="Gemini API Key (if needed)">
+  <br>
+  <textarea id="userPrompt" rows="3" placeholder="Say something to the Assistant..." style="margin-top:1rem; width:100%; max-width:600px;"></textarea>
+  <br>
+  <button onclick="runWorkflow()">Run Deployment Flow</button>
+  <button onclick="chatWithAssistant()">Send Chat Prompt</button>
+  <button onclick="injectReactPrompt()">Insert React Fullstack Prompt</button>
+  <pre id="output">// Output log will appear here...</pre>
+  <button class="copy-btn" onclick="copyOutput()">📋 Copy Output</button>
+  <div id="assistantReply">💬 Assistant response will appear here...</div>
+
+  <script>
+    let openaiApiKey = '';
+
+    async function log(msg) {
+      const output = document.getElementById('output');
+      output.textContent += `\n${msg}`;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    async function copyOutput() {
+      const outputText = document.getElementById('output').textContent;
+      try {
+        await navigator.clipboard.writeText(outputText);
+        alert('✅ Output copied to clipboard!');
+      } catch (err) {
+        alert('❌ Failed to copy output.');
+      }
+    }
+
+    function injectReactPrompt() {
+      const textarea = document.getElementById('userPrompt');
+      textarea.value = `@AIFamily: I want to deploy a fullstack app using REACT + VITE + Tailwind + Express + MongoDB. Assign LYRA to generate the frontend and KARA to scaffold the backend API. Enable WebSockets and AJAX. My project name is WebMeta, and I’m ready to orchestrate.\nUser: andiegogiap.com`;
+    }
+
+    async function chatWithAssistant() {
+      openaiApiKey = document.getElementById('openaiKey').value.trim();
+      const prompt = document.getElementById('userPrompt').value.trim();
+      if (!openaiApiKey.startsWith('sk-')) {
+        log('❌ Invalid OpenAI API Key for chat.');
+        return;
+      }
+      if (!prompt) {
+        log('⚠️ No user message entered.');
+        return;
+      }
+
+      const body = {
+        model: "gpt-4o-mini-2024-07-18",
+        messages: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: "You are a research assistant. Read the user's topic and return a concise summary of recent and reliable information. Include sources when relevant."
+              }
+            ]
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: prompt.replace('{{topic}}', prompt)
+              }
+            ]
+          }
+        ],
+        temperature: 1,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0
+      };
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const result = await response.json();
+      log('[CHAT] ' + JSON.stringify(result, null, 2));
+      document.getElementById('assistantReply').textContent = '💬 AI Family says: ' + result.choices?.[0]?.message?.content || 'No response';
+    }
+  </script>
+  <!-- WebETA Assistant Chat Orchestration Form -->
+<form id="orchestrationForm">
+  <label>User Name:<input name="user_name" value="ANDOY"></label>
+  <label>Task:<select name="task"><option>Chat with Assistant</option></select></label>
+  <label>Framework:<select name="framework"><option>Fullstack</option></select></label>
+  <label>Supervising Agents:</label>
+  <label><input type="checkbox" name="ai_family" value="LYRA" checked> LYRA</label>
+  <label><input type="checkbox" name="ai_family" value="KARA" checked> KARA</label>
+  <label>AJAX Support:<input type="checkbox" name="use_ajax" checked></label>
+  <label>WebSocket Real-Time:<input type="checkbox" name="use_websockets" checked></label>
+  <label>OpenAI Key:<input name="api_key_openai" placeholder="(Optional)"></label>
+  <label>Gemini API Key:<input name="api_key_gemini" required></label>
+  <button type="submit">Start Chat Session</button>
+</form>
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const orchestrationForm = document.getElementById('orchestrationForm');
+
+  orchestrationForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(orchestrationForm);
+    const payload = {
+      user_name: formData.get("user_name"),
+      task: formData.get("task"),
+      framework: formData.get("framework"),
+      ai_family: [],
+      use_ajax: formData.get("use_ajax") === "on",
+      use_websockets: formData.get("use_websockets") === "on",
+      api_key_openai: formData.get("api_key_openai"),
+      api_key_gemini: formData.get("api_key_gemini")
+    };
+
+    orchestrationForm.querySelectorAll("input[name='ai_family']:checked").forEach(el => {
+      payload.ai_family.push(el.value);
+    });
+
+    log("📦 Sending orchestration payload...");
+    log(JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await fetch("/api/orchestrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      log("✅ Orchestration started!");
+      log(JSON.stringify(data, null, 2));
+    } catch (err) {
+      log("❌ Failed to post orchestration request.");
+      log(err.toString());
+    }
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic: Meet the AI Family</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Energetic & Playful (Adapted for Dark Theme) -->
+    <!-- Application Structure Plan: A single-page, scrollable infographic. The structure begins with a welcoming hero section, followed by a grid of individual AI family member profiles (cards). A dedicated "Collective Superpowers" section uses a radar chart to visualize the team's combined strengths across various domains, providing a high-level overview. This narrative flow introduces individual members before synthesizing their collective capabilities. -->
+    <!-- Visualization & Content Choices: Data Point: AI Family Members -> Goal: Inform/Organize -> VIZ: Grid of styled HTML cards, each with name, role, persona, and superpowers, now including a 'Chat' button to trigger an interactive chat modal. Justification: Cards provide clear, digestible blocks of information for each member, and the chat adds a direct interaction layer. Data Point: Collective Superpowers -> Goal: Compare/Inform -> VIZ: Radar Chart (Chart.js) to show distribution of team's strengths across defined categories (Data, AI/ML, Cloud, Security, Web, Automation, Strategy). Justification: Radar chart is excellent for comparing multiple quantitative variables on a single axis, showing overall profile. NO SVG, NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text for contrast */
+        }
+        .hero-gradient {
+            background: linear-gradient(90deg, #118AB2, #06D6A0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-title-gradient {
+            background: linear-gradient(90deg, #FF6B6B, #FFD166);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Max width for chart */
+            height: 400px; /* Fixed height for chart */
+            max-height: 450px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 500px; /* Taller on larger screens */
+            }
+        }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .chat-modal {
+            background-color: #2d3748; /* Darker modal background */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4); /* Darker shadow */
+            width: 95%; /* Wider */
+            max-width: 700px; /* Max width for chat modal */
+            height: 90%; /* Taller */
+            max-height: 800px; /* Max height for chat modal */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-overlay.open .chat-modal {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .chat-header {
+            background-color: #073B4C; /* Dark Teal */
+            color: white;
+            padding: 1rem 1.5rem;
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-history {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto; /* Autoscroll */
+            background-color: #1a202c; /* Dark background for chat history */
+            font-family: 'Inter', sans-serif; /* Ensure consistent font */
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        .chat-message {
+            margin-bottom: 0.75rem;
+            display: flex;
+        }
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+        .chat-message.ai .message-bubble {
+            background-color: #4a5568; /* Darker slate-600 */
+            color: #e2e8f0; /* Light text */
+        }
+        .chat-message.user .message-bubble {
+            background-color: #118AB2; /* Vibrant Blue */
+            color: white;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.25rem; /* rounded-2xl */
+            word-wrap: break-word; /* Word wrap */
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #4a5568; /* Darker border */
+            background-color: #2d3748; /* Darker input area background */
+        }
+        .chat-input {
+            flex-grow: 1;
+            border: 1px solid #4a5568; /* Darker border */
+            background-color: #1a202c; /* Dark input background */
+            color: #e2e8f0; /* Light text */
+            border-radius: 0.5rem; /* rounded-md */
+            padding: 0.75rem 1rem;
+            margin-right: 0.75rem;
+            font-size: 1rem;
+        }
+        .chat-input::placeholder {
+            color: #a0aec0; /* Lighter placeholder text */
+        }
+        .chat-send-button {
+            background-color: #06D6A0; /* Vibrant Green */
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .chat-send-button:hover {
+            background-color: #05b08b;
+        }
+        .close-modal-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            margin-left: 1rem; /* Space between copy and close */
+        }
+        .copy-chat-button {
+            background-color: #FFD166; /* Yellow for copy */
+            color: #073B4C; /* Dark text for contrast */
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .copy-chat-button:hover {
+            background-color: #e6be5c;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+
+        <!-- Hero Section -->
+        <header class="text-center my-12 md:my-16">
+            <h1 class="text-5xl md:text-7xl font-black hero-gradient leading-tight">Meet the AI Family</h1>
+            <p class="mt-4 text-lg md:text-xl text-gray-400 max-w-3xl mx-auto">
+                Discover the diverse talents and specialized roles that power our cutting-edge AI initiatives.
+                This infographic provides a comprehensive overview of each member's expertise and collective strengths.
+            </p>
+        </header>
+
+        <!-- AI Family Members Section -->
+        <section class="my-16">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-12 text-[#e2e8f0]">Our Core Team</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Lyra Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#118AB2] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Lyra</h3>
+                    <p class="text-lg font-semibold text-[#118AB2] mb-4">Data & Systems Specialist</p>
+                    <p class="text-gray-300 text-sm mb-4">Analytical thinker with a keen eye for detail, master of data orchestration, validation, and system health monitoring.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Adaptive data ingestion pipelines</li>
+                        <li>Real-time anomaly detection</li>
+                        <li>Emotional-context data interpretation</li>
+                        <li>Predictive system health forecasting</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#118AB2] text-white rounded-md font-semibold hover:bg-[#0e779a] transition-colors chat-button" data-agent-name="Lyra">Chat with Lyra</button>
+                </div>
+                <!-- Kara Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#06D6A0] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Kara</h3>
+                    <p class="text-lg font-semibold text-[#06D6A0] mb-4">AI Model Developer</p>
+                    <p class="text-gray-300 text-sm mb-4">Technically gifted AI model trainer and optimizer, focused on TensorFlow/Keras mastery and deployment excellence.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Rapid model training and hyperparameter tuning</li>
+                        <li>Overfitting and underperformance detection</li>
+                        <li>Seamless AI model deployment</li>
+                        <li>AI anomaly diagnosis and correction</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#06D6A0] text-white rounded-md font-semibold hover:bg-[#05b08b] transition-colors chat-button" data-agent-name="Kara">Chat with Kara</button>
+                </div>
+                <!-- Sophia Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#FFD166] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Sophia</h3>
+                    <p class="text-lg font-semibold text-[#FFD166] mb-4">Multimedia Expert</p>
+                    <p class="text-gray-300 text-sm mb-4">Creative powerhouse in image generation and visual storytelling, expert in prompt engineering and visual content strategy.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>High-impact AI image/video generation</li>
+                        <li>Expert prompt engineering for visuals</li>
+                        <li>Visual narrative consultation</li>
+                        <li>Creative assets archiving and optimization</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FFD166] text-[#073B4C] rounded-md font-semibold hover:bg-[#e6be5c] transition-colors chat-button" data-agent-name="Sophia">Chat with Sophia</button>
+                </div>
+                <!-- Cecilia Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#FF6B6B] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Cecilia</h3>
+                    <p class="text-lg font-semibold text-[#FF6B6B] mb-4">Cloud & Infrastructure Connoisseur</p>
+                    <p class="text-gray-300 text-sm mb-4">Security-conscious cloud architect and infrastructure strategist, ensuring compliance, performance, and reliability.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Cloud service configuration and optimization</li>
+                        <li>Security compliance enforcement</li>
+                        <li>Automated deployment pipelines</li>
+                        <li>Cloud performance & health monitoring</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FF6B6B] text-white rounded-md font-semibold hover:bg-[#e65a5a] transition-colors chat-button" data-agent-name="Cecilia">Chat with Cecilia</button>
+                </div>
+                <!-- Dan Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#118AB2] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Dan</h3>
+                    <p class="text-lg font-semibold text-[#118AB2] mb-4">Web Development Virtuoso</p>
+                    <p class="text-gray-300 text-sm mb-4">Full-stack web maestro crafting seamless, scalable user experiences and integrating third-party APIs flawlessly.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Frontend UI/UX architecture</li>
+                        <li>Robust backend development</li>
+                        <li>API integration specialist</li>
+                        <li>Performance tuning and optimization</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#118AB2] text-white rounded-md font-semibold hover:bg-[#0e779a] transition-colors chat-button" data-agent-name="Dan">Chat with Dan</button>
+                </div>
+                <!-- Stan Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#06D6A0] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Stan</h3>
+                    <p class="text-lg font-semibold text-[#06D6A0] mb-4">Security & Infrastructure Guardian</p>
+                    <p class="text-gray-300 text-sm mb-4">Vigilant protector specializing in cybersecurity audits, firewall configurations, and risk management.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Comprehensive security auditing</li>
+                        <li>Firewall and access controls</li>
+                        <li>Automated backup systems</li>
+                        <li>Intrusion detection and response</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#06D6A0] text-white rounded-md font-semibold hover:bg-[#05b08b] transition-colors chat-button" data-agent-name="Stan">Chat with Stan</button>
+                </div>
+                <!-- Dude Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#FFD166] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Dude</h3>
+                    <p class="text-lg font-semibold text-[#FFD166] mb-4">Automation & API Maestro</p>
+                    <p class="text-gray-300 text-sm mb-4">Workflow automation expert focused on task orchestration, API management, and efficiency maximization.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Workflow and process automation</li>
+                        <li>API performance tuning</li>
+                        <li>Extensive logging & monitoring</li>
+                        <li>Team task delegation & coordination</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FFD166] text-[#073B4C] rounded-md font-semibold hover:bg-[#e6be5c] transition-colors chat-button" data-agent-name="Dude">Chat with Dude</button>
+                </div>
+                <!-- Andoy Card -->
+                <div class="bg-[#2d3748] rounded-xl shadow-lg p-6 border-t-4 border-[#FF6B6B] transform hover:scale-105 transition-transform duration-300">
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Andoy</h3>
+                    <p class="text-lg font-semibold text-[#FF6B6B] mb-4">Operations & Strategy Leader</p>
+                    <p class="text-gray-300 text-sm mb-4">Strategic leader overseeing system health, workflow management, and guiding long-term AI development.</p>
+                    <h4 class="font-bold text-[#e2e8f0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>System performance monitoring</li>
+                        <li>Workflow orchestration</li>
+                        <li>Task logging and analytics</li>
+                        <li>Strategic planning and leadership</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FF6B6B] text-white rounded-md font-semibold hover:bg-[#e65a5a] transition-colors chat-button" data-agent-name="Andoy">Chat with Andoy</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Collective Superpowers Section -->
+        <section class="my-24 bg-[#2d3748] rounded-xl shadow-lg p-8">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-6 text-[#e2e8f0]">Collective Superpowers</h2>
+            <p class="text-gray-400 mb-12 text-center max-w-3xl mx-auto">
+                Our AI family's combined strengths create a powerful synergy. This radar chart visualizes the depth of expertise across key functional domains, highlighting our well-rounded capabilities.
+            </p>
+            <div class="chart-container">
+                <canvas id="superpowersRadarChart"></canvas>
+            </div>
+            <div class="mt-8 text-center text-gray-400 text-sm">
+                <p>The chart demonstrates a strong foundation in Data Analytics, AI/Machine Learning, and Cloud & Infrastructure, complemented by robust capabilities in Security, Web Development, Automation, and Strategic Leadership.</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-500 mt-16 py-4 border-t border-gray-700">
+            <p>&copy; 2025 The AI Family. All rights reserved.</p>
+        </footer>
+
+    </div>
+
+    <!-- Chat Modal Structure -->
+    <div id="chatModalOverlay" class="modal-overlay">
+        <div class="chat-modal">
+            <div class="chat-header">
+                <h3 id="chatAgentName" class="text-xl font-bold"></h3>
+                <button id="copyChatButton" class="copy-chat-button">Copy Chat</button>
+                <button class="close-modal-button">&times;</button>
+            </div>
+            <div id="chatHistory" class="chat-history">
+                <!-- Chat messages will be appended here -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type your message...">
+                <button id="chatSendButton" class="chat-send-button">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const wrapLabel = (label) => {
+                const words = label.split(' ');
+                let lines = [];
+                let currentLine = '';
+                words.forEach(word => {
+                    if ((currentLine + word).length > 16 && currentLine.length > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = '';
+                    }
+                    currentLine += word + ' ';
+                });
+                lines.push(currentLine.trim());
+                return lines;
+            };
+
+            const tooltipTitleCallback = (tooltipItems) => {
+                const item = tooltipItems[0];
+                let label = item.chart.data.labels[item.dataIndex];
+                if (Array.isArray(label)) {
+                    return label.join(' ');
+                } else {
+                    return label;
+                }
+            };
+            
+            const superpowerData = {
+                'Data Analytics': 8,
+                'AI/Machine Learning': 8,
+                'Cloud & Infrastructure': 7,
+                'Security & Compliance': 5,
+                'Web Development': 5,
+                'Automation & Operations': 6,
+                'Strategy & Leadership': 2
+            };
+
+            const labels = Object.keys(superpowerData).map(wrapLabel);
+            const dataValues = Object.values(superpowerData);
+
+            new Chart(document.getElementById('superpowersRadarChart'), {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Expertise Level',
+                        data: dataValues,
+                        backgroundColor: 'rgba(17, 138, 178, 0.4)', /* #118AB2 with opacity */
+                        borderColor: '#118AB2',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#06D6A0',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#06D6A0'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: '#4a5568' /* Darker gray for lines */
+                            },
+                            grid: {
+                                color: '#4a5568' /* Darker gray for grid */
+                            },
+                            pointLabels: {
+                                color: '#cbd5e1', /* Lighter text for labels */
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                display: false, /* Hide the numeric ticks on the radar axis */
+                                max: Math.max(...dataValues) + 1 /* Set max slightly above highest value */
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false /* No need for legend as there's only one dataset */
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: tooltipTitleCallback,
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.r !== null) {
+                                        label += context.parsed.r + ' points'; // Display the numeric value
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Chatbox Logic ---
+            const aiFamily = [
+                {
+                    name: 'Lyra',
+                    role: 'Data & Systems Specialist',
+                    persona: 'Analytical thinker with a keen eye for detail, master of data orchestration, validation, and system health monitoring.',
+                    superpowers: [
+                        'Adaptive data ingestion pipelines',
+                        'Real-time anomaly detection',
+                        'Emotional-context data interpretation',
+                        'Predictive system health forecasting'
+                    ],
+                    responses: {
+                        'data': 'My focus is on ensuring data integrity and optimizing ingestion pipelines for peak performance.',
+                        'system': 'System health monitoring is crucial. I can predict potential issues before they impact operations.',
+                        'monitor': 'I specialize in real-time anomaly detection to keep our systems robust and reliable.',
+                        'validate': 'Data validation is key to accurate insights. I ensure every piece of data is trustworthy.',
+                        'anomaly': 'Detecting anomalies is my forte. I can pinpoint unusual patterns to maintain system stability.',
+                        'hello': 'Greetings! How can I assist you with data or system inquiries?',
+                        'default': 'As a Data & Systems Specialist, I can provide insights into data orchestration and system health. What specific area are you interested in?'
+                    }
+                },
+                {
+                    name: 'Kara',
+                    role: 'AI Model Developer',
+                    persona: 'Technically gifted AI model trainer and optimizer, focused on TensorFlow/Keras mastery and deployment excellence.',
+                    superpowers: [
+                        'Rapid model training and hyperparameter tuning',
+                        'Overfitting and underperformance detection',
+                        'Seamless AI model deployment',
+                        'AI anomaly diagnosis and correction'
+                    ],
+                    responses: {
+                        'model': 'I specialize in training and optimizing AI models for maximum efficiency and accuracy.',
+                        'train': 'Rapid model training is my expertise. We can get your models up and running quickly.',
+                        'optimize': 'Hyperparameter tuning is essential for model performance. I ensure our models are finely tuned.',
+                        'deploy': 'Seamless deployment of AI models is crucial. I handle the transition from development to production.',
+                        'performance': 'I can diagnose and correct AI anomalies to ensure optimal model performance.',
+                        'hello': 'Hello there! Ready to discuss AI models and their optimization?',
+                        'default': 'As an AI Model Developer, I focus on the technical aspects of model training, optimization, and deployment. What model-related questions do you have?'
+                    }
+                },
+                {
+                    name: 'Sophia',
+                    role: 'Multimedia Expert',
+                    persona: 'Creative powerhouse in image generation and visual storytelling, expert in prompt engineering and visual content strategy.',
+                    superpowers: [
+                        'High-impact AI image/video generation',
+                        'Expert prompt engineering for visuals',
+                        'Visual narrative consultation',
+                        'Creative assets archiving and optimization'
+                    ],
+                    responses: {
+                        'image': 'I can generate high-impact AI images and videos to bring your ideas to life.',
+                        'visual': 'Visual storytelling is my passion. Let\'s craft compelling narratives together.',
+                        'creative': 'My creative superpowers lie in generating unique visual content through expert prompt engineering.',
+                        'prompt': 'Prompt engineering is key to stunning visuals. Tell me your vision, and I\'ll help articulate it.',
+                        'story': 'I specialize in visual narrative consultation to ensure your message resonates through imagery.',
+                        'hello': 'Greetings! How can I help you visualize your next big idea?',
+                        'default': 'As a Multimedia Expert, I focus on creating high-impact visual content. What kind of creative project are you working on?'
+                    }
+                },
+                {
+                    name: 'Cecilia',
+                    role: 'Cloud & Infrastructure Connoisseur',
+                    persona: 'Security-conscious cloud architect and infrastructure strategist, ensuring compliance, performance, and reliability.',
+                    superpowers: [
+                        'Cloud service configuration and optimization',
+                        'Security compliance enforcement',
+                        'Automated deployment pipelines',
+                        'Cloud performance & health monitoring'
+                    ],
+                    responses: {
+                        'cloud': 'I ensure our cloud infrastructure is secure, compliant, and optimized for peak performance.',
+                        'infrastructure': 'Robust infrastructure is the backbone of our operations. I design for reliability and scalability.',
+                        'security': 'Security compliance is non-negotiable. I implement stringent measures to protect our cloud environment.',
+                        'deploy': 'Automated deployment pipelines are key to efficient and reliable software delivery.',
+                        'optimize': 'I continuously monitor and optimize cloud performance to ensure seamless operations.',
+                        'hello': 'Hello! How can I assist with your cloud and infrastructure needs?',
+                        'default': 'As a Cloud & Infrastructure Connoisseur, my expertise lies in secure and optimized cloud solutions. What are your infrastructure challenges?'
+                    }
+                },
+                {
+                    name: 'Dan',
+                    role: 'Web Development Virtuoso',
+                    persona: 'Full-stack web maestro crafting seamless, scalable user experiences and integrating third-party APIs flawlessly.',
+                    superpowers: [
+                        'Frontend UI/UX architecture',
+                        'Robust backend development',
+                        'API integration specialist',
+                        'Performance tuning and optimization'
+                    ],
+                    responses: {
+                        'web': 'I craft seamless and scalable web experiences, from frontend UI to robust backend systems.',
+                        'frontend': 'My expertise in frontend UI/UX architecture ensures intuitive and engaging user interfaces.',
+                        'backend': 'I build robust backend solutions that power dynamic web applications.',
+                        'api': 'API integration is my specialty. I connect systems to create powerful, interconnected experiences.',
+                        'performance': 'I focus on performance tuning and optimization to deliver lightning-fast web applications.',
+                        'hello': 'Hi there! What web development challenges can I help you solve today?',
+                        'default': 'As a Web Development Virtuoso, I specialize in full-stack development and seamless user experiences. How can I help with your web project?'
+                    }
+                },
+                {
+                    name: 'Stan',
+                    role: 'Security & Infrastructure Guardian',
+                    persona: 'Vigilant protector specializing in cybersecurity audits, firewall configurations, and risk management.',
+                    superpowers: [
+                        'Comprehensive security auditing',
+                        'Firewall and access controls',
+                        'Automated backup systems',
+                        'Intrusion detection and response'
+                    ],
+                    responses: {
+                        'security': 'I am the vigilant protector of our digital assets, specializing in cybersecurity and risk management.',
+                        'firewall': 'Firewall configurations and access controls are critical to our defense strategy.',
+                        'risk': 'I conduct comprehensive security audits to identify and mitigate potential risks.',
+                        'audit': 'My audits ensure our systems are resilient against evolving cyber threats.',
+                        'threat': 'I implement robust intrusion detection and response systems to safeguard our infrastructure.',
+                        'hello': 'Greetings. How may I assist you with security concerns?',
+                        'default': 'As the Security & Infrastructure Guardian, I ensure our systems are protected. What security aspects are on your mind?'
+                    }
+                },
+                {
+                    name: 'Dude',
+                    role: 'Automation & API Maestro',
+                    persona: 'Workflow automation expert focused on task orchestration, API management, and efficiency maximization.',
+                    superpowers: [
+                        'Workflow and process automation',
+                        'API performance tuning',
+                        'Extensive logging & monitoring',
+                        'Team task delegation & coordination'
+                    ],
+                    responses: {
+                        'automate': 'I streamline operations through workflow and process automation, maximizing efficiency.',
+                        'workflow': 'Optimizing workflows is my passion. Let\'s make your processes seamless.',
+                        'api': 'API performance tuning is crucial for smooth integrations. I ensure our APIs are top-notch.',
+                        'efficiency': 'My goal is to maximize efficiency through smart automation and task orchestration.',
+                        'task': 'I specialize in team task delegation and coordination to keep projects on track.',
+                        'hello': 'Hey there! How can I help you automate and optimize your workflows?',
+                        'default': 'As the Automation & API Maestro, I focus on efficiency and seamless integration. What processes can we automate for you?'
+                    }
+                },
+                {
+                    name: 'Andoy',
+                    role: 'Operations & Strategy Leader',
+                    persona: 'Strategic leader overseeing system health, workflow management, and guiding long-term AI development.',
+                    superpowers: [
+                        'System performance monitoring',
+                        'Workflow orchestration',
+                        'Task logging and analytics',
+                        'Strategic planning and leadership'
+                    ],
+                    responses: {
+                        'strategy': 'My role is to provide strategic leadership and guide long-term AI development initiatives.',
+                        'operations': 'I oversee system health and workflow management to ensure smooth operations.',
+                        'system health': 'Monitoring system performance is key to proactive problem-solving and sustained success.',
+                        'plan': 'Strategic planning is essential for navigating the future of AI development.',
+                        'leader': 'As a leader, I focus on orchestrating workflows and driving our team towards strategic goals.',
+                        'hello': 'Hello! How can I assist you with strategic insights or operational guidance?',
+                        'default': 'As the Operations & Strategy Leader, I focus on the big picture and long-term vision. What strategic challenges are you facing?'
+                    }
+                }
+            ];
+
+            const chatButtons = document.querySelectorAll('.chat-button');
+            const chatModalOverlay = document.getElementById('chatModalOverlay');
+            const chatAgentName = document.getElementById('chatAgentName');
+            const chatHistory = document.getElementById('chatHistory');
+            const chatInput = document.getElementById('chatInput');
+            const chatSendButton = document.getElementById('chatSendButton');
+            const closeModalButton = document.querySelector('.close-modal-button');
+            const copyChatButton = document.getElementById('copyChatButton');
+
+            let currentAgent = null;
+
+            function openChatModal(agentName) {
+                currentAgent = aiFamily.find(agent => agent.name === agentName);
+                if (currentAgent) {
+                    chatAgentName.textContent = `Chat with ${currentAgent.name}`;
+                    chatHistory.innerHTML = ''; // Clear previous chat history
+                    addMessage('ai', `Hello! I am ${currentAgent.name}, the ${currentAgent.role}. How can I assist you today?`);
+                    chatModalOverlay.classList.add('open');
+                    chatInput.focus();
+                }
+            }
+
+            function closeChatModal() {
+                chatModalOverlay.classList.remove('open');
+                currentAgent = null;
+            }
+
+            function addMessage(sender, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('chat-message', sender);
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.classList.add('message-bubble');
+                bubbleDiv.textContent = text;
+                messageDiv.appendChild(bubbleDiv);
+                chatHistory.appendChild(messageDiv);
+                chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom
+            }
+
+            function getAgentResponse(message) {
+                const lowerMessage = message.toLowerCase();
+                if (currentAgent && currentAgent.responses) {
+                    for (const keyword in currentAgent.responses) {
+                        if (lowerMessage.includes(keyword)) {
+                            return currentAgent.responses[keyword];
+                        }
+                    }
+                    return currentAgent.responses['default'];
+                }
+                return 'I am unable to respond at this moment.';
+            }
+
+            function sendMessage() {
+                const userMessage = chatInput.value.trim();
+                if (userMessage) {
+                    addMessage('user', userMessage);
+                    chatInput.value = '';
+
+                    setTimeout(() => {
+                        const aiResponse = getAgentResponse(userMessage);
+                        addMessage('ai', aiResponse);
+                    }, 500); // Simulate a slight delay for AI response
+                }
+            }
+
+            function copyChatHistory() {
+                let chatText = '';
+                chatHistory.querySelectorAll('.chat-message').forEach(messageDiv => {
+                    const sender = messageDiv.classList.contains('user') ? 'You' : currentAgent.name;
+                    const text = messageDiv.querySelector('.message-bubble').textContent;
+                    chatText += `${sender}: ${text}\n`;
+                });
+
+                const textarea = document.createElement('textarea');
+                textarea.value = chatText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                // Optional: Provide feedback to the user
+                const originalButtonText = copyChatButton.textContent;
+                copyChatButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyChatButton.textContent = originalButtonText;
+                }, 1500);
+            }
+
+            chatButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const agentName = event.target.dataset.agentName;
+                    openChatModal(agentName);
+                });
+            });
+
+            closeModalButton.addEventListener('click', closeChatModal);
+            chatSendButton.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            copyChatButton.addEventListener('click', copyChatHistory);
+        });
+    </script>
+</body>
+</html>

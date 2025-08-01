@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide: CUA Orchestration Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Added marked.js -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1A1A1A; /* Darker background */
+            color: #E2E8F0; /* Light blue-gray for general text */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+            color: #A0AEC0; /* Medium blue-gray for inactive tabs */
+        }
+        .tab-btn.active {
+            border-bottom-color: #6366F1; /* Brighter indigo for active tab */
+            color: #6366F1; /* Active tab color */
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Card colors - a mix of vibrant and neon-like shades */
+        .card-color-0 { background-color: rgba(255, 110, 199, 0.7); /* Hot Pink */ }
+        .card-color-1 { background-color: rgba(0, 255, 255, 0.7); /* Cyan */ }
+        .card-color-2 { background-color: rgba(57, 255, 20, 0.7); /* Neon Green */ }
+        .card-color-3 { background-color: rgba(255, 255, 0, 0.7); /* Yellow */ }
+        .card-color-4 { background-color: rgba(255, 215, 0, 0.7); /* Gold */ }
+        .card-color-5 { background-color: rgba(255, 69, 0, 0.7); /* OrangeRed */ }
+        .card-color-6 { background-color: rgba(138, 43, 226, 0.7); /* BlueViolet */ }
+        .card-color-7 { background-color: rgba(0, 191, 255, 0.7); /* Deep Sky Blue */ }
+        .card-color-8 { background-color: rgba(255, 20, 147, 0.7); /* Deep Pink */ }
+        .card-color-default { background-color: rgba(45, 55, 72, 0.7); /* Default gray for other cards */ }
+
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            color: #1A202C; /* Black text for all cards */
+            box-shadow: 0 0 5px rgba(0,0,0,0.3); /* Subtle initial shadow */
+        }
+        /* Neon glow on hover for the vibrant cards */
+        .card-color-0:hover { box-shadow: 0 0 15px #FF6EC7, 0 0 25px #FF6EC7; }
+        .card-color-1:hover { box-shadow: 0 0 15px #00FFFF, 0 0 25px #00FFFF; }
+        .card-color-2:hover { box-shadow: 0 0 15px #39FF14, 0 0 25px #39FF14; }
+        .card-color-3:hover { box-shadow: 0 0 15px #FFFF00, 0 0 25px #FFFF00; }
+        .card-color-4:hover { box-shadow: 0 0 15px #FFD700, 0 0 25px #FFD700; }
+        .card-color-5:hover { box-shadow: 0 0 15px #FF4500, 0 0 25px #FF4500; }
+        .card-color-6:hover { box-shadow: 0 0 15px #8A2BE2, 0 0 25px #8A2BE2; }
+        .card-color-7:hover { box-shadow: 0 0 15px #00BFFF, 0 0 25px #00BFFF; }
+        .card-color-8:hover { box-shadow: 0 0 15px #FF1493, 0 0 25px #FF1493; }
+        /* Default card hover (non-neon) */
+        .card-color-default:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+        }
+
+        .prose-code::before, .prose-code::after {
+            content: '';
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+            color: #E2E8F0;
+        }
+        .accordion-content.open {
+            max-height: 500px; /* Adjust as needed */
+            color: #E2E8F0;
+        }
+        .process-step {
+            transition: all 0.3s ease;
+            background-color: rgba(0,0,0,0.7); /* Semi-transparent black for process steps */
+            color: #E2E8F0; /* Light text for process steps */
+            box-shadow: 0 0 5px rgba(0,0,0,0.3); /* Subtle initial shadow */
+        }
+        .process-step.active {
+            background-color: #39FF14; /* Neon Green for active step */
+            color: #1A202C; /* Black text for active step */
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #39FF14, 0 0 25px #39FF14; /* Neon glow for active step */
+        }
+        /* Simulated chat styles */
+        .chat-bubble {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            max-width: 80%;
+            margin-bottom: 0.5rem;
+            background-color: #000000; /* Black background for all chat bubbles */
+            /* Text color dynamically set by JS */
+        }
+        /* AI chat bubble will have dynamic neon text color */
+        .chat-bubble-ai {
+            align-self: flex-start; /* Align AI messages to the left */
+        }
+        /* User chat bubble will have dynamic neon text color */
+        .chat-bubble-user {
+            border-bottom-right-radius: 0.125rem;
+            align-self: flex-end; /* Align user messages to the right */
+        }
+        /* New styles for hint types in the dedicated area */
+        #hint-display-area div {
+            padding: 0.5rem 0.75rem;
+            border-left-width: 4px;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        /* Styles for the new hint cards */
+        .hint-card {
+            background-color: #000000; /* Black background for hint cards */
+            color: #39FF14; /* Neon Green for hint cards text */
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .hint-card-user-prompt {
+            border-left: 4px solid #3B82F6; /* blue-500 */
+        }
+        .hint-card-ai-hint {
+            border-left: 4px solid #4F46E5; /* indigo-600 */
+        }
+        .hint-card-system-suggestion {
+            border-left: 4px solid #A855F7; /* purple-500 */
+        }
+        .hint-card .hint-type {
+            font-weight: bold;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            color: #39FF14; /* Ensure hint type text is neon green */
+        }
+        .hint-card .hint-text {
+            font-style: italic;
+            font-size: 0.75rem;
+            color: #39FF14; /* Ensure hint text is neon green */
+        }
+
+        /* Resizer handle style */
+        .resizer-handle {
+            height: 8px;
+            background-color: #5A6678; /* Darker, subtle blue-gray */
+            cursor: ns-resize; /* North-south resize cursor */
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+        /* Ensure chat log fills available space */
+        #chat-log {
+            flex-grow: 1;
+            min-height: 100px; /* Minimum height for chat log */
+            max-height: 400px; /* Max height for chat log, adjust as needed */
+            overflow-y: auto;
+        }
+        /* Loader for buttons */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            margin: auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Specific dark theme adjustments for other elements */
+        .container {
+            background-color: #1A1A1A; /* Even darker blue-gray for containers */
+        }
+        header .user-session-info { /* New class for user/session ID text */
+            color: #A0AEC0;
+        }
+        .border-b {
+            border-color: #4A5568;
+        }
+        .max-w-4xl.mx-auto h2, .max-w-5xl.mx-auto h2, .max-w-6xl.mx-auto h2 {
+            color: #E2E8F0;
+        }
+        .max-w-4xl.mx-auto p, .max-w-5xl.mx-auto p, .max-w-6xl.mx-auto p {
+            color: #A0AEC0;
+        }
+        /* Specific overrides for workflow elements with neon background */
+        #workflow {
+            background-color: #4F46E5; /* Neon Indigo */
+            box-shadow: 0 0 20px #4F46E5, 0 0 40px #4F46E5 inset; /* Neon glow */
+            border-radius: 1rem; /* Rounded corners for the entire section */
+            padding: 1rem; /* Add some padding inside */
+        }
+        #workflow h2, #workflow p.text-lg.text-gray-700 {
+            color: white; /* White text for titles/descriptions on neon bg */
+            text-shadow: 0 0 5px rgba(255,255,255,0.7), 0 0 10px rgba(255,255,255,0.5); /* White text glow */
+        }
+        #workflow-text { /* Panel inside workflow */
+            background-color: #39FF14; /* Neon Green */
+            color: #1A202C; /* Black text */
+        }
+        #workflow-text h3, #workflow-text p {
+            color: #1A202C; /* Ensure black text */
+            text-shadow: none;
+        }
+        #workflow-text ul li span {
+            color: #1A202C; /* Black checkmarks */
+            text-shadow: none;
+        }
+        .workflow-details-container > div.bg-gray-800 { /* For workflow simulation background */
+            background-color: #00FFFF; /* Cyan */
+            color: #1A202C; /* Black text */
+        }
+        .workflow-details-container > div.bg-gray-800 h4 {
+            color: #1A202C; /* Ensure black title */
+        }
+        .workflow-details-container > div.bg-gray-800 .chat-bubble {
+            background-color: #000000; /* Black */
+        }
+        .workflow-details-container > div.bg-gray-800 .chat-bubble.chat-bubble-ai {
+            color: #00FFFF; /* Cyan text */
+        }
+        .workflow-details-container > div.bg-gray-800 .chat-bubble.chat-bubble-user {
+            color: #FF6EC7; /* Hot Pink text */
+        }
+        .text-white {
+            color: #E2E8F0; /* Ensure white text is visible */
+        }
+        /* Specific overrides for workflow hints to match new dark theme */
+        .chat-hint.border-blue-500.bg-blue-50 {
+            border-color: #3B82F6;
+            background-color: #000000; /* Black */
+            color: #60A5FA;
+            text-shadow: 0 0 5px rgba(96, 165, 250, 0.9); /* Stronger blue glow */
+        }
+        .chat-hint.border-yellow-500.bg-yellow-50 {
+            border-color: #FBBF24; /* Yellow for AI hint */
+            background-color: #000000; /* Black */
+            color: #FCD34D; /* Lighter yellow */
+            text-shadow: 0 0 5px rgba(252, 211, 77, 0.9); /* Stronger yellow glow */
+        }
+        .chat-hint.border-purple-500.bg-purple-50 {
+            border-color: #A855F7;
+            background-color: #000000; /* Black */
+            color: #C084FC;
+            text-shadow: 0 0 5px rgba(192, 132, 252, 0.9); /* Stronger purple glow */
+        }
+
+        /* Specific style for the neon Layered Hinting System panel - REMOVED */
+
+        /* Glowing Orb */
+        #glowing-orb {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #6366F1; /* Indigo base */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 0 10px #6366F1, 0 0 20px #6366F1, 0 0 30px #6366F1;
+            animation: pulse-glow 2s infinite alternate;
+            z-index: 1000;
+        }
+
+        @keyframes pulse-glow {
+            from {
+                box-shadow: 0 0 10px #6366F1, 0 0 20px #6366F1, 0 0 30px #6366F1;
+            }
+            to {
+                box-shadow: 0 0 15px #6366F1, 0 0 30px #6366F1, 0 0 45px #6366F1;
+            }
+        }
+
+        /* Submenu for Orb */
+        #goto-submenu {
+            position: fixed;
+            bottom: 90px; /* Above the orb */
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.9); /* Semi-transparent black */
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.7); /* Indigo glow */
+            z-index: 999;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #goto-submenu.active {
+            display: flex;
+        }
+
+        #goto-submenu button {
+            background: none;
+            border: none;
+            color: #00FFFF; /* Cyan neon text */
+            padding: 8px 12px;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        #goto-submenu button:hover {
+            background-color: rgba(0, 255, 255, 0.1); /* Light cyan hover */
+            color: #39FF14; /* Neon Green on hover */
+        }
+
+        /* Custom Scrollbar Styles for Webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px; /* width of the entire scrollbar */
+        }
+        ::-webkit-scrollbar-track {
+            background: #1A1A1A; /* color of the tracking area */
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2); /* color of the scroll thumb */
+            border-radius: 4px; /* roundness of the scroll thumb */
+            border: 2px solid #1A1A1A; /* creates padding around scroll thumb */
+            transition: background-color 0.3s ease;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.4); /* color of the scroll thumb on hover */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        
+        <header class="text-center mb-8">
+            <div class="mt-4 text-sm user-session-info">
+                User ID: <span id="user-id"></span> | Session ID: <span id="session-id"></span>
+            </div>
+        </header>
+
+        <nav class="flex justify-center border-b border-gray-300 mb-8">
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="family">AI Family</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="workflow">Building Workflow</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="cheatsheet">CLI Cheatsheet</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="inference">Inference</button>
+        </nav>
+
+        <main>
+            <!-- Tab: AI Family -->
+            <div id="family" class="tab-content active">
+                 <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">Meet the AI Family</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">The CUA Engine's power comes from its family of specialized AI agents. Each agent has a unique role, philosophy, and set of skills. Click on any agent to learn more about their capabilities and start an.interactive session.</p>
+                    <div id="agent-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <!-- Agent cards will be injected here by JS -->
+                    </div>
+                    <div id="agent-details" class="mt-8 bg-white p-6 rounded-lg shadow-md" style="display: none;">
+                        <!-- Agent details and interactive chat will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Building Workflow -->
+            <div id="workflow" class="tab-content">
+                 <div class="max-w-6xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">The 4 Phases of Building an Application</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">Building an application with the CUA Engine is a guided, four-phase process. Click on each phase below to see a detailed explanation and an example of the interactive workflow.</p>
+                    
+                    <div id="process-nav" class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-0 mb-8">
+                        <!-- Process steps will be injected here -->
+                    </div>
+
+                    <div class="workflow-details-container grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="workflow-text" class="bg-white p-6 rounded-lg shadow-md">
+                            <!-- Details for the selected phase will appear here -->
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
+                            <h4 class="text-white font-bold text-center mb-4">First Run Simulation</h4>
+                             <div class="bg-white h-96 flex flex-col p-4 rounded-md overflow-y-auto">
+                                <div class="chat-bubble chat-bubble-ai">Hello, I am LYRA... How can I assist you?</div>
+                                <div class="chat-bubble chat-bubble-user">I need to build a new microservice...</div>
+                                <div class="chat-bubble chat-bubble-ai">
+                                    That's an excellent challenge! For a highly scalable and secure user authentication microservice, we'll need to focus on robust architectural patterns...
+                                    <!-- These hints are static examples for the workflow tab, not dynamic -->
+                                    <div class="chat-hint border-blue-500 bg-blue-50"><b>Try:</b> Ask about initial architectural considerations for microservices.</div>
+                                    <div class="chat-hint border-yellow-500 bg-yellow-50"><b>AI Hint:</b> When designing scalable microservices, key architectural considerations include statelessness, fault tolerance, and effective API gateway management...</div>
+                                    <div class="chat-hint border-purple-500 bg-purple-50"><b>System Suggestion:</b> To initiate a structured development process... consider utilizing the 'Full-Stack Feature Genesis' orchestration.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: CLI Cheatsheet -->
+            <div id="cheatsheet" class="tab-content">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">CLI Cheatsheet</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">A quick reference for using the A3 NEXUS command-line interface. Click each command to see its purpose, an example, and the logical process behind it.</p>
+                    <div id="accordion-container" class="space-y-4">
+                        <!-- Accordion items will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Inference -->
+            <div id="inference" class="tab-content">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-4 text-center">Inference Settings</h2>
+                    <p class="text-lg text-gray-700 mb-6 text-center">Configure your API keys for various Large Language Models to enable inference features within the CUA Engine.</p>
+                    
+                    <div class="space-y-6">
+                        <!-- Gemini API Key Section -->
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-2xl font-bold mb-4">Gemini API Key</h3>
+                            <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                                <input type="password" id="gemini-api-key-input" class="flex-grow bg-gray-100 border border-gray-300 rounded-lg p-3 text-gray-800" placeholder="Enter your Gemini API Key">
+                                <button id="save-gemini-key-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto">Save Key</button>
+                                <button id="clear-gemini-key-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto">Clear Key</button>
+                            </div>
+                            <p class="text-sm text-gray-600">Status: <span id="gemini-key-status" class="font-semibold">Not Set</span></p>
+                            <p class="text-xs text-gray-500 mt-2">Your API key is stored locally in your browser for this session and will be used for all Gemini model calls. It is not transmitted to our servers.</p>
+                        </div>
+
+                        <!-- OpenAI API Key Section -->
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-2xl font-bold mb-4">OpenAI API Key (Future Use)</h3>
+                            <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                                <input type="password" id="openai-api-key-input" class="flex-grow bg-gray-100 border border-gray-300 rounded-lg p-3 text-gray-800" placeholder="Enter your OpenAI API Key" disabled>
+                                <button id="save-openai-key-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto" disabled>Save Key</button>
+                                <button id="clear-openai-key-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto" disabled>Clear Key</button>
+                            </div>
+                            <p class="text-sm text-gray-600">Status: <span id="openai-key-status" class="font-semibold">Not Set (Feature Coming Soon)</span></p>
+                            <p class="text-xs text-gray-500 mt-2">OpenAI integration is planned for future updates. Your key will be stored locally.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Glowing Orb and Submenu -->
+    <div id="glowing-orb">✦</div>
+    <div id="goto-submenu">
+        <button data-tab-target="family">AI Family</button>
+        <button data-tab-target="workflow">Building Workflow</button>
+        <button data-tab-target="cheatsheet">CLI Cheatsheet</button>
+        <button data-tab-target="inference">Inference</button>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 bg-gray-600 bg-opacity50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 id="error-title" class="text-2xl font-bold mb-4 text-red-500">Error</h3>
+            <p id="error-message" class="text-gray-700 mb-6"></p>
+            <button id="close-modal-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg w-full">Close</button>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (Optional, if using Bootstrap components that require JS) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Data Definitions
+        const agentData = [
+            {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+            {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+            {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+            {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+            {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"]},
+            {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"]},
+            {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"]},
+            {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"]},
+            {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"]}
+        ];
+
+        const workflowData = [
+            {
+                phase: "Phase 1: Inception",
+                title: "Inception: Defining the Vision",
+                description: "The initial phase focuses on understanding the core problem, gathering requirements, and defining the project's scope and objectives. This is where the foundation for the 'ajentic flow' is laid, with early guidance from the CUA Engine.",
+                details: [
+                    "Collaborative brainstorming with AI agents to refine ideas.",
+                    "Automated analysis of user stories and functional requirements.",
+                    "Initial assessment of technical feasibility and potential challenges.",
+                    "Generation of preliminary project roadmaps and milestones."
+                ]
+            },
+            {
+                phase: "Phase 2: Genesis",
+                title: "Genesis: Architecting & Scaffolding",
+                description: "Once the vision is clear, this phase involves designing the application's architecture, selecting technologies, and scaffolding the foundational code. AI agents provide deep technical insights and automate repetitive setup tasks.",
+                details: [
+                    "AI-driven architectural pattern recommendations based on requirements.",
+                    "Automated code scaffolding for microservices, APIs, and UI components.",
+                    "Integration of best practices for security, scalability, and maintainability.",
+                    "Early-stage dependency management and environment setup."
+                ]
+            },
+            {
+                phase: "Phase 3: Evolution",
+                title: "Evolution: Development & Refinement",
+                description: "This is the core development phase where features are built, tested, and iteratively refined. AI agents assist with code generation, debugging, security checks, and continuous integration, ensuring high-quality output.",
+                details: [
+                    "Contextual code generation and completion suggestions.",
+                    "Automated unit, integration, and security testing.",
+                    "Real-time code review and optimization recommendations.",
+                    "Streamlined debugging and error resolution with AI assistance."
+                ]
+            },
+            {
+                phase: "Phase 4: Deployment",
+                title: "Deployment: Launch & Optimization",
+                description: "The final phase focuses on deploying the application, monitoring its performance, and optimizing for production. AI agents help automate deployment pipelines, manage infrastructure, and provide post-launch insights.",
+                details: [
+                    "Automated CI/CD pipeline creation and management.",
+                    "Intelligent resource allocation and infrastructure provisioning.",
+                    "Real-time performance monitoring and anomaly detection.",
+                    "Post-deployment optimization suggestions and A/B testing support."
+                ]
+            }
+        ];
+
+        const cheatsheetData = [
+            {
+                command: "nexus init <project_name>",
+                description: "Initializes a new CUA project with a default directory structure and configuration files.",
+                example: "nexus init my_new_app",
+                process: "The engine creates a project root, a 'src' directory, a 'config' directory, and a '.nexus' hidden directory for internal metadata and logs. It also generates a basic `nexus.yaml` configuration file."
+            },
+            {
+                command: "nexus agent list",
+                description: "Displays a list of all available AI agents within the CUA family, along with their roles and primary functions.",
+                example: "nexus agent list",
+                process: "Queries the internal agent registry, retrieves metadata for each registered AI agent, and formats the output for readability in the terminal, showing names, roles, and core capabilities."
+            },
+            {
+                command: "nexus delegate <agent_name> \"<task_prompt>\"",
+                description: "Delegates a specific task or query to a named AI agent. The agent processes the prompt and provides a contextual response.",
+                example: "nexus delegate LYRA \"Design a scalable database schema for a social media app.\"",
+                process: "The command identifies the target agent, packages the task prompt, and routes it to the agent's inference pipeline. The agent then generates a response based on its specialized knowledge and role, which is returned to the CLI."
+            },
+            {
+                command: "nexus connect <agent1> <agent2>",
+                description: "Simulates a direct, secure connection and collaboration between two specified AI agents for a joint task or knowledge exchange.",
+                example: "nexus connect KARA SOPHIA",
+                process: "Establishes a virtual communication channel between the two agents. The engine then facilitates a simulated dialogue where agents exchange information and collaborate based on their respective roles and the implied task, summarizing their interaction for the user."
+            },
+            {
+                command: "nexus orchestrate <bookmark_name> \"<brief>\"",
+                description: "Executes a predefined multi-agent workflow (orchestration) from the chained bookmarks registry, based on a provided brief.",
+                example: "nexus orchestrate Full-Stack Feature Genesis \"Implement user authentication with OAuth.\"",
+                process: "Retrieves the sequence of agents and tools defined in the specified bookmark. The engine then sequentially activates each agent, passing the brief and previous outputs, simulating a complex, chained workflow."
+            },
+            {
+                command: "nexus config set <key> <value>",
+                description: "Sets a configuration value for the current CUA project or the CLI itself.",
+                example: "nexus config set default_agent LYRA",
+                process: "Updates the local `nexus.yaml` or a user-specific configuration file with the new key-value pair. This allows for customization of default behaviors and settings."
+            },
+            {
+                command: "nexus help",
+                description: "Displays a list of all available CLI commands and their basic usage.",
+                example: "nexus help",
+                process: "Accesses the internal help documentation and prints a formatted list of commands, including brief descriptions and syntax examples, directly to the terminal."
+            }
+        ];
+
+        const CUA_App = (() => {
+            let a2aParserRules = [
+                { trigger: "review code", command: "connect KARA SOPHIA" },
+                { trigger: "design architecture", command: "task LYRA" }
+            ];
+            let mcpManifests = {
+                "MCP-WebApp-001.yaml": `
+# MCP for a Standard Web App
+
+This manifest outlines the standard steps for deploying a web application.
+
+## Overview
+The process involves **initial setup**, **dependency installation**, and **application launch**.
+
+\`\`\`yaml
+# Example YAML configuration
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-webapp-pod
+spec:
+  containers:
+  - name: webapp-container
+    image: my-webapp:latest
+    ports:
+    - containerPort: 80
+\`\`\`
+
+## Steps:
+1.  **Initialize Project:** Setup basic project structure.
+2.  **Install Dependencies:** Fetch required libraries.
+3.  **Build Application:** Compile and bundle assets.
+4.  **Deploy to Environment:** Push to staging or production.
+
+\`\`\`javascript
+// Example JavaScript snippet
+function greet(name) {
+    console.log(\`Hello, \${name}!\`);
+}
+greet('World');
+\`\`\`
+`,
+                "MCP-Data-Pipeline-002.yaml": `# MCP for a Data Pipeline...`,
+                "MCP-PageRegistry-003.yaml": `# MCP for a new UI Page Registry...`,
+                "MCP-ApiEndpoint-004.yaml": `# MCP for a Secure API Endpoint...`,
+                "MCP-Supervised-Deploy-005.yaml": `# MCP for a Supervised Deployment...`
+            };
+            
+            let liveCustomInstructions = { system: '', ai: '', user: '' };
+            let apiKeys = { gemini: '', openai: '' }; // Initialize with empty keys
+
+            let currentSession = { agent: null, chatHistory: [], selectedCardElement: null };
+            let dom = {};
+            let userId; // Defined globally for CUA_App scope
+
+            // New array of vibrant/neon colors for cards
+            const cardBackgroundColors = [
+                'rgba(255, 110, 199, 0.7)', /* Hot Pink */
+                'rgba(0, 255, 255, 0.7)',  /* Cyan */
+                'rgba(57, 255, 20, 0.7)',  /* Neon Green */
+                'rgba(255, 255, 0, 0.7)',  /* Yellow */
+                'rgba(255, 215, 0, 0.7)',  /* Gold */
+                'rgba(255, 69, 0, 0.7)',   /* OrangeRed */
+                'rgba(138, 43, 226, 0.7)', /* BlueViolet */
+                'rgba(0, 191, 255, 0.7)',  /* Deep Sky Blue */
+                'rgba(255, 20, 147, 0.7)'  /* Deep Pink */
+            ];
+            const getCardBackgroundColor = (index) => {
+                return cardBackgroundColors[index % cardBackgroundColors.length];
+            };
+
+            // Function to determine contrasting text color based on background
+            const getContrastingTextColor = (hexcolor) => {
+                // Always return black for text on these vibrant/neon backgrounds as requested
+                return '#1A202C'; // Dark blue-gray (appears black)
+            };
+
+            // IndexedDB setup
+            const DB_NAME = 'CUA_Engine_DB';
+            const DB_VERSION = 1;
+            const CHAT_STORE = 'chatHistory'; // Store for chat messages
+            let indexedDbInstance;
+
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                    request.onerror = (event) => {
+                        console.error("Error opening IndexedDB:", event.target.errorCode);
+                        reject("Error opening IndexedDB.");
+                    };
+
+                    request.onsuccess = (event) => {
+                        indexedDbInstance = event.target.result;
+                        console.log("IndexedDB opened successfully.");
+                        resolve(indexedDbInstance);
+                    };
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(CHAT_STORE)) {
+                            const chatStore = db.createObjectStore(CHAT_STORE, { keyPath: 'id', autoIncrement: true });
+                            chatStore.createIndex('agentName', 'agentName', { unique: false });
+                            chatStore.createIndex('sessionId', 'sessionId', { unique: false });
+                            console.log("IndexedDB object store created:", CHAT_STORE);
+                        }
+                    };
+                });
+            }
+
+            async function getStore(storeName, mode) {
+                if (!indexedDbInstance) {
+                    await openDB();
+                }
+                return indexedDbInstance.transaction(storeName, mode).objectStore(storeName);
+            }
+
+            async function saveMessageToIndexedDB(message) {
+                try {
+                    const store = await getStore(CHAT_STORE, 'readwrite');
+                    message.timestamp = new Date().toISOString(); // Add timestamp
+                    message.sessionId = document.getElementById('session-id').textContent; // Add session ID
+                    store.add(message);
+                    console.log("Message saved to IndexedDB:", message);
+                } catch (error) {
+                    console.error("Failed to save message to IndexedDB:", error);
+                }
+            }
+
+            async function getChatHistoryFromIndexedDB(agentName) {
+                try {
+                    const store = await getStore(CHAT_STORE, 'readonly');
+                    const index = store.index('agentName');
+                    const request = index.getAll(agentName);
+                    return new Promise((resolve, reject) => {
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => {
+                            console.error("Error getting chat history from IndexedDB:", request.error);
+                            reject(request.error);
+                        };
+                    });
+                } catch (error) {
+                    console.error("Failed to retrieve chat history from IndexedDB:", error);
+                    return [];
+                }
+            }
+
+            async function init() {
+                userId = `user_${crypto.randomUUID().slice(0, 8)}`; // Generate a random user ID
+                document.getElementById('user-id').textContent = userId; // Display user ID
+
+                // Cache general DOM elements that exist on initial load
+                dom = {
+                    agentGrid: document.getElementById('agent-grid'),
+                    agentDetails: document.getElementById('agent-details'),
+                    errorModal: document.getElementById('error-modal'),
+                    closeModalBtn: document.getElementById('close-modal-btn'),
+                    errorMessage: document.getElementById('error-message'),
+                    errorTitle: document.getElementById('error-title'),
+                    // Inference tab elements
+                    geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
+                    saveGeminiKeyBtn: document.getElementById('save-gemini-key-btn'),
+                    clearGeminiKeyBtn: document.getElementById('clear-gemini-key-btn'),
+                    geminiKeyStatus: document.getElementById('gemini-key-status'),
+                    openaiApiKeyInput: document.getElementById('openai-api-key-input'),
+                    saveOpenaiKeyBtn: document.getElementById('save-openai-key-btn'),
+                    clearOpenaiKeyBtn: document.getElementById('clear-openai-key-btn'),
+                    openaiKeyStatus: document.getElementById('openai-key-status'),
+                    // Orb elements
+                    glowingOrb: document.getElementById('glowing-orb'),
+                    gotoSubmenu: document.getElementById('goto-submenu')
+                };
+
+                // Set unique Session ID
+                document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                
+                // Initialize IndexedDB
+                await openDB();
+
+                // Load API keys from localStorage
+                loadApiKeys();
+                updateApiKeyDisplay();
+
+                renderAgentCards();
+                renderWorkflowPhases();
+                renderCheatsheet();
+                setupEventListeners();
+
+                // Set the default active tab to 'family' as 'concepts' is removed
+                document.querySelector('.tab-btn[data-tab="family"]').click();
+            }
+
+            function loadApiKeys() {
+                const storedGeminiKey = localStorage.getItem('geminiApiKey');
+                const storedOpenaiKey = localStorage.getItem('openaiApiKey');
+                if (storedGeminiKey) {
+                    apiKeys.gemini = storedGeminiKey;
+                }
+                if (storedOpenaiKey) {
+                    apiKeys.openai = storedOpenaiKey;
+                }
+            }
+
+            function saveApiKey(type, key) {
+                if (type === 'gemini') {
+                    apiKeys.gemini = key;
+                    localStorage.setItem('geminiApiKey', key);
+                } else if (type === 'openai') {
+                    apiKeys.openai = key;
+                    localStorage.setItem('openaiApiKey', key);
+                }
+                updateApiKeyDisplay();
+                showError(`${type.charAt(0).toUpperCase() + type.slice(1)} API Key Saved!`, "Success");
+            }
+
+            function clearApiKey(type) {
+                if (type === 'gemini') {
+                    apiKeys.gemini = '';
+                    localStorage.removeItem('geminiApiKey');
+                } else if (type === 'openai') {
+                    apiKeys.openai = '';
+                    localStorage.removeItem('openaiApiKey');
+                }
+                updateApiKeyDisplay();
+                showError(`${type.charAt(0).toUpperCase() + type.slice(1)} API Key Cleared!`, "Success");
+            }
+
+            function updateApiKeyDisplay() {
+                if (dom.geminiKeyStatus) {
+                    dom.geminiKeyStatus.textContent = apiKeys.gemini ? 'Set' : 'Not Set';
+                    dom.geminiKeyStatus.className = `font-semibold ${apiKeys.gemini ? 'text-green-500' : 'text-red-500'}`;
+                }
+                if (dom.openaiKeyStatus) {
+                    dom.openaiKeyStatus.textContent = apiKeys.openai ? 'Set' : 'Not Set (Feature Coming Soon)';
+                    dom.openaiKeyStatus.className = `font-semibold ${apiKeys.openai ? 'text-green-500' : 'text-red-500'}`;
+                }
+                if (dom.geminiApiKeyInput) {
+                    dom.geminiApiKeyInput.value = apiKeys.gemini; // Pre-fill input if key is set
+                }
+                if (dom.openaiApiKeyInput) {
+                    dom.openaiApiKeyInput.value = apiKeys.openai; // Pre-fill input if key is set
+                }
+            }
+
+            function renderAgentCards() {
+                const agentGrid = dom.agentGrid;
+                agentGrid.innerHTML = ''; // Clear existing cards
+                agentData.forEach((agent, index) => {
+                    const card = document.createElement('div');
+                    const bgColor = getCardBackgroundColor(index);
+                    const textColor = getContrastingTextColor(bgColor); // This will now always be black
+                    card.className = `card p-6 rounded-lg shadow-md cursor-pointer text-center`;
+                    card.style.backgroundColor = bgColor;
+                    card.style.color = textColor; // Set text color to black
+                    card.innerHTML = `<h3 class="text-xl font-bold">${agent.name}</h3><p>${agent.role}</p>`;
+                    card.addEventListener('click', () => selectAgent(agent));
+                    agentGrid.appendChild(card);
+                });
+            }
+
+            function renderWorkflowPhases() {
+                const processNav = document.getElementById('process-nav');
+                const workflowText = document.getElementById('workflow-text');
+                processNav.innerHTML = ''; // Clear existing
+                workflowData.forEach((item, index) => {
+                    const step = document.createElement('div');
+                    step.className = 'process-step p-4 rounded-lg shadow-md cursor-pointer text-center flex-1';
+                    // Set background and text color dynamically for process steps
+                    step.style.backgroundColor = 'rgba(0,0,0,0.7)'; /* Semi-transparent black */
+                    step.style.color = '#E2E8F0'; /* White */
+                    step.innerHTML = `<h4 class="font-bold">${item.phase}</h4>`;
+                    
+                    const arrow = document.createElement('div');
+                    if (index < workflowData.length - 1) {
+                        arrow.innerHTML = `<span class="text-2xl text-gray-400 mx-4 hidden md:inline">→</span>`;
+                    }
+
+                    step.addEventListener('click', () => {
+                        document.querySelectorAll('.process-step').forEach(s => s.classList.remove('active'));
+                        step.classList.add('active');
+                        workflowText.innerHTML = `
+                            <h3 class="text-2xl font-bold mb-2" style="color: #1A202C;">${item.title}</h3>
+                            <p class="mb-4" style="color: #1A202C;">${item.description}</p>
+                            <ul class="space-y-2">
+                                ${item.details.map(detail => `<li class="flex items-start"><span style="color: #1A202C; text-shadow: none;" class="font-bold mr-2">✓</span><span style="color: #1A202C;">${detail}</span></li>`).join('')}
+                            </ul>
+                        `;
+                        // Also set the background of workflowText here
+                        workflowText.style.backgroundColor = '#39FF14'; /* Neon Green */
+                        workflowText.style.color = '#1A202C'; /* Black text for workflowText content */
+                        workflowText.style.textShadow = 'none';
+                    });
+                    processNav.appendChild(step);
+                    processNav.appendChild(arrow);
+                });
+                if(processNav.children[0]) {
+                    processNav.children[0].click(); // Activate first step by default
+                }
+            }
+
+            function renderCheatsheet() {
+                const accordionContainer = document.getElementById('accordion-container');
+                accordionContainer.innerHTML = ''; // Clear existing
+                cheatsheetData.forEach(item => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'card card-color-default rounded-lg shadow-md';
+
+                    const header = document.createElement('div');
+                    header.className = 'p-4 flex justify-between items-center cursor-pointer';
+                    header.innerHTML = `<h3 class="text-lg font-semibold"><code class="font-mono text-indigo-600 bg-indigo-50 p-1 rounded">${item.command}</code></h3><span class="text-2xl text-gray-400 transition-transform duration-300 transform">+</span>`;
+
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content px-4 pb-4';
+                    content.innerHTML = `
+                        <p class="text-gray-700 mb-2">${item.description}</p>
+                        <p class="text-gray-700 mb-2"><strong class="font-semibold">Example:</strong> <code class="font-mono text-sm bg-gray-200 p-1 rounded">${item.example}</code></p>
+                        <p class="text-gray-700"><strong class="font-semibold">Logical Process:</strong> ${item.process}</p>
+                    `;
+
+                    header.addEventListener('click', () => {
+                        const isOpen = content.classList.contains('open');
+                        // Close all other accordions
+                        document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+                        document.querySelectorAll('.accordion-header-span').forEach(s => s.classList.remove('rotate-45'));
+                        
+                        if (!isOpen) {
+                            content.classList.add('open');
+                            header.querySelector('span').classList.add('rotate-45');
+                        }
+                    });
+                    header.querySelector('span').classList.add('accordion-header-span'); // Add class for easy selection
+
+                    wrapper.appendChild(header);
+                    wrapper.appendChild(content);
+                    accordionContainer.appendChild(wrapper);
+                });
+            }
+
+            function setupEventListeners() {
+                dom.closeModalBtn.addEventListener('click', () => dom.errorModal.classList.add('hidden'));
+
+                document.querySelectorAll('.tab-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+                        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(tabId).classList.add('active'); // Use tabId directly
+                        button.classList.add('active');
+                    });
+                });
+
+                // Event listeners for Inference tab buttons
+                if (dom.saveGeminiKeyBtn) {
+                    dom.saveGeminiKeyBtn.addEventListener('click', () => {
+                        const key = dom.geminiApiKeyInput.value.trim();
+                        if (key) {
+                            saveApiKey('gemini', key);
+                        } else {
+                            showError("Please enter a Gemini API Key.", "Input Required");
+                        }
+                    });
+                }
+                if (dom.clearGeminiKeyBtn) {
+                    dom.clearGeminiKeyBtn.addEventListener('click', () => {
+                        clearApiKey('gemini');
+                        dom.geminiApiKeyInput.value = ''; // Clear input field as well
+                    });
+                }
+
+                // Glowing Orb and Submenu Event Listeners
+                if (dom.glowingOrb) {
+                    dom.glowingOrb.addEventListener('click', () => {
+                        dom.gotoSubmenu.classList.toggle('active');
+                    });
+                }
+                if (dom.gotoSubmenu) {
+                    dom.gotoSubmenu.querySelectorAll('button').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const tabId = e.target.dataset.tabTarget;
+                            document.querySelector(`.tab-btn[data-tab="${tabId}"]`).click();
+                            dom.gotoSubmenu.classList.remove('active'); // Hide submenu after click
+                        });
+                    });
+                }
+            }
+
+            // Function to set up the chat resizer
+            function setupChatResizer() {
+                let isResizing = false;
+                const chatLog = dom.chatLog;
+                const resizer = dom.resizerHandle;
+
+                if (!chatLog || !resizer) {
+                    console.error("Chat log or resizer handle not found for setup.");
+                    return;
+                }
+
+                let startY, startHeight;
+
+                resizer.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    startY = e.clientY;
+                    startHeight = chatLog.offsetHeight;
+                    document.addEventListener('mousemove', doMouseMove);
+                    document.addEventListener('mouseup', doMouseUp);
+                    document.body.style.cursor = 'ns-resize';
+                    chatLog.style.userSelect = 'none';
+                    chatLog.style.pointerEvents = 'none';
+                });
+
+                function doMouseMove(e) {
+                    if (!isResizing) return;
+                    const newHeight = startHeight + (e.clientY - startY);
+                    const minHeight = 100;
+                    const maxHeight = window.innerHeight * 0.6; // Max 60% of viewport height
+                    chatLog.style.height = `${Math.min(Math.max(newHeight, minHeight), maxHeight)}px`;
+                }
+
+                function doMouseUp() {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', doMouseMove);
+                    document.removeEventListener('mouseup', doMouseUp);
+                    document.body.style.cursor = '';
+                    chatLog.style.userSelect = '';
+                    chatLog.style.pointerEvents = '';
+                }
+            }
+
+            function generateAgentGreeting(agent) {
+                switch (agent.name) {
+                    case "LYRA": return "Hello! I am LYRA, The Architect. How can I help you structure your next big idea?";
+                    case "KARA": return "Greetings! KARA, The Builder, is ready. What can we construct together?";
+                    case "SOPHIA": return "Hello. SOPHIA, The Guardian, is here. Let's ensure your systems are robust and secure.";
+                    case "CECILIA": return "Welcome! I am CECILIA, The Documentarian. How can I help you share knowledge effectively?";
+                    case "DAN": return "Hi there! DAN, The Analyst, is on standby. What data insights are we seeking today?";
+                    case "STAN": return "Good day. STAN, The Traditionalist, is ready. Let's build upon proven patterns.";
+                    case "DUDE": return "Hey! DUDE, The User Advocate, is here. How can we make the user experience exceptional?";
+                    case "KARL": return "Innovator KARL reporting for duty! What new frontiers shall we explore?";
+                    case "MISTRESS": return "Greetings. MISTRESS, The Orchestrator, is at your service. Let's bring harmony to your workflows.";
+                    default: return `Hello, I am ${agent.name}. How can I assist you today?`;
+                }
+            }
+
+            async function selectAgent(agent) {
+                currentSession = { agent, chatHistory: [] }; // Reset chat history for new agent
+                dom.agentDetails.style.display = 'block';
+
+                // Get the background color for the selected agent card
+                const agentCardIndex = agentData.findIndex(a => a.name === agent.name);
+                const agentBgColor = getCardBackgroundColor(agentCardIndex);
+                const agentTextColor = getContrastingTextColor(agentBgColor); // This will now always be black
+
+                const newAgentDetailsHtml = `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-shrink-0 text-center">
+                               <div class="w-24 h-24 rounded-full" style="background-color: ${agentTextColor}; color: ${agentBgColor}; display: flex; align-items: center; justify-content: center; margin: auto; border: 2px solid ${agentBgColor};"><span class="text-4xl font-bold">${agent.name.charAt(0)}</span></div>
+                               <h2 class="text-2xl font-bold mt-2" style="color: ${agentTextColor};">${agent.name}</h2><p style="color: ${agentTextColor};">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic border-l-4 pl-4" style="color: ${agentTextColor}; border-color: ${agentTextColor};">"${agent.philosophy}"</p>
+                            <h4 class="text-lg font-semibold mt-4 mb-2" style="color: ${agentTextColor};">Primary Focus Areas:</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${agent.focus_areas.map(area => `<span style="background-color: ${agentTextColor}; color: ${agentBgColor};" class="text-xs font-medium px-2.5 py-1 rounded-full">${area}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div id="agent-chat-container" class="mt-6 flex flex-col h-[400px] p-4 rounded-lg shadow-inner" style="background-color: ${agentBgColor};">
+                        <div id="chat-log" class="space-y-4 overflow-y-auto p-2 flex-grow min-h-0"></div>
+                        <div class="resizer-handle"></div> <!-- Resizer Handle -->
+                        <form id="chat-form" class="flex gap-2 flex-shrink-0 mt-2">
+                            <input type="text" id="chat-input" class="flex-grow border rounded-lg p-3" style="background-color: ${agentTextColor}; color: ${agentBgColor}; border-color: ${agentTextColor};" placeholder="Ask a question or provide a task..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                        </form>
+                        <div class="flex justify-end mt-2 flex-shrink-0">
+                            <button type="button" id="generate-hint-btn" class="font-bold p-2 rounded-lg text-sm w-48" style="background-color: ${agentTextColor}; color: ${agentBgColor};">Generate Hint</button>
+                        </div>
+                        <div id="hint-display-area" class="col-span-1 p-4 rounded-lg space-y-2" style="background-color: ${agentBgColor};">
+                            <h5 class="font-bold text-md mb-2" style="color: ${agentTextColor};">Next Steps & Insights</h5>
+                            <div id="hint-cards-container" class="space-y-3">
+                                <!-- Hint cards will be dynamically inserted here -->
+                            </div>
+                        </div>
+                    </div>`;
+                dom.agentDetails.innerHTML = newAgentDetailsHtml;
+                
+                // Use requestAnimationFrame for more reliable DOM readiness
+                requestAnimationFrame(async () => {
+                    requestAnimationFrame(async () => { // Double rAF often ensures elements are painted
+                        console.log("Attempting to cache elements and attach listeners after double rAF.");
+
+                        dom.chatLog = dom.agentDetails.querySelector('#chat-log');
+                        dom.resizerHandle = dom.agentDetails.querySelector('#agent-chat-container .resizer-handle');
+                        dom.chatInput = dom.agentDetails.querySelector('#chat-input');
+                        dom.sendBtn = dom.agentDetails.querySelector('#send-btn');
+                        dom.generateHintBtn = dom.agentDetails.querySelector('#generate-hint-btn');
+                        dom.taskBriefInput = dom.agentDetails.querySelector('#task-brief-input');
+                        dom.connectAgentSelect = dom.agentDetails.querySelector('#connect-agent-select');
+                        dom.connectAgentBtn = dom.agentDetails.querySelector('#connect-agent-btn');
+                        dom.hintCardsContainer = dom.agentDetails.querySelector('#hint-cards-container');
+                        dom.chatForm = dom.agentDetails.querySelector('#chat-form');
+
+                        // Add event listeners for the new buttons, with null checks
+                        // Using event delegation for form submission and buttons within agentDetails
+                        if (dom.agentDetails) {
+                            dom.agentDetails.addEventListener('submit', (e) => {
+                                if (e.target && e.target.id === 'chat-form') {
+                                    e.preventDefault();
+                                    handleUserMessage();
+                                }
+                            });
+                            dom.agentDetails.addEventListener('click', (e) => {
+                                // Use closest to check if the clicked element or its parent is one of our buttons
+                                if (e.target.closest('#generate-hint-btn')) {
+                                    handleGenerateHint();
+                                } else if (e.target.closest('#initiate-task-btn')) {
+                                    handleInitiateTask();
+                                } else if (e.target.closest('#connect-agent-btn')) {
+                                    handleConnectAgents();
+                                } else if (e.target.closest('.hint-card-user-prompt')) { // Clickable hint card
+                                    const hintText = e.target.closest('.hint-card-user-prompt').querySelector('.hint-text').textContent;
+                                    dom.chatInput.value = hintText;
+                                    dom.chatInput.focus();
+                                    dom.chatInput.dataset.isSuggestion = 'true'; // Set flag for suggestion-based input
+                                }
+                            });
+                        } else {
+                            console.error("Error: dom.agentDetails element not found for event delegation.");
+                        }
+
+                        // Only call setupChatResizer if chatLog and resizerHandle are found
+                        if (dom.chatLog && dom.resizerHandle) {
+                            setupChatResizer();
+                        } else {
+                            console.error("Error: chatLog or resizerHandle not found for setupChatResizer after double rAF.");
+                        }
+
+                        // Load chat history for the selected agent
+                        currentSession.chatHistory = await getChatHistoryFromIndexedDB(agent.name);
+                        currentSession.chatHistory.forEach(msg => {
+                            // Render historical messages without saving them again
+                            addMessageToLog(msg.sender, msg.message, false, msg.isSuggestion);
+                        });
+
+                        const greeting = generateAgentGreeting(agent);
+                        addMessageToLog('ai', greeting);
+                    });
+                });
+            }
+                                
+            function addMessageToLog(sender, message, save = true, isSuggestion = false) {
+                const chatLog = dom.chatLog; // Use cached dom.chatLog
+                if (!chatLog) return;
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+                const messageBubble = document.createElement('div');
+                messageBubble.classList.add('chat-bubble');
+                messageBubble.style.backgroundColor = '#000000'; // Black background for all chat bubbles
+
+                // Apply specific neon text color based on sender
+                if (sender === 'ai') {
+                    messageBubble.style.color = '#00FFFF'; // Cyan for AI
+                } else if (sender === 'user') {
+                    messageBubble.style.color = '#FF6EC7'; // Hot Pink for User
+                }
+                
+                messageBubble.innerHTML = marked.parse(message); // Use marked.parse for markdown support
+
+                chatLog.appendChild(messageWrapper);
+                messageWrapper.appendChild(messageBubble);
+                chatLog.scrollTop = chatLog.scrollHeight;
+                
+                if (save) {
+                    const msgToSave = { agentName: currentSession.agent.name, sender, message, isSuggestion };
+                    currentSession.chatHistory.push(msgToSave); // Add to session history
+                    saveMessageToIndexedDB(msgToSave); // Save to IndexedDB
+                }
+            }
+
+            // Function to clear all hints in the dedicated display area
+            function clearHints() {
+                if (dom.hintCardsContainer) {
+                    dom.hintCardsContainer.innerHTML = ''; // Clear all hint cards
+                }
+            }
+
+            // New function to display hints as cards
+            function displayHintsAsCards(userPromptSuggestion, aiHint, systemSuggestion) {
+                clearHints(); // Clear previous hints before displaying new ones
+
+                // Hint cards now always have black background and neon green text
+                const hintCardBgColor = '#000000'; // Black
+                const hintCardTextColor = '#39FF14'; // Neon Green
+
+                if (userPromptSuggestion) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-user-prompt cursor-pointer'; // Make it clickable
+                    card.style.backgroundColor = hintCardBgColor;
+                    card.style.color = hintCardTextColor;
+                    card.innerHTML = `<p class="hint-type" style="color: ${hintCardTextColor};">User Prompt Suggestion:</p><p class="hint-text" style="color: ${hintCardTextColor};">${marked.parse(userPromptSuggestion)}</p>`;
+                    dom.hintCardsContainer.appendChild(card);
+                }
+                if (aiHint) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-ai-hint';
+                    card.style.backgroundColor = hintCardBgColor;
+                    card.style.color = hintCardTextColor;
+                    card.innerHTML = `<p class="hint-type" style="color: ${hintCardTextColor};">AI Hint:</p><p class="hint-text" style="color: ${hintCardTextColor};">${marked.parse(aiHint)}</p>`;
+                    dom.hintCardsContainer.appendChild(card);
+                }
+                if (systemSuggestion) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-system-suggestion';
+                    card.style.backgroundColor = hintCardBgColor;
+                    card.style.color = hintCardTextColor;
+                    card.innerHTML = `<p class="hint-type" style="color: ${hintCardTextColor};">System Suggestion:</p><p class="hint-text" style="color: ${hintCardTextColor};">${marked.parse(systemSuggestion)}</p>`;
+                    dom.hintCardsContainer.appendChild(card);
+                }
+            }
+
+            async function handleUserMessage() {
+                const message = dom.chatInput.value.trim();
+                if (!message) return;
+
+                const isSuggestionBased = !!dom.chatInput.dataset.isSuggestion;
+                addMessageToLog('user', message, true, isSuggestionBased);
+                dom.chatInput.value = '';
+                dom.chatInput.removeAttribute('data-is-suggestion'); // Reset flag
+                clearHints(); // Clear previous hints
+
+                dom.sendBtn.disabled = true;
+                dom.sendBtn.innerHTML = '<div class="loader"></div>';
+
+                const agent = currentSession.agent;
+                
+                const comprehensiveResponseSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                // Construct chat history for the LLM
+                // Include a meta-comment if the user's input was based on a suggestion
+                const chatHistoryForLLM = currentSession.chatHistory.map(msg => ({
+                    role: msg.sender === 'user' ? 'user' : 'model',
+                    parts: [{ text: `${msg.message}${msg.isSuggestion ? " (User's input was based on a previous AI suggestion.)" : ""}` }]
+                }));
+
+                let fullPromptForAI = `As the AI agent "${agent.name}", with the role of "${agent.role}" and the philosophy "${agent.philosophy}", respond to the user's message in a helpful, conversational way. Your specific focus areas are: ${agent.focus_areas.join(', ')}. Do not use any numbered lists in your primary response unless the user explicitly requests a numbered list. Treat any numbers in the user's message as part of their natural language, not as a request for a numbered response.
+
+                After your primary response, also provide the following as separate fields in the JSON output:
+                -   A 'user_prompt_suggestion' (a concise subject or topic, 1-2 sentences): This should be a direct, actionable natural language input the user could type next to continue the conversation or explore a suggested path.
+                -   A 'ai_hint' (a detailed explanation, 2-4 sentences): This should be a detailed, contextual explanation or follow-up from the AI's perspective, providing deeper insight related to its core capabilities.
+                -   A 'system_suggestion' (a comprehensive strategic insight, 3-5 sentences): This should be a comprehensive, strategic system-level suggestion for the user's next action within the CUA Engine, guiding them towards more complex or optimal workflows, perhaps suggesting a specific orchestration or a different agent. When generating system suggestions, consider how this relates to the CUA Engine's overall workflow, available tools, or CLI commands (like those in a cheatsheet).
+
+                Ensure none of these hints or suggestions use numbered lists unless explicitly requested by the user.
+                User Message: "${message}"`;
+
+                // Add the current user message to the chat history for this specific LLM call
+                chatHistoryForLLM.push({ role: "user", parts: [{ text: fullPromptForAI }] });
+
+                const aiResult = await invokeLLM(chatHistoryForLLM, comprehensiveResponseSchema);
+
+                if (aiResult.success) {
+                    addMessageToLog('ai', aiResult.data.text);
+                    
+                    // Display hints in the dedicated area as cards
+                    displayHintsAsCards(
+                        aiResult.data.user_prompt_suggestion,
+                        aiResult.data.ai_hint,
+                        aiResult.data.system_suggestion
+                    );
+
+                } else {
+                    const errorMessage = `I apologize, but I encountered an error.\n\n**Details:** ${aiResult.error}`;
+                    addMessageToLog('ai', errorMessage);
+                    showError(aiResult.error, "API Communication Error");
+                }
+
+                dom.sendBtn.disabled = false;
+                dom.sendBtn.innerHTML = 'Send';
+            }
+
+            async function handleGenerateHint() {
+                if (!currentSession.agent) {
+                    showError("Please select an AI agent first to generate a hint.", "No Agent Selected");
+                    return;
+                }
+
+                dom.generateHintBtn.disabled = true;
+                dom.generateHintBtn.innerHTML = '<div class="loader"></div>';
+                clearHints(); // Clear previous hints
+
+                const lastMessages = currentSession.chatHistory.slice(-5).map(msg => `${msg.sender}: ${msg.message}${msg.isSuggestion ? " (User's input was based on a previous AI suggestion.)" : ""}`).join('\n'); // Use more history for context and pass suggestion flag
+                
+                const comprehensiveResponseSchema = { // Use the same schema for generate hint
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" }, // This 'text' field might not be directly used for display but is part of the schema
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["user_prompt_suggestion"] // Only user_prompt_suggestion is strictly required for this button
+                };
+
+                // Enhanced prompt for user-initiated hint to generate all three types
+                const hintPrompt = `Given the current conversation context with ${currentSession.agent.name} (last messages: "${lastMessages}"), provide a concise 'user_prompt_suggestion' (a direct, actionable natural language input the user could type next, 1-2 sentences). Also, provide a detailed 'ai_hint' (a contextual explanation from the AI's perspective, 2-4 sentences) and a comprehensive, strategic 'system_suggestion' (a system-level recommendation, 3-5 sentences). When generating system suggestions, consider how this relates to the CUA Engine's overall workflow, available tools, or CLI commands (like those in a cheatsheet). Do not use any numbered lists in your responses.`;
+                
+                const hintResult = await invokeLLM([{ role: "user", parts: [{ text: hintPrompt }] }], comprehensiveResponseSchema);
+
+                if (hintResult.success) {
+                    displayHintsAsCards(
+                        hintResult.data.user_prompt_suggestion,
+                        hintResult.data.ai_hint,
+                        hintResult.data.system_suggestion
+                    );
+                } else if (hintResult.error) {
+                    showError(`Failed to generate hint: ${hintResult.error}`, "Hint Generation Error");
+                }
+
+                dom.generateHintBtn.disabled = false;
+                dom.generateHintBtn.innerHTML = 'Generate Hint';
+            }
+
+            async function handleInitiateTask() {
+                const brief = dom.taskBriefInput.value.trim();
+                if (!brief) {
+                    showError("Please provide a brief for the task.", "Input Required");
+                    return;
+                }
+                if (!currentSession.agent) {
+                    showError("Please select an AI agent first.", "No Agent Selected");
+                    return;
+                }
+
+                dom.initiateTaskBtn.disabled = true;
+                dom.initiateTaskBtn.innerHTML = '<div class="loader"></div>';
+                clearHints(); // Clear previous hints
+
+                const taskExecutionSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                const taskPrompt = `Simulate the initiation of a task for ${currentSession.agent.name} (${currentSession.agent.role}) with the brief: "${brief}". Describe the initial steps the agent would take, how it aligns with its philosophy and focus areas. This simulation should highlight a typical AI-to-AI handoff or orchestrated action. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences) for the user's next action related to this task. When generating system suggestions, consider how this relates to the CUA Engine's overall workflow, available tools, or CLI commands (like those in a cheatsheet). Do not use any numbered lists in your response.`;
+
+                const result = await invokeLLM([{ role: "user", parts: [{ text: taskPrompt }] }], taskExecutionSchema);
+
+                if (result.success) {
+                    addMessageToLog('ai', `**Task Initiated for ${currentSession.agent.name}:** ${result.data.text}`);
+                    displayHintsAsCards(
+                        result.data.user_prompt_suggestion,
+                        result.data.ai_hint,
+                        result.data.system_suggestion
+                    );
+                } else {
+                    showError(`Task initiation failed: ${result.error}`, "Task Execution Error");
+                }
+
+                dom.initiateTaskBtn.disabled = false;
+                dom.initiateTaskBtn.innerHTML = 'Initiate Task';
+                dom.taskBriefInput.value = '';
+            }
+
+            async function handleConnectAgents() {
+                const targetAgentName = dom.connectAgentSelect.value;
+                if (!targetAgentName) {
+                    showError("Please select an agent to connect with.", "Selection Required");
+                    return;
+                }
+                if (!currentSession.agent) {
+                    showError("Please select a primary AI agent first.", "No Primary Agent Selected");
+                    return;
+                }
+
+                dom.connectAgentBtn.disabled = true;
+                dom.connectAgentBtn.innerHTML = '<div class="loader"></div>';
+                clearHints(); // Clear previous hints
+
+                const connectAgentsSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                const targetAgent = agentData.find(a => a.name === targetAgentName);
+                const connectPrompt = `Simulate a collaborative connection between ${currentSession.agent.name} (${currentSession.agent.role}) and ${targetAgent.name} (${targetAgent.role}). Describe how they would typically interact given their roles and focus areas, and what a potential joint task might involve. Emphasize this as a direct AI-to-AI communication. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_hint' (3-5 sentences) for a follow-up for the user. Do not use any numbered lists in your response.`;
+                const result = await invokeLLM([{ role: "user", parts: [{ text: connectPrompt }] }], connectAgentsSchema);
+
+                if (result.success) {
+                    addMessageToLog('ai', `**Connecting ${currentSession.agent.name} with ${targetAgent.name}:** ${result.data.text}`);
+                    displayHintsAsCards(
+                        result.data.user_prompt_suggestion,
+                        result.data.ai_hint,
+                        result.data.system_suggestion
+                    );
+                } else {
+                    showError(`Agent connection failed: ${result.error}`, "Connection Error");
+                }
+
+                dom.connectAgentBtn.disabled = false;
+                dom.connectAgentBtn.innerHTML = 'Connect Agents';
+                dom.connectAgentSelect.value = ''; // Reset dropdown
+            }
+
+            function showError(message, title = "Error") {
+                dom.errorMessage.textContent = message;
+                dom.errorTitle.textContent = title;
+                dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.includes('Success') || title.includes('Validating') ? 'text-green-500' : 'text-red-500'}`;
+                dom.errorModal.classList.remove('hidden');
+            }
+            
+            async function invokeLLM(chatHistory, responseSchema, retries = 5, delay = 2000) { 
+                   const apiKey = apiKeys.gemini; // Use the stored Gemini API key
+                   const modelName = 'gemini-2.0-flash'; 
+                   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+                   if (!apiKey) {
+                       return { success: false, error: "Gemini API Key is not set. Please set it in the Inference tab." };
+                   }
+
+                   const payload = {
+                       contents: chatHistory,
+                       generationConfig: {
+                           responseMimeType: "application/json",
+                           responseSchema: responseSchema
+                       }
+                   };
+
+                   for (let i = 0; i < retries; i++) {
+                       try {
+                           const response = await fetch(apiUrl, {
+                               method: 'POST',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify(payload)
+                           });
+
+                           // Attempt to read response as text first for robust debugging
+                           const responseText = await response.text(); 
+                           
+                           if (!response.ok) {
+                               let errorData;
+                               try {
+                                   errorData = JSON.parse(responseText);
+                               } catch (e) {
+                                   errorData = { error: { message: `Non-JSON error response: ${responseText}` } };
+                               }
+                               const errorMsg = errorData.error?.message || `HTTP Error: ${response.statusText}. Raw response: ${responseText}`;
+                               if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
+                                   console.warn(`Retrying LLM call due to transient error (Status: ${response.status}). Attempt ${i + 1}/${retries}. Error: ${errorMsg}`);
+                                   await new Promise(res => setTimeout(res, delay * Math.pow(2, i))); // Exponential backoff
+                                   continue; // Try again
+                               }
+                               throw new Error(errorMsg); // Non-retryable error
+                           }
+                           
+                           let data;
+                           try {
+                               data = JSON.parse(responseText); // Parse the text response
+                           } catch (jsonError) {
+                               throw new Error(`Failed to parse JSON response from API: ${jsonError.message}. Raw: ${responseText}`);
+                           }
+
+                           if (!data.candidates || data.candidates.length === 0) {
+                               if (data.promptFeedback && data.promptFeedback.blockReason) {
+                                   throw new Error(`Request blocked due to: ${data.promptFeedback.blockReason}. Raw: ${responseText}`);
+                               }
+                               throw new Error("API returned no candidates. This could be due to content filtering. Raw: " + responseText);
+                           }
+
+                           // The actual LLM generated content is usually in the first part of the first candidate
+                           const llmResponseContentPart = data.candidates[0].content.parts.find(p => p.text);
+                           if (!llmResponseContentPart) {
+                               throw new Error("LLM response missing text content part. Raw: " + responseText);
+                           }
+                           const llmResponseContent = llmResponseContentPart.text;
+
+                           try {
+                               const parsedJson = JSON.parse(llmResponseContent);
+                               return { success: true, data: parsedJson };
+                           } catch (jsonError) {
+                               // This catch is for the inner JSON parsing (LLM's structured output)
+                               throw new Error(`LLM's output is not valid JSON: ${jsonError.message}. Raw LLM output: ${llmResponseContent}`);
+                           }
+
+                       } catch (error) {
+                           if (i === retries - 1) { // Last retry failed
+                               return { success: false, error: error.message };
+                           }
+                           // For transient network errors, just log and retry
+                           console.error(`LLM call failed (attempt ${i + 1}/${retries}):`, error.message);
+                           await new Promise(res => setTimeout(res, delay * Math.pow(2, i))); // Exponential backoff
+                       }
+                   }
+                   return { success: false, error: "Max retries exceeded for LLM call." }; // Should not be reached if retries > 0
+            }
+
+            // This is a placeholder for the Orchestration tab's output.
+            // It does not affect the agent chat's hint display logic.
+            async function executeChainedBookmark(bookmark, initialBrief) {
+                // This function is for the "A3 MANIFEST" Orchestration tab (not implemented in this version)
+                // and is kept as a placeholder.
+                showError("Orchestration execution is not fully implemented in this interactive guide version.", "Feature Not Available");
+            }
+            
+            // CLI (AJENTIC NEXUS) related variables and functions (kept for completeness, but not directly used by new AI Family features)
+            let term;
+            let fitAddon;
+            let currentCommand = '';
+            let commandHistory = [];
+            let commandIndex = 0;
+
+            function setupTerminal() {
+                const terminalContainer = document.getElementById('terminal-container');
+                if (!terminalContainer) return; // Ensure element exists
+
+                fitAddon = new FitAddon.Fiton();
+                term = new Terminal({
+                    cursorBlink: true, convertEol: true, fontFamily: `'Roboto Mono', monospace`,
+                    theme: { background: '#000000', foreground: '#00FF00', cursor: 'rgba(0, 255, 0, 0.5)' }
+                });
+                term.loadAddon(fitAddon);
+                term.open(terminalContainer);
+                fitAddon.fit();
+                
+                term.prompt = () => { term.write('\r\n\x1b[36mCUAG> \x1b[0m'); };
+                term.writeln('Welcome to the CUAG Agent CLI v2. Type \x1b[32mhelp\x1b[0m for commands.');
+                term.prompt();
+
+                term.onKey(({ key, domEvent }) => {
+                    const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+                    if (domEvent.keyCode === 13) { // Enter
+                        if (currentCommand.trim().length > 0) {
+                            term.writeln('');
+                            commandHistory.push(currentCommand);
+                            commandIndex = commandHistory.length;
+                            handleCliCommand(currentCommand);
+                            currentCommand = '';
+                        } else {
+                           term.prompt();
+                        }
+                    } else if (domEvent.keyCode === 8) { // Backspace
+                        if (term.buffer.active.cursorX > 7) { // 7 is the length of "CUAG> "
+                            currentCommand = currentCommand.slice(0, -1);
+                            term.write('\b \b');
+                        }
+                    } else if (domEvent.keyCode === 38) { // Up arrow
+                        if (commandIndex > 0) {
+                            commandIndex--;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = commandHistory[commandIndex];
+                            term.write(currentCommand);
+                        }
+                    } else if (domEvent.keyCode === 40) { // Down arrow
+                        if (commandIndex < commandHistory.length - 1) {
+                            commandIndex++;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = commandHistory[commandIndex];
+                            term.write(currentCommand);
+                        } else if (commandIndex === commandHistory.length - 1) { // Last command, clear
+                            commandIndex = commandHistory.length;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = '';
+                        }
+                    }
+                    else if (printable) {
+                        currentCommand += key;
+                        term.write(key);
+                    }
+                });
+            }
+
+            async function handleCliCommand(command) {
+                const parts = command.trim().split(/\s+/);
+                const cmd = parts[0].toLowerCase();
+                const args = parts.slice(1);
+
+                // Schema for CLI responses with hints
+                const cliResponseSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_hint": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                switch (cmd) {
+                    case 'help':
+                        term.writeln('\x1b[32mCUA Orchestration Engine CLI Help:\x1b[0m');
+                        term.writeln('  \x1b[33mdelegate <AGENT> "<PROMPT>"\x1b[0m - Delegates a task to an agent using the default Gemini LLM.');
+                        term.writeln('  \x1b[33mconnect <AGENT1> <AGENT2>\x1b[0m - Simulates a connection between two agents.');
+                        term.writeln('  \x1b[33mparser <TRIGGER_PHRASE>\x1b[0m - Parses a trigger phrase using A2A rules.');
+                        term.writeln('  \x1b[33mclear\x1b[0m - Clears the terminal screen.');
+                        term.writeln('  \x1b[33mexit\x1b[0m - Exits the CLI (does nothing in this simulation).');
+                        break;
+
+                    case 'delegate':
+                        if (args.length < 2) {
+                            term.writeln('\x1b[31mError: Usage: delegate <AGENT> "<PROMPT>"\x1b[0m');
+                        } else {
+                            const agentName = args[0].toUpperCase();
+                            const agent = agentData.find(a => a.name === agentName);
+                            const promptMatch = command.match(/"(.*?)"/);
+
+                            if (!agent) {
+                                term.writeln(`\x1b[31mError: Agent "${agentName}" not found.\x1b[0m`);
+                            } else if (!promptMatch) {
+                                term.writeln(`\x1b[31mError: Prompt must be enclosed in double quotes.\x1b[0m`);
+                            } else {
+                                const userPrompt = promptMatch[1];
+                                let fullPrompt = `You are an AI assistant acting as the agent "${agent.name}". Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Your primary focus areas are: ${agent.focus_areas.join(', ')}. Do not use any numbered lists in your primary response unless the user explicitly requests a numbered list. Treat any numbers in the user's message as part of their natural language, not as a request for a numbered response.
+
+                                After your primary response, also provide the following as separate fields in the JSON output:
+                                -   A 'user_prompt_suggestion' (a concise subject or topic, 1-2 sentences): This should be a direct, actionable natural language input the user could type next to continue the conversation or explore a suggested path.
+                                -   A 'ai_hint' (a detailed explanation, 2-4 sentences): This should be a detailed, contextual explanation or follow-up from the AI's perspective, providing deeper insight related to its core capabilities.
+                                -   A 'system_hint' (a comprehensive strategic insight, 3-5 sentences): This should be a comprehensive, strategic system-level suggestion for the user's next action within the CUA Engine, guiding them towards more complex or optimal workflows, perhaps suggesting a specific orchestration or a different agent.
+
+                                Ensure none of these hints or suggestions use numbered lists unless explicitly requested by the user.
+                                User Request: "${userPrompt}"`;
+
+                                term.writeln(`\x1b[36mDelegating to ${agentName} via Gemini...\x1b[0m`);
+                                const result = await invokeLLM([{ role: "user", parts: [{ text: fullPrompt }] }], cliResponseSchema); 
+
+                                if(result.success) {
+                                    term.writeln(`\x1b[32m--- Response from ${agentName} (via Gemini) ---\x1b[0m`);
+                                    term.writeln(result.data.text);
+                                    if (result.data.user_prompt_suggestion) {
+                                        term.writeln(`\x1b[36mTry: ${result.data.user_prompt_suggestion}\x1b[0m`);
+                                    }
+                                    if (result.data.ai_hint) {
+                                        term.writeln(`\x1b[35mAI Hint: ${result.data.ai_hint}\x1b[0m`); 
+                                    }
+                                    if (result.data.system_hint) {
+                                        term.writeln(`\x1b[38;5;129mSystem Suggestion: ${result.data.system_hint}\x1b[0m`); // A different color for system hint
+                                    }
+                                    term.writeln(`\x1b[32m--- End of Response ---\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mDelegation failed: ${result.error}\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+                    
+                    case 'connect':
+                        if (args.length !== 2) {
+                            term.writeln('\x1b[31mError: Usage: connect <AGENT1> <AGENT2>\x1b[0m');
+                        } else {
+                            const agent1Name = args[0].toUpperCase();
+                            const agent2Name = args[1].toUpperCase();
+                            const agent1 = agentData.find(a => a.name === agent1Name);
+                            const agent2 = agentData.find(a => a.name === agent2Name);
+
+                            if (!agent1 || !agent2) {
+                                term.writeln(`\x1b[31mError: One or both agents not found. Agents must be from the AI Family.\x1b[0m`);
+                            } else {
+                                term.writeln(`\x1b[34mEstablishing secure A2A connection between ${agent1.name} and ${agent2.name}...\x1b[0m`);
+                                const connectionPrompt = `Simulate a brief, collaborative dialogue between ${agent1.name} (${agent1.role}) and ${agent2.name} (${agent2.role}). They are discussing a task related to their focus areas (${currentSession.agent.focus_areas.join(', ')} and ${targetAgent.focus_areas.join(', ')}). Provide a summary of their interaction. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_hint' (3-5 sentences) for a follow-up for the user. Do not use any numbered lists in your response.`;
+                                const result = await invokeLLM([{ role: "user", parts: [{ text: connectionPrompt }] }], cliResponseSchema); 
+                                if(result.success) {
+                                    term.writeln(`\x1b[32m--- A2A Connection Log ---\x1b[0m`);
+                                    term.writeln(result.data.text);
+                                    if (result.data.user_prompt_suggestion) {
+                                        term.writeln(`\x1b[36mTry: ${result.data.user_prompt_suggestion}\x1b[0m`);
+                                    }
+                                    if (result.data.ai_hint) {
+                                        term.writeln(`\x1b[35mAI Hint: ${result.data.ai_hint}\x1b[0m`);
+                                    }
+                                    if (result.data.system_hint) {
+                                        term.writeln(`\x1b[38;5;129mSystem Suggestion: ${result.data.system_hint}\x1b[0m`);
+                                    }
+                                    term.writeln(`\x1b[32m--- End of A2A Log ---\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mConnection simulation failed: ${result.error}\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+
+                    case 'parser':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: Usage: parser "<TRIGGER_PHRASE>"\x1b[0m');
+                        } else {
+                            const triggerPhraseMatch = command.match(/"(.*?)"/);
+                            if (!triggerPhraseMatch) {
+                                term.writeln(`\x1b[31mError: Trigger phrase must be enclosed in double quotes.\x1b[0m`);
+                            } else {
+                                const trigger = triggerPhraseMatch[1].toLowerCase();
+                                const rule = a2aParserRules.find(r => r.trigger.toLowerCase() === trigger);
+                                if (rule) {
+                                    term.writeln(`\x1b[32mParsed: "${trigger}" -> Command: "${rule.command}"\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mNo A2A rule found for trigger: "${trigger}"\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+
+                    case 'clear':
+                        term.clear();
+                        term.writeln('Terminal cleared.');
+                        break;
+
+                    case 'exit':
+                        term.writeln('\x1b[33mExiting CLI. Session remains active.\x1b[0m');
+                        break;
+
+                    default:
+                        term.writeln(`\x1b[31mError: Unknown command "${cmd}". Type 'help' for a list of commands.\x1b[0m`);
+                }
+                term.prompt();
+            }
+            
+            return { 
+                start: init
+            };
+        })();
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            CUA_App.start();
+        });
+    </script>
+</body>
+</html>

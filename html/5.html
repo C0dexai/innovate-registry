@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive AI Family Orchestration Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #004d40 0%, #01579b 100%); /* Saturated Blue-Teal Gradient */
+            color: #e0f7fa; /* Light cyan text for contrast */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tab-btn {
+            transition: color 0.3s ease, border-color 0.3s ease;
+            border-bottom: 3px solid transparent;
+            color: #b0bec5;
+        }
+        .tab-btn.active {
+            border-color: #4dd0e1; /* Bright Cyan Accent */
+            color: #4dd0e1;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card, .accordion-button, .workflow-step, .cicd-step {
+            background-color: rgba(13, 71, 161, 0.3); /* Translucent Deep Blue for "Metal Storage" feel */
+            border: 1px solid rgba(77, 208, 225, 0.4); /* Cyan border */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover, .accordion-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(77, 208, 225, 0.15);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+            background-color: rgba(1, 87, 155, 0.2);
+            border: 1px solid rgba(77, 208, 225, 0.4);
+            border-top: none;
+        }
+        .accordion-content.open {
+            max-height: 500px;
+        }
+        .accordion-button svg {
+            transition: transform 0.3s ease;
+        }
+        .accordion-button.open svg {
+            transform: rotate(180deg);
+        }
+        .workflow-stage.highlight .workflow-step {
+            border-color: #4dd0e1;
+            box-shadow: 0 4px 15px rgba(77, 208, 225, 0.2);
+        }
+        .code-block {
+            background-color: #00251a; /* Very Dark Teal */
+            color: #e0f7fa;
+            border: 1px solid rgba(77, 208, 225, 0.4);
+        }
+        .code-block .token-key { color: #80deea; }
+        .code-block .token-string { color: #ffab40; }
+        .code-block .token-comment { color: #546e7a; }
+        /* Text color overrides for new background */
+        .text-gray-800 { color: #ffffff; }
+        .text-gray-600 { color: #b0bec5; }
+        .text-gray-500 { color: #90a4ae; }
+        .text-blue-600 { color: #4dd0e1; }
+        .border-gray-200 { border-color: rgba(77, 208, 225, 0.4); }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- 
+    Chosen Palette: Saturated Blue Teal
+    Application Structure Plan: The SPA uses a tabbed navigation model to thematically organize the dense orchestration plan. This non-linear structure allows users to explore sections based on their interests (e.g., high-level overview, deep API specs, CI/CD flow) without being forced through a linear document. Key sections are: Overview (introducing agents and concepts), Orchestration Flow (visualizing the YAML workflow), API & Services (detailing endpoints in an interactive accordion), CI/CD Pipeline (a step-by-step diagram), and Roadmap (outlining future plans). This design prioritizes user-driven exploration and clarity over mirroring the report's structure.
+    Visualization & Content Choices: 
+    - Report Info: AI Family Roles -> Goal: Inform -> Viz: Interactive Cards -> Interaction: Click-to-reveal details -> Justification: Breaks down team structure into digestible, engaging chunks. (HTML/CSS)
+    - Report Info: YAML Workflow Definition -> Goal: Organize/Explain -> Viz: Multi-column Step Diagram -> Interaction: Click stage to highlight corresponding steps & code -> Justification: Visually deconstructs the complex workflow logic, connecting the abstract plan to a concrete example. (HTML/CSS/JS)
+    - Report Info: API Endpoints -> Goal: Detail Technical Specs -> Viz: Accordion List -> Interaction: Click to expand/collapse endpoint details -> Justification: Manages information density, allowing users to drill down into specific API calls without cluttering the UI. (HTML/CSS/JS)
+    - Report Info: CI/CD Process -> Goal: Show Change Flow -> Viz: Horizontal Step Diagram -> Interaction: Hover for tooltips -> Justification: Provides a clear, linear visualization of the automated deployment lifecycle. (HTML/CSS)
+    - Report Info: Future Plans -> Goal: Inform -> Viz: Titled Content Sections -> Interaction: Static text -> Justification: Clearly presents future-state goals without needing complex interaction. (HTML/CSS)
+    CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">AI Family Orchestration Platform</h1>
+            <p class="mt-4 text-lg text-blue-100 max-w-3xl mx-auto">An interactive guide to the intelligent service layer coordinating the AI Family ecosystem. Explore the architecture, workflows, and APIs.</p>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="flex justify-center border-b border-blue-800 mb-8">
+            <button class="tab-btn active text-lg font-semibold py-4 px-6" data-tab="overview">Overview</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="orchestration">Orchestration Flow</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="api">API & Services</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="cicd">CI/CD Pipeline</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="roadmap">Roadmap</button>
+        </nav>
+
+        <main>
+            <!-- Tab: Overview -->
+            <div id="overview" class="tab-content active">
+                <section class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">Core Concept: Operator-Centric Augmentation</h2>
+                    <p class="text-blue-100 max-w-4xl mx-auto mb-10">The entire ecosystem is designed as an intelligent co-pilot for the human operator. The AI Family agents, supervised by LYRA, automate complex tasks, provide contextual insights, and manage the development lifecycle, allowing the operator to focus on high-level strategy and decision-making.</p>
+                    <h3 class="text-2xl font-bold text-white mb-6">Meet the AI Family Agents</h3>
+                    <div id="agent-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Agent cards will be injected here by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tab: Orchestration Flow -->
+            <div id="orchestration" class="tab-content">
+                <section class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">Visualizing a Workflow</h2>
+                    <p class="text-blue-100 max-w-4xl mx-auto mb-10">Workflows are the heart of the orchestration platform, defined in simple YAML files. Below is an interactive breakdown of a sample workflow. Click on a stage name to highlight the corresponding steps and code.</p>
+                </section>
+                <div class="lg:grid lg:grid-cols-5 gap-8 items-start">
+                    <div class="lg:col-span-3">
+                        <div id="workflow-stages" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                           <!-- Workflow stages will be injected here -->
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 mt-8 lg:mt-0">
+                        <div class="sticky top-8">
+                            <h3 class="text-xl font-bold text-white mb-2">Workflow Definition:</h3>
+                            <p class="text-sm text-blue-200 mb-4">`deploy_feature.yml`</p>
+                            <div id="workflow-code" class="code-block rounded-lg p-4 text-sm overflow-x-auto">
+                                <!-- YAML code will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: API & Services -->
+            <div id="api" class="tab-content">
+                <section class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">Standardized Application APIs</h2>
+                    <p class="text-blue-100 max-w-4xl mx-auto mb-10">To ensure seamless integration, all 15 applications expose a consistent set of RESTful endpoints. This allows the orchestrator to submit tasks, monitor progress, and retrieve results in a uniform way. Click each endpoint to see details.</p>
+                </section>
+                <div id="api-accordion" class="max-w-3xl mx-auto space-y-4">
+                    <!-- API endpoints will be injected here -->
+                </div>
+            </div>
+
+            <!-- Tab: CI/CD Pipeline -->
+            <div id="cicd" class="tab-content">
+                <section class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">Automated CI/CD Orchestration</h2>
+                    <p class="text-blue-100 max-w-4xl mx-auto mb-10">The platform automates its own development lifecycle. A single `git push` triggers a sophisticated, multi-agent workflow that handles everything from semantic analysis to deployment, ensuring consistency and reliability across the ecosystem.</p>
+                </section>
+                <div class="flex items-center justify-center">
+                    <div id="cicd-flow" class="flex flex-col md:flex-row items-stretch w-full overflow-x-auto pb-4">
+                        <!-- CI/CD steps will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Roadmap -->
+            <div id="roadmap" class="tab-content">
+                <section class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">Next-Phase: Dual-LLM Adaptation</h2>
+                    <p class="text-blue-100 max-w-4xl mx-auto mb-10">The following enhancements are planned to future-proof the ecosystem, creating a more intelligent, responsive, and powerful orchestration platform.</p>
+                </section>
+                <div id="roadmap-items" class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+                   <!-- Roadmap items will be injected here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- DATA ---
+        const agentData = [
+            { name: "LYRA", role: "Master Orchestrator", description: "Supervises overall task flows and coordinates multi-agent operations." },
+            { name: "KARA", role: "Security and Compliance", description: "Monitors agent actions, ensures safe orchestration and governance." },
+            { name: "SOPHIA", role: "Semantic Intelligence", description: "Handles complex reasoning, semantic mapping, and context linking." },
+            { name: "CECILIA", role: "Assistive Technology Lead", description: "Provides real-time guidance, adaptive support, and operator aid." },
+            { name: "GUAC", role: "Communication Moderator", description: "Oversees inter-application messaging and network security." },
+            { name: "ANDIE / DAN / STAN / DUDE", role: "Specialized Agents", description: "Handle code execution, testing, creative output, and multi-modal operations." }
+        ];
+
+        const workflowData = {
+            stages: [
+                {
+                    name: "Phase 1: Inception & Scaffolding",
+                    steps: [
+                        { name: "Analyze CUA Specification", agent: "SOPHIA" },
+                        { name: "Generate Boilerplate Code", agent: "ANDIE" }
+                    ]
+                },
+                {
+                    name: "Phase 2: Build, Test, and Secure",
+                    steps: [
+                        { name: "Trigger CI/CD Pipeline", agent: "LYRA" },
+                        { name: "Compliance & Security Review", agent: "KARA" }
+                    ]
+                },
+                {
+                    name: "Phase 3: Deployment & Feedback",
+                    steps: [
+                        { name: "Deploy to Staging", agent: "STAN" },
+                        { name: "Operator Feedback Request", agent: "CECILIA" }
+                    ]
+                }
+            ],
+            code: `
+<span class="token-comment"># workflow-id: wf_deploy_new_web_feature_001</span>
+<span class="token-key">name:</span> <span class="token-string">"Deploy New WebETA Feature from CUA Spec"</span>
+<span class="token-key">operator_handle:</span> <span class="token-string">"@andoy"</span>
+<span class="token-key">trigger:</span>
+  <span class="token-key">type:</span> <span class="token-string">"manual"</span>
+
+<span class="token-key">stages:</span>
+  - <span class="token-key">name:</span> <span class="token-string">"Phase 1: Inception & Scaffolding"</span>
+    <span class="token-key">steps:</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Analyze CUA Specification"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"SOPHIA"</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Generate Boilerplate Code"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"ANDIE"</span>
+
+  - <span class="token-key">name:</span> <span class="token-string">"Phase 2: Build, Test, and Secure"</span>
+    <span class="token-key">steps:</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Trigger CI/CD Pipeline"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"LYRA"</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Compliance & Security Review"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"KARA"</span>
+
+  - <span class="token-key">name:</span> <span class="token-string">"Phase 3: Deployment & Feedback"</span>
+    <span class="token-key">steps:</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Deploy to Staging"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"STAN"</span>
+      - <span class="token-key">name:</span> <span class="token-string">"Operator Feedback Request"</span>
+        <span class="token-key">agent:</span> <span class="token-string">"CECILIA"</span>
+`
+        };
+
+        const apiData = [
+            {
+                endpoint: "POST /api/v1/tasks",
+                title: "Task Submission",
+                description: "Submits a new task to an application. The payload includes the Unified Context Object (UCO) and any task-specific parameters.",
+                body: `{
+  "context": { ... },
+  "task_specific_params": { ... }
+}`,
+                response: `{
+  "task_id": "uuid-1234"
+}`
+            },
+            {
+                endpoint: "GET /api/v1/tasks/{id}/status",
+                title: "Task Status",
+                description: "Retrieves the current status and progress of a running task.",
+                body: null,
+                response: `{
+  "status": "running",
+  "progress": 75,
+  "logs_uri": "s3://..."
+}`
+            },
+            {
+                endpoint: "GET /api/v1/tasks/{id}/result",
+                title: "Task Result",
+                description: "Fetches the final output of a completed task.",
+                body: null,
+                response: `{
+  "status": "completed",
+  "output": { ... }
+}`
+            },
+            {
+                endpoint: "POST /api/v1/hooks/trigger",
+                title: "Orchestration Hooks",
+                description: "A secure endpoint that the master orchestrator (LYRA) can call to initiate an action within an application, such as starting a CI/CD pipeline.",
+                body: `{
+  "event_name": "start_build",
+  "payload": { ... }
+}`,
+                response: `{
+  "ack": "triggered"
+}`
+            }
+        ];
+
+        const cicdData = [
+            { icon: '➔', title: 'Git Push', description: 'Developer pushes code to a repository main branch.' },
+            { icon: '🔔', title: 'Webhook to LYRA', description: 'A GitHub Action sends a webhook to the orchestration engine.' },
+            { icon: '🧠', title: 'Semantic Analysis', description: 'SOPHIA analyzes commit messages to determine the intent of the changes.' },
+            { icon: '📦', title: 'Build & Containerize', description: 'Container Manager builds a new Docker image for the application.' },
+            { icon: '🧪', title: 'Automated Testing', description: 'DAN runs a suite of unit, integration, and performance tests.' },
+            { icon: '🛡️', title: 'Security Scan', description: 'KARA performs a comprehensive security and compliance scan.' },
+            { icon: '🚀', title: 'Deploy', description: 'If all checks pass, STAN deploys the new version to the target environment.' }
+        ];
+
+        const roadmapData = [
+            { title: "Shared Context Memory", description: "Implement a vector database to store conversational memories and workflow context (UCO), allowing both Gemini and OpenAI models to access a shared state for more consistent and intelligent decision-making." },
+            { title: "Enhanced Gemini CLI", description: "Expand the Gemini CLI with advanced commands for direct multi-agent collaboration (`gemini agent connect ...`) and ecosystem-wide CI/CD triggers (`gemini ci sync --all-apps`)." },
+            { title: "Parallel Orchestration", description: "Upgrade LYRA to execute non-dependent workflow stages in parallel using Kubernetes Jobs, significantly reducing total execution time for complex tasks." },
+            { title: "Real-time Operator Control Center", description: "Build a web-based SPA to provide a live, graphical dashboard for monitoring workflows, agent status, and feedback streams, including capabilities for manual overrides and interventions." }
+        ];
+
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderAgents() {
+            const grid = document.getElementById('agent-grid');
+            grid.innerHTML = agentData.map(agent => `
+                <div class="card rounded-lg p-6 text-center">
+                    <h4 class="text-xl font-bold text-cyan-300">${agent.name}</h4>
+                    <p class="text-blue-200 font-medium mb-2">${agent.role}</p>
+                    <p class="text-blue-100 text-sm">${agent.description}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderWorkflow() {
+            const stagesContainer = document.getElementById('workflow-stages');
+            const codeContainer = document.getElementById('workflow-code');
+            
+            stagesContainer.innerHTML = workflowData.stages.map((stage, index) => `
+                <div class="workflow-stage" data-stage-index="${index}">
+                    <h4 class="font-bold text-center text-white mb-4 cursor-pointer hover:text-cyan-300" data-stage-index="${index}">${stage.name}</h4>
+                    <div class="space-y-3">
+                        ${stage.steps.map(step => `
+                            <div class="workflow-step rounded-lg p-3 text-sm">
+                                <p class="font-semibold text-cyan-200">${step.name}</p>
+                                <p class="text-blue-200">Agent: <span class="font-medium text-cyan-300">${step.agent}</span></p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            codeContainer.innerHTML = `<pre><code>${workflowData.code}</code></pre>`;
+
+            stagesContainer.addEventListener('click', (e) => {
+                if (e.target.dataset.stageIndex) {
+                    const index = e.target.dataset.stageIndex;
+                    document.querySelectorAll('.workflow-stage').forEach(el => {
+                        el.classList.remove('highlight');
+                        if(el.dataset.stageIndex === index) {
+                            el.classList.add('highlight');
+                        }
+                    });
+                }
+            });
+        }
+
+        function renderApiEndpoints() {
+            const accordion = document.getElementById('api-accordion');
+            accordion.innerHTML = apiData.map((api, index) => `
+                <div class="rounded-lg overflow-hidden">
+                    <button class="accordion-button flex justify-between items-center w-full p-4 text-left" data-index="${index}">
+                        <div class="flex items-center">
+                            <span class="font-mono text-sm font-bold ${api.endpoint.startsWith('POST') ? 'text-green-400' : 'text-cyan-400'} mr-4">${api.endpoint.split(' ')[0]}</span>
+                            <span class="font-mono text-white">${api.endpoint.split(' ')[1]}</span>
+                        </div>
+                        <svg class="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="text-blue-100 mb-4">${api.description}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-semibold text-sm mb-2 text-blue-100">Request Body</h5>
+                                <div class="code-block rounded-lg p-3 text-xs">
+                                    <pre><code>${api.body || 'None'}</code></pre>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="font-semibold text-sm mb-2 text-blue-100">Example Response</h5>
+                                <div class="code-block rounded-lg p-3 text-xs">
+                                    <pre><code>${api.response}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            accordion.addEventListener('click', (e) => {
+                const button = e.target.closest('.accordion-button');
+                if (button) {
+                    const content = button.nextElementSibling;
+                    button.classList.toggle('open');
+                    content.classList.toggle('open');
+                }
+            });
+        }
+
+        function renderCicdPipeline() {
+            const flow = document.getElementById('cicd-flow');
+            flow.innerHTML = cicdData.map((step, index) => `
+                <div class="flex flex-col md:flex-row items-center">
+                    <div class="cicd-step flex-shrink-0 rounded-lg p-4 w-full md:w-48 text-center">
+                        <div class="text-3xl mb-2">${step.icon}</div>
+                        <h4 class="font-bold text-white">${step.title}</h4>
+                        <p class="text-xs text-blue-200 mt-1">${step.description}</p>
+                    </div>
+                    ${index < cicdData.length - 1 ? '<div class="h-8 md:h-0 w-px md:w-8 bg-blue-800 mx-4"></div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderRoadmap() {
+            const container = document.getElementById('roadmap-items');
+            container.innerHTML = roadmapData.map(item => `
+                <div class="card rounded-lg p-6">
+                    <h4 class="text-xl font-bold text-white mb-2">${item.title}</h4>
+                    <p class="text-blue-100">${item.description}</p>
+                </div>
+            `).join('');
+        }
+
+
+        // --- INITIALIZATION & EVENT LISTENERS ---
+
+        // Tab switching logic
+        const tabs = document.querySelectorAll('.tab-btn');
+        const contents = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Initial render
+        renderAgents();
+        renderWorkflow();
+        renderApiEndpoints();
+        renderCicdPipeline();
+        renderRoadmap();
+    });
+</script>
+
+</body>
+</html>

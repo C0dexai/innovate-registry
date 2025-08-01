@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide: CUA Orchestration Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1A202C; /* Dark blue background */
+            color: #E2E8F0; /* Light blue-gray for general text */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+            color: #A0AEC0; /* Medium blue-gray for inactive tabs */
+        }
+        .tab-btn.active {
+            border-bottom-color: #6366F1; /* Brighter indigo for active tab */
+            color: #6366F1; /* Active tab color */
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-color: #2D3748; /* Changed to gray */
+            color: #E2E8F0; /* Light text for cards */
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25); /* Darker shadow */
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+        }
+        .accordion-content.open {
+            max-height: 500px; /* Adjust as needed */
+        }
+        .process-step {
+            transition: all 0.3s ease;
+            background-color: #2D3748;
+        }
+        .process-step.active {
+            background-color: #6366F1;
+            color: white;
+            transform: scale(1.05);
+        }
+        .chat-bubble {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            max-width: 80%;
+            margin-bottom: 0.5rem;
+        }
+        .chat-bubble-ai {
+            background-color: #2D3748;
+            border-bottom-left-radius: 0.125rem;
+            align-self: flex-start;
+        }
+        .chat-bubble-user {
+            background-color: #6366F1;
+            color: white;
+            border-bottom-right-radius: 0.125rem;
+            align-self: flex-end;
+        }
+        .hint-card {
+            background-color: #2D3748;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .hint-card-user-prompt { border-left: 4px solid #3B82F6; }
+        .hint-card-ai-hint { border-left: 4px solid #4F46E5; }
+        .hint-card-system-suggestion { border-left: 4px solid #A855F7; }
+        .hint-card .hint-type { font-weight: bold; font-size: 0.875rem; margin-bottom: 0.25rem; }
+        .hint-card .hint-text { font-style: italic; font-size: 0.75rem; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            margin: auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .bg-dark-gray { background-color: #1A202C; }
+        .bg-med-gray { background-color: #2D3748; }
+        .text-light-gray { color: #E2E8F0; }
+        .text-med-gray { color: #A0AEC0; }
+        .border-dark-gray { border-color: #4A5568; }
+        .shadow-dark { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.18); }
+        .text-indigo { color: #6366F1; }
+        .hover-indigo:hover { background-color: #4F46E5; }
+        .dual-chat-container {
+            border: 1px solid #4A5568;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .chat-row {
+            padding: 1rem;
+            min-height: 150px;
+        }
+        .chat-row-gemini {
+            background-color: #1A202C;
+            border-bottom: 1px solid #4A5568;
+        }
+        .chat-row-openai {
+            background-color: #202636;
+        }
+        .chat-row h5 {
+            color: #A0AEC0;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        #error-modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .digest-btn {
+            background-color: #10B981; /* Emerald green */
+        }
+        .digest-btn:hover {
+            background-color: #059669;
+        }
+        .digest-btn:disabled {
+            background-color: #4B5563;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Application Content -->
+    <div id="main-content" class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-light-gray">Interactive Guide to the CUA Engine</h1>
+            <p class="mt-2 text-lg text-med-gray">Your explorable resource for building AI inference applications.</p>
+            <div class="mt-4 text-sm text-med-gray">
+                User ID: <span id="user-id" class="font-semibold text-indigo"></span> | Session ID: <span id="session-id" class="font-semibold text-indigo"></span>
+            </div>
+        </header>
+
+        <nav class="flex justify-center border-b border-dark-gray mb-8">
+            <button class="tab-btn active text-lg font-semibold py-4 px-6" data-tab="concepts">Core Concepts</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="family">AI Family</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="workflow">Building Workflow</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="cheatsheet">CLI Cheatsheet</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="inference">Inference</button>
+        </nav>
+
+        <main>
+            <!-- Tab: Core Concepts -->
+            <div id="concepts" class="tab-content active">
+                 <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-4 text-center text-light-gray">The "Ajentic Flow"</h2>
+                    <p class="text-lg text-med-gray mb-6 text-center">The CUA Orchestration Engine is designed around a principle called "ajentic flow"—a highly interactive and guided experience for building AI applications. Instead of static documentation, the engine uses its AI agents to proactively offer contextual insights and suggestions, ensuring a seamless journey from your initial idea to a fully orchestrated task.</p>
+                    
+                    <div class="bg-med-gray p-6 rounded-lg shadow-dark">
+                        <h3 class="text-2xl font-bold mb-4 text-light-gray">The Layered Hinting System</h3>
+                        <p class="text-med-gray mb-4">After every interaction, the system provides three layers of guidance to ensure you're never left wondering what to do next. This creates a continuous and intuitive conversational flow.</p>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo">➔</span>
+                                <div>
+                                    <h4 class="font-bold text-lg text-light-gray">User Prompt Suggestion (`Try:`)</h4>
+                                    <p class="text-med-gray">An immediate, actionable prompt you can use for your next conversational step. It's the quickest way to move forward.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo">💡</span>
+                                <div>
+                                    <h4 class="font-bold text-lg text-light-gray">AI Hint (`AI Hint:`)</h4>
+                                    <p class="text-med-gray">A deeper technical or conceptual insight from the current AI agent, providing context related to its specific role and expertise.</p>
+                                </div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo">⚙️</span>
+                                <div>
+                                    <h4 class="font-bold text-lg text-light-gray">System Suggestion (`System Suggestion:`)</h4>
+                                    <p class="text-med-gray">Strategic guidance from the CUA Engine itself, recommending broader actions, different tools, or more complex orchestrations to achieve your goals efficiently.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: AI Family -->
+            <div id="family" class="tab-content">
+                <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center text-light-gray">Meet the AI Family</h2>
+                    <p class="text-lg text-med-gray mb-8 text-center">Select an agent to begin a dual-LLM interactive session. Your prompts will be sent to both Gemini and a simulated OpenAI agent.</p>
+                    <div id="agent-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <!-- Agent cards will be injected here by JS -->
+                    </div>
+                    <div id="agent-details" class="mt-8 bg-med-gray p-6 rounded-lg shadow-dark" style="display: none;">
+                        <!-- DUAL-LLM Agent details and interactive chat will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Building Workflow -->
+            <div id="workflow" class="tab-content">
+                 <div class="max-w-6xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">The 4 Phases of Building an Application</h2>
+                    <p class="text-lg text-med-gray mb-8 text-center">Building an application with the CUA Engine is a guided, four-phase process. This workflow can be dynamically updated based on your conversations in the "AI Family" tab.</p>
+                    
+                    <div id="process-nav" class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-0 mb-8">
+                        <!-- Process steps will be injected here -->
+                    </div>
+
+                    <div class="workflow-details-container grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="workflow-text" class="bg-med-gray p-6 rounded-lg shadow-dark">
+                            <!-- Details for the selected phase will appear here -->
+                        </div>
+                        <div class="bg-dark-gray p-4 rounded-lg shadow-inner">
+                            <h4 class="text-light-gray font-bold text-center mb-4">First Run Simulation</h4>
+                             <div class="bg-med-gray h-96 flex flex-col p-4 rounded-md overflow-y-auto">
+                                <div class="chat-bubble chat-bubble-ai">Hello, I am LYRA... How can I assist you?</div>
+                                <div class="chat-bubble chat-bubble-user">I need to build a new microservice...</div>
+                                <div class="chat-bubble chat-bubble-ai">
+                                    That's an excellent challenge! For a highly scalable and secure user authentication microservice, we'll need to focus on robust architectural patterns...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tab: CLI Cheatsheet -->
+            <div id="cheatsheet" class="tab-content">
+                 <!-- Placeholder for original content -->
+            </div>
+             <!-- Tab: Inference -->
+            <div id="inference" class="tab-content">
+                 <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-4 text-center text-light-gray">Inference Settings</h2>
+                    <p class="text-lg text-med-gray mb-6 text-center">Configure your API keys for Large Language Models. Your keys are stored securely in your browser's local storage.</p>
+                    
+                    <div class="space-y-6">
+                        <!-- Gemini API Key Section -->
+                        <div class="bg-med-gray p-6 rounded-lg shadow-dark">
+                            <h3 class="text-2xl font-bold mb-4 text-light-gray">Gemini API Key</h3>
+                            <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                                <input type="password" id="gemini-api-key-input" class="flex-grow bg-dark-gray border border-dark-gray rounded-lg p-3 text-light-gray" placeholder="Enter your Gemini API Key">
+                                <button id="save-gemini-key-btn" class="bg-indigo-600 hover-indigo text-white font-bold p-3 rounded-lg w-full sm:w-auto">Save Key</button>
+                                <button id="clear-gemini-key-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto">Clear Key</button>
+                            </div>
+                            <p class="text-sm text-med-gray">Status: <span id="gemini-key-status" class="font-semibold">Not Set</span></p>
+                        </div>
+
+                        <!-- OpenAI API Key Section -->
+                        <div class="bg-med-gray p-6 rounded-lg shadow-dark">
+                            <h3 class="text-2xl font-bold mb-4 text-light-gray">OpenAI API Key</h3>
+                            <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                                <input type="password" id="openai-api-key-input" class="flex-grow bg-dark-gray border border-dark-gray rounded-lg p-3 text-light-gray" placeholder="Enter your OpenAI API Key">
+                                <button id="save-openai-key-btn" class="bg-indigo-600 hover-indigo text-white font-bold p-3 rounded-lg w-full sm:w-auto">Save Key</button>
+                                <button id="clear-openai-key-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold p-3 rounded-lg w-full sm:w-auto">Clear Key</button>
+                            </div>
+                            <p class="text-sm text-med-gray">Status: <span id="openai-key-status" class="font-semibold">Not Set</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div id="error-modal-content" class="bg-med-gray p-6 rounded-lg shadow-xl max-w-2xl w-full border border-dark-gray">
+            <h3 id="error-title" class="text-2xl font-bold mb-4 text-red-400">Error</h3>
+            <div id="error-message" class="text-light-gray mb-6 prose prose-invert max-w-none"></div>
+            <button id="close-modal-btn" class="bg-indigo-600 hover-indigo text-white font-bold py-2 px-4 rounded-lg w-full">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const CUA_App = (() => {
+            // --- App Data ---
+            const agentData = [
+                {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+                {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+                {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+                {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+            ];
+            
+            const initialWorkflowData = [
+                { phase: "Phase 1: Inception", title: "Inception: Defining the Vision", description: "The initial phase focuses on understanding the core problem, gathering requirements, and defining the project's scope and objectives.", details: [] },
+                { phase: "Phase 2: Genesis", title: "Genesis: Architecting & Scaffolding", description: "This phase involves designing the application's architecture, selecting technologies, and scaffolding the foundational code.", details: [] },
+                { phase: "Phase 3: Evolution", title: "Evolution: Development & Refinement", description: "This is the core development phase where features are built, tested, and iteratively refined.", details: [] },
+                { phase: "Phase 4: Deployment", title: "Deployment: Launch & Optimization", description: "The final phase focuses on deploying the application, monitoring its performance, and optimizing for production.", details: [] }
+            ];
+
+            // --- State Variables ---
+            let workflowData = JSON.parse(JSON.stringify(initialWorkflowData));
+            let userId = '';
+            let sessionId = '';
+            let currentSession = { agent: null, geminiChatHistory: [], openaiChatHistory: [] };
+            let apiKeys = { gemini: '', openai: '' };
+            let dom = {};
+            
+            // --- IndexedDB Helpers ---
+            let db;
+            const DB_NAME = 'CUA_Engine_DB';
+            const STORE_NAME = 'session_data';
+            const SESSION_KEY = 'last_session';
+
+            function initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, 1);
+                    request.onerror = (event) => reject("IndexedDB error: " + request.error);
+                    request.onsuccess = (event) => {
+                        db = event.target.result;
+                        resolve(db);
+                    };
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) {
+                            db.createObjectStore(STORE_NAME);
+                        }
+                    };
+                });
+            }
+
+            function saveDataToDB(data) {
+                if (!db) return Promise.reject("DB not initialized");
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.put(data, SESSION_KEY);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject("Failed to save data: " + request.error);
+                });
+            }
+
+            function loadDataFromDB() {
+                if (!db) return Promise.reject("DB not initialized");
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([STORE_NAME], 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.get(SESSION_KEY);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject("Failed to load data: " + request.error);
+                });
+            }
+            
+            async function saveSessionState() {
+                const state = {
+                    currentSession,
+                    workflowData,
+                    userId,
+                    sessionId
+                };
+                try {
+                    await saveDataToDB(state);
+                } catch (error) {
+                    console.error("Failed to save session state to IndexedDB:", error);
+                }
+            }
+
+            // --- Core App Logic ---
+            function cacheDom() {
+                dom = {
+                    userIdSpan: document.getElementById('user-id'),
+                    sessionIdSpan: document.getElementById('session-id'),
+                    agentGrid: document.getElementById('agent-grid'),
+                    agentDetails: document.getElementById('agent-details'),
+                    errorModal: document.getElementById('error-modal'),
+                    closeModalBtn: document.getElementById('close-modal-btn'),
+                    errorMessage: document.getElementById('error-message'),
+                    errorTitle: document.getElementById('error-title'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key-input'),
+                    saveGeminiKeyBtn: document.getElementById('save-gemini-key-btn'),
+                    clearGeminiKeyBtn: document.getElementById('clear-gemini-key-btn'),
+                    geminiKeyStatus: document.getElementById('gemini-key-status'),
+                    openaiApiKeyInput: document.getElementById('openai-api-key-input'),
+                    saveOpenaiKeyBtn: document.getElementById('save-openai-key-btn'),
+                    clearOpenaiKeyBtn: document.getElementById('clear-openai-key-btn'),
+                    openaiKeyStatus: document.getElementById('openai-key-status'),
+                };
+            }
+
+            async function init() {
+                cacheDom();
+                setupEventListeners();
+                loadApiKeys();
+                renderAgentCards();
+                
+                try {
+                    await initDB();
+                    await loadSessionFromDB();
+                } catch (error) {
+                    console.error("Failed to initialize or load from DB:", error);
+                    setupNewSession();
+                    renderWorkflowPhases();
+                }
+            }
+            
+            async function loadSessionFromDB() {
+                const savedData = await loadDataFromDB();
+                if (savedData && savedData.currentSession) {
+                    console.log("Loading saved session from IndexedDB...");
+                    currentSession = savedData.currentSession;
+                    workflowData = savedData.workflowData;
+                    userId = savedData.userId;
+                    sessionId = savedData.sessionId;
+
+                    dom.userIdSpan.textContent = userId;
+                    dom.sessionIdSpan.textContent = sessionId;
+
+                    renderWorkflowPhases();
+                    if (currentSession.agent) {
+                        renderAgentChatUI(currentSession.agent);
+                    }
+                } else {
+                    console.log("No saved session found. Starting fresh.");
+                    setupNewSession();
+                    renderWorkflowPhases();
+                }
+            }
+
+            function setupNewSession() {
+                userId = `user_${crypto.randomUUID().slice(0, 8)}`;
+                sessionId = `session_${crypto.randomUUID().slice(0, 12)}`;
+                dom.userIdSpan.textContent = userId;
+                dom.sessionIdSpan.textContent = sessionId;
+                workflowData = JSON.parse(JSON.stringify(initialWorkflowData));
+                currentSession = { agent: null, geminiChatHistory: [], openaiChatHistory: [] };
+                saveSessionState();
+            }
+
+            function setupEventListeners() {
+                dom.closeModalBtn.addEventListener('click', () => dom.errorModal.classList.add('hidden'));
+
+                document.querySelectorAll('.tab-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+                        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(tabId).classList.add('active');
+                        button.classList.add('active');
+                    });
+                });
+
+                dom.saveGeminiKeyBtn.addEventListener('click', () => saveApiKey('gemini', dom.geminiApiKeyInput.value.trim()));
+                dom.clearGeminiKeyBtn.addEventListener('click', () => {
+                    clearApiKey('gemini');
+                    dom.geminiApiKeyInput.value = '';
+                });
+                dom.saveOpenaiKeyBtn.addEventListener('click', () => saveApiKey('openai', dom.openaiApiKeyInput.value.trim()));
+                dom.clearOpenaiKeyBtn.addEventListener('click', () => {
+                    clearApiKey('openai');
+                    dom.openaiApiKeyInput.value = '';
+                });
+            }
+
+            function loadApiKeys() {
+                apiKeys.gemini = localStorage.getItem('geminiApiKey') || '';
+                apiKeys.openai = localStorage.getItem('openaiApiKey') || '';
+                updateApiKeyDisplay();
+            }
+
+            function saveApiKey(type, key) {
+                if (!key) {
+                    showError(`Please enter an API Key for ${type}.`, "Input Required");
+                    return;
+                }
+                localStorage.setItem(`${type}ApiKey`, key);
+                apiKeys[type] = key;
+                updateApiKeyDisplay();
+                showError(`${type.charAt(0).toUpperCase() + type.slice(1)} API Key Saved!`, "Success");
+            }
+
+            function clearApiKey(type) {
+                localStorage.removeItem(`${type}ApiKey`);
+                apiKeys[type] = '';
+                updateApiKeyDisplay();
+            }
+
+            function updateApiKeyDisplay() {
+                dom.geminiKeyStatus.textContent = apiKeys.gemini ? 'Set' : 'Not Set';
+                dom.geminiKeyStatus.className = `font-semibold ${apiKeys.gemini ? 'text-green-400' : 'text-red-400'}`;
+                dom.openaiKeyStatus.textContent = apiKeys.openai ? 'Set' : 'Not Set';
+                dom.openaiKeyStatus.className = `font-semibold ${apiKeys.openai ? 'text-green-400' : 'text-red-400'}`;
+            }
+
+            function renderAgentCards() {
+                dom.agentGrid.innerHTML = '';
+                agentData.forEach(agent => {
+                    const card = document.createElement('div');
+                    card.className = 'card p-6 rounded-lg shadow-dark cursor-pointer text-center';
+                    card.innerHTML = `<h3 class="text-xl font-bold text-indigo">${agent.name}</h3><p class="text-med-gray">${agent.role}</p>`;
+                    card.addEventListener('click', () => selectAgent(agent));
+                    dom.agentGrid.appendChild(card);
+                });
+            }
+
+            function renderWorkflowPhases() {
+                const processNav = document.getElementById('process-nav');
+                const workflowText = document.getElementById('workflow-text');
+                if (!processNav || !workflowText) return;
+                
+                processNav.innerHTML = ''; 
+                workflowData.forEach((item, index) => {
+                    const step = document.createElement('div');
+                    step.className = 'process-step p-4 rounded-lg shadow-dark cursor-pointer text-center flex-1';
+                    step.innerHTML = `<h4 class="font-bold">${item.phase}</h4>`;
+                    
+                    const arrow = document.createElement('div');
+                    if (index < workflowData.length - 1) {
+                        arrow.innerHTML = `<span class="text-2xl text-gray-400 mx-4 hidden md:inline">→</span>`;
+                    }
+
+                    step.addEventListener('click', () => {
+                        document.querySelectorAll('.process-step').forEach(s => s.classList.remove('active'));
+                        step.classList.add('active');
+                        workflowText.innerHTML = `
+                            <h3 class="text-2xl font-bold mb-2">${item.title}</h3>
+                            <p class="text-med-gray mb-4">${item.description}</p>
+                            <ul class="space-y-2">
+                                ${item.details.map(detail => `<li class="flex items-start"><span class="text-indigo font-bold mr-2">✓</span><span>${detail}</span></li>`).join('') || '<li class="text-med-gray">No specific tasks defined yet.</li>'}
+                            </ul>
+                        `;
+                    });
+                    processNav.appendChild(step);
+                    if (arrow.innerHTML) {
+                        processNav.appendChild(arrow);
+                    }
+                });
+                if(processNav.children[0]) {
+                    processNav.children[0].click(); 
+                }
+            }
+            
+            function selectAgent(agent) {
+                // This function is for starting a NEW session with an agent
+                currentSession = { agent, geminiChatHistory: [], openaiChatHistory: [] };
+                workflowData = JSON.parse(JSON.stringify(initialWorkflowData)); // Reset workflow
+                renderWorkflowPhases(); 
+                renderAgentChatUI(agent);
+                saveSessionState();
+            }
+
+            function renderAgentChatUI(agent) {
+                dom.agentDetails.style.display = 'block';
+                const agentDetailsHtml = `
+                    <div class="flex flex-col md:flex-row gap-6 items-center">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-24 h-24 rounded-full bg-dark-gray flex items-center justify-center mx-auto border-2 border-indigo"><span class="text-4xl font-bold text-indigo">${agent.name.charAt(0)}</span></div>
+                            <h2 class="text-2xl font-bold text-light-gray mt-2">${agent.name}</h2>
+                            <p class="text-indigo">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-med-gray border-l-4 border-indigo pl-4">"${agent.philosophy}"</p>
+                        </div>
+                    </div>
+                    <div id="dual-chat-interface" class="mt-6">
+                        <div class="dual-chat-container bg-med-gray shadow-inner">
+                            <div class="chat-row chat-row-gemini">
+                                <h5><i class="fas fa-brain mr-2"></i>Gemini Response</h5>
+                                <div id="gemini-chat-log" class="space-y-2 overflow-y-auto max-h-48"></div>
+                            </div>
+                            <div class="chat-row chat-row-openai">
+                                <h5><i class="fas fa-robot mr-2"></i>OpenAI Response (Simulated)</h5>
+                                <div id="openai-chat-log" class="space-y-2 overflow-y-auto max-h-48"></div>
+                            </div>
+                        </div>
+                        <form id="chat-form" class="flex gap-2 mt-4">
+                            <label for="file-input" class="cursor-pointer p-3 bg-dark-gray rounded-lg text-med-gray hover:text-light-gray">
+                                <i class="fas fa-paperclip"></i>
+                            </label>
+                            <input type="file" id="file-input" class="hidden">
+                            <input type="text" id="chat-input" class="flex-grow bg-dark-gray border border-dark-gray rounded-lg p-3 text-light-gray" placeholder="Ask a question or provide a task..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="bg-indigo-600 hover-indigo text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                             <button type="button" id="digest-btn" class="digest-btn text-white font-bold p-3 rounded-lg flex items-center justify-center" disabled>Commit Digest</button>
+                        </form>
+                         <div id="hint-cards-container" class="mt-4 space-y-3"></div>
+                    </div>
+                `;
+                dom.agentDetails.innerHTML = agentDetailsHtml;
+
+                // Repopulate chat logs from history
+                currentSession.geminiChatHistory.forEach(msg => addMessageToLog('gemini-chat-log', msg.role === 'user' ? 'user' : 'ai', msg.parts[0].text, false));
+                currentSession.openaiChatHistory.forEach(msg => addMessageToLog('openai-chat-log', msg.role === 'user' ? 'user' : 'ai', msg.parts[0].text, false));
+
+                document.getElementById('chat-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    handleUserMessage();
+                });
+                document.getElementById('digest-btn').addEventListener('click', handleCommitDigest);
+                
+                if (currentSession.geminiChatHistory.length === 0) {
+                    displayHintsAsCards(
+                        "Try asking both AIs to introduce themselves and explain their strengths.",
+                        "You can ask for different perspectives on the same topic, like 'Explain the concept of recursion from both a theoretical and practical standpoint.'",
+                        "After a discussion, click 'Commit Digest' to update the 'Building Workflow' tab with your decisions."
+                    );
+                }
+            }
+            
+            function addMessageToLog(logId, sender, message, shouldEnableDigest = true) {
+                const chatLog = document.getElementById(logId);
+                if (!chatLog) return;
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `chat-bubble ${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`;
+                messageBubble.innerHTML = marked.parse(message);
+                messageWrapper.appendChild(messageBubble);
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight;
+
+                if(sender === 'ai' && shouldEnableDigest) {
+                    const digestBtn = document.getElementById('digest-btn');
+                    if (digestBtn) digestBtn.disabled = false;
+                }
+            }
+
+            function displayHintsAsCards(userPromptSuggestion, aiHint, systemSuggestion) {
+                const container = document.getElementById('hint-cards-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                if (userPromptSuggestion) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-user-prompt';
+                    card.innerHTML = `<p class="hint-type">Try This:</p><p class="hint-text">${marked.parse(userPromptSuggestion)}</p>`;
+                    container.appendChild(card);
+                }
+                if (aiHint) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-ai-hint';
+                    card.innerHTML = `<p class="hint-type">AI Insight:</p><p class="hint-text">${marked.parse(aiHint)}</p>`;
+                    container.appendChild(card);
+                }
+                if (systemSuggestion) {
+                    const card = document.createElement('div');
+                    card.className = 'hint-card hint-card-system-suggestion';
+                    card.innerHTML = `<p class="hint-type">System Suggestion:</p><p class="hint-text">${marked.parse(systemSuggestion)}</p>`;
+                    container.appendChild(card);
+                }
+            }
+            
+            async function handleUserMessage() {
+                const chatInput = document.getElementById('chat-input');
+                const sendBtn = document.getElementById('send-btn');
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                addMessageToLog('gemini-chat-log', 'user', message);
+                addMessageToLog('openai-chat-log', 'user', message);
+                currentSession.geminiChatHistory.push({role: 'user', parts: [{text: message}]});
+                currentSession.openaiChatHistory.push({role: 'user', parts: [{text: message}]});
+                chatInput.value = '';
+                
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loader"></div>';
+
+                const handoffRegex = /manifest an instruction markdown file.*?named `(.*?)`/;
+                const match = message.match(handoffRegex);
+
+                if (currentSession.agent.name === 'LYRA' && match && match[1]) {
+                    await handleHandoff(match[1], message);
+                } else {
+                    await handleStandardQuery(message);
+                }
+
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send';
+                saveSessionState();
+            }
+            
+            async function handleStandardQuery(message) {
+                 const agent = currentSession.agent;
+                 const geminiPrompt = `As the AI agent "${agent.name}", respond to the user's message: "${message}". Focus on your role as ${agent.role} and your philosophy: "${agent.philosophy}".`;
+                 const openaiPrompt = `As a helpful assistant simulating an OpenAI model, provide an alternative perspective on the user's message: "${message}".`;
+
+                 const geminiResult = await invokeLLM('gemini', [{ role: "user", parts: [{ text: geminiPrompt }] }]);
+                 if(geminiResult.success) {
+                     addMessageToLog('gemini-chat-log', 'ai', geminiResult.data);
+                     currentSession.geminiChatHistory.push({role: 'model', parts: [{text: geminiResult.data}]});
+                 } else {
+                     addMessageToLog('gemini-chat-log', 'ai', `Error: ${geminiResult.error}`);
+                 }
+
+                 const openaiResult = await invokeLLM('openai', [{ role: "user", parts: [{ text: openaiPrompt }] }]);
+                 if(openaiResult.success) {
+                     addMessageToLog('openai-chat-log', 'ai', openaiResult.data);
+                      currentSession.openaiChatHistory.push({role: 'model', parts: [{text: openaiResult.data}]});
+                 } else {
+                     addMessageToLog('openai-chat-log', 'ai', `Error: ${openaiResult.error}`);
+                 }
+            }
+
+            async function handleHandoff(filename, fullPrompt) {
+                addMessageToLog('gemini-chat-log', 'ai', `Understood. Manifesting \`${filename}\` and preparing for handoff...`);
+
+                const handoffPrompt = `You are LYRA, The Architect. A user with ID '${userId}' has requested you to create an instruction file named \`${filename}\`. The full request was: "${fullPrompt}". Generate the complete, well-documented markdown content for this file.`;
+                
+                const result = await invokeLLM('gemini', [{ role: "user", parts: [{ text: handoffPrompt }] }]);
+
+                if (result.success) {
+                    const markdownContent = result.data;
+                    const successMsg = `**Handoff Complete!** The file \`${filename}\` has been manifested. Local agents can now access these instructions.`;
+                    addMessageToLog('gemini-chat-log', 'ai', successMsg);
+                    
+                    showError(marked.parse(markdownContent), `Manifested File: ${filename}`);
+                } else {
+                    const errorMsg = `Failed to generate handoff file content. Error: ${result.error}`;
+                    addMessageToLog('gemini-chat-log', 'ai', errorMsg);
+                    showError(errorMsg, "Handoff Error");
+                }
+            }
+
+            async function handleCommitDigest() {
+                const digestBtn = document.getElementById('digest-btn');
+                digestBtn.disabled = true;
+                digestBtn.innerHTML = '<div class="loader"></div>';
+
+                const activeStepNode = document.querySelector('#process-nav .process-step.active');
+                const allSteps = Array.from(document.querySelectorAll('#process-nav .process-step'));
+                const activeStepIndex = activeStepNode ? allSteps.indexOf(activeStepNode) : 0;
+
+                const fullConversation = [...currentSession.geminiChatHistory, ...currentSession.openaiChatHistory]
+                    .map(msg => `${msg.role}: ${msg.parts[0].text}`)
+                    .join('\n');
+
+                const digestSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        inception_tasks: { type: "ARRAY", items: { type: "STRING" } },
+                        genesis_tasks: { type: "ARRAY", items: { type: "STRING" } },
+                        evolution_tasks: { type: "ARRAY", items: { type: "STRING" } },
+                        deployment_tasks: { type: "ARRAY", items: { type: "STRING" } }
+                    },
+                    required: ["inception_tasks", "genesis_tasks", "evolution_tasks", "deployment_tasks"]
+                };
+
+                const digestPrompt = `You are a project manager AI. Analyze the following conversation transcript between a user and multiple AI agents. Your task is to extract key decisions, requirements, and actionable tasks. Categorize each extracted task into one of the four project phases: 'inception_tasks', 'genesis_tasks', 'evolution_tasks', or 'deployment_tasks'. Return the result as a JSON object matching the provided schema. If no tasks fit a category, return an empty array for it.
+
+                Conversation Transcript:
+                ---
+                ${fullConversation}
+                ---
+                `;
+
+                const result = await invokeLLM('gemini', [{role: 'user', parts: [{text: digestPrompt}]}], digestSchema);
+
+                if (result.success) {
+                    try {
+                        const parsedData = JSON.parse(result.data);
+                        workflowData[0].details.push(...(parsedData.inception_tasks || []));
+                        workflowData[1].details.push(...(parsedData.genesis_tasks || []));
+                        workflowData[2].details.push(...(parsedData.evolution_tasks || []));
+                        workflowData[3].details.push(...(parsedData.deployment_tasks || []));
+                        
+                        renderWorkflowPhases();
+                        
+                        const newActiveStep = document.querySelectorAll('#process-nav .process-step')[activeStepIndex];
+                        if (newActiveStep) {
+                            newActiveStep.click();
+                        }
+
+                        showError("The 'Building Workflow' tab has been updated with the digested tasks from your conversation.", "Digest Complete!");
+                        saveSessionState();
+                    } catch (e) {
+                         showError(`Failed to parse the digested workflow data. Error: ${e.message}<br><br><b>Received Data:</b><pre>${result.data}</pre>`, "Digest Error");
+                    }
+                } else {
+                    showError(`Failed to digest the conversation. Error: ${result.error}`, "Digest Error");
+                }
+
+                digestBtn.disabled = false;
+                digestBtn.textContent = 'Commit Digest';
+            }
+
+            async function invokeLLM(type, chatHistory, responseSchema = null) {
+                const apiKey = apiKeys['gemini']; 
+                
+                if (!apiKey) {
+                    return { success: false, error: `Gemini API Key is not set. It is required for all AI interactions in this guide.` };
+                }
+                
+                const modelName = 'gemini-1.5-flash-latest';
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+                const payload = { contents: chatHistory };
+                if (responseSchema) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: responseSchema
+                    };
+                }
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || `HTTP Error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data.candidates || data.candidates.length === 0) {
+                        if (data.promptFeedback && data.promptFeedback.blockReason) {
+                             throw new Error(`Request blocked due to: ${data.promptFeedback.blockReason}.`);
+                        }
+                        throw new Error("API returned no candidates, possibly due to content filtering.");
+                    }
+                    
+                    const text = data.candidates[0].content.parts[0].text;
+                    return { success: true, data: text };
+
+                } catch (error) {
+                    console.error(`LLM call failed for ${type}:`, error);
+                    return { success: false, error: error.message };
+                }
+            }
+
+            function showError(message, title = "Error") {
+                dom.errorMessage.innerHTML = message; 
+                dom.errorTitle.textContent = title;
+                dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.toLowerCase().includes('success') || title.toLowerCase().includes('complete') || title.toLowerCase().includes('manifested') ? 'text-green-400' : 'text-red-400'}`;
+                dom.errorModal.classList.remove('hidden');
+            }
+
+            return { start: init };
+        })();
+
+        document.addEventListener('DOMContentLoaded', CUA_App.start);
+    </script>
+</body>
+</html>

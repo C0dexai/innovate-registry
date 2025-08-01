@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Family Chat Orchestration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    form {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+    label {
+      display: block;
+      margin: 1rem 0 0.25rem;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .checkbox-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    button {
+      margin-top: 2rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .status {
+      margin-top: 1rem;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+<h1>AI Family Chat Orchestration</h1>
+
+<form id="chat-form">
+  <label>User Name:
+    <input name="user_name" value="ANDOY" required />
+  </label>
+
+  <label>Task:
+    <select name="task">
+      <option value="Chat with Assistant">Chat with Assistant</option>
+      <option value="Generate Code">Generate Code</option>
+    </select>
+  </label>
+
+  <label>Framework:
+    <select name="framework">
+      <option value="Fullstack">Fullstack</option>
+      <option value="Frontend">Frontend</option>
+      <option value="Backend">Backend</option>
+    </select>
+  </label>
+
+  <label>Supervising Agents:</label>
+  <div class="checkbox-group">
+    <label><input type="checkbox" name="ai_family" value="LYRA" checked /> LYRA</label>
+    <label><input type="checkbox" name="ai_family" value="KARA" checked /> KARA</label>
+  </div>
+
+  <label><input type="checkbox" name="use_ajax" checked /> Use AJAX</label>
+  <label><input type="checkbox" name="use_websockets" checked /> Use WebSockets</label>
+
+  <label>OpenAI API Key:
+    <input name="api_key_openai" placeholder="sk-..." />
+  </label>
+
+  <label>Gemini API Key:
+    <input name="api_key_gemini" placeholder="Your Gemini Key..." required />
+  </label>
+
+  <button type="submit">Start Chat Session</button>
+</form>
+
+<pre class="status" id="status"></pre>
+
+<script>
+  document.getElementById('chat-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const data = {
+      user_name: form.user_name.value,
+      task: form.task.value,
+      framework: form.framework.value,
+      ai_family: Array.from(form.querySelectorAll('input[name="ai_family"]:checked')).map(cb => cb.value),
+      use_ajax: form.use_ajax.checked,
+      use_websockets: form.use_websockets.checked,
+      api_key_openai: form.api_key_openai.value,
+      api_key_gemini: form.api_key_gemini.value
+    };
+
+    try {
+      const res = await fetch('/api/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const json = await res.json();
+      document.getElementById('status').textContent = JSON.stringify(json, null, 2);
+    } catch (err) {
+      document.getElementById('status').textContent = `❌ Error: ${err.message}`;
+    }
+  });
+</script>
+
+</body>
+</html>

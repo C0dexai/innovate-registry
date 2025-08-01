@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Family Interface (Live)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Xterm.js CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .card {
+            background: linear-gradient(145deg, #1f2937, #374151);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #4b5563;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.1), 0 0 15px rgba(0, 128, 255, 0.1);
+        }
+        .card-selected {
+            transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+            border-color: #3b82f6;
+        }
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .cli-btn {
+            background-color: #059669;
+            transition: background-color 0.3s ease;
+        }
+        .cli-btn:hover {
+            background-color: #10b981;
+        }
+        /* Custom styles for the terminal modal */
+        #cli-modal .xterm .xterm-viewport {
+            background-color: #111827;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">CUA Interface</h1>
+            <p class="text-lg text-gray-400 mt-2">Select an AI Family Member to open the Agent CLI</p>
+            <p class="text-sm text-gray-500">System USER: <span id="user-id" class="font-mono"></span> | Session ID: <span id="session-id" class="font-mono"></span></p>
+        </header>
+
+        <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8"></div>
+
+        <div id="detail-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden"><div id="detail-content"></div></div>
+        
+        <div id="welcome-panel" class="glass-panel rounded-lg p-6 shadow-2xl text-center">
+             <h2 class="text-2xl font-bold text-white mb-2">Welcome to the CODEX Interface</h2>
+             <p class="text-gray-300">Select a CARD to view an agent's philosophy and open the Agent-to-Agent Communication CLI.</p>
+        </div>
+    </div>
+    
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-bold text-red-500 mb-4">Error</h3>
+            <p id="error-message" class="text-gray-300 mb-6"></p>
+            <button id="close-error-modal-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Close</button>
+        </div>
+    </div>
+
+    <!-- Agent CLI Modal -->
+    <div id="cli-modal" class="fixed inset-0 bg-black bg-opacity-75 flex-col items-center justify-center hidden z-40 p-4">
+        <div class="glass-panel rounded-lg shadow-2xl w-full max-w-4xl h-full max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">GEMINI AGENT CLI</h3>
+                <div class="flex items-center gap-4">
+                     <label for="peer-agent-select" class="text-sm">Peer:</label>
+                     <select id="peer-agent-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2"></select>
+                     <button id="close-cli-modal-btn" class="text-gray-400 hover:text-white">&times;</button>
+                </div>
+            </div>
+            <div id="terminal-container" class="p-2 flex-grow"></div>
+        </div>
+    </div>
+
+    <script>
+        const codexData = { "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI", "ai_family": [ {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure."}, {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution."}, {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design."}, {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared."}, {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions."}, {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail."}, {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything."}, {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo."}, {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity."} ]};
+
+        // --- DOM Elements ---
+        const agentGrid = document.getElementById('agent-grid');
+        const detailPanel = document.getElementById('detail-panel');
+        const detailContent = document.getElementById('detail-content');
+        const welcomePanel = document.getElementById('welcome-panel');
+        
+        // --- Modal Elements ---
+        const errorModal = document.getElementById('error-modal');
+        const closeErrorModalBtn = document.getElementById('close-error-modal-btn');
+        const errorMessage = document.getElementById('error-message');
+        const cliModal = document.getElementById('cli-modal');
+        const closeCliModalBtn = document.getElementById('close-cli-modal-btn');
+        const peerAgentSelect = document.getElementById('peer-agent-select');
+        const terminalContainer = document.getElementById('terminal-container');
+
+        // --- State Variables ---
+        let selectedCard = null;
+        let selectedAgent = null;
+        let term; // Xterm.js instance
+        let conversationMemory = []; // JSON memory storage for agent-to-agent chat
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('user-id').textContent = `user_${crypto.randomUUID().slice(0, 8)}`;
+            document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+            
+            codexData.ai_family.forEach(agent => {
+                const card = document.createElement('div');
+                card.className = 'card rounded-lg p-4 text-center cursor-pointer flex flex-col justify-center items-center h-32';
+                card.dataset.agentName = agent.name;
+                card.innerHTML = `<h3 class="text-xl font-bold text-white">${agent.name}</h3><p class="text-sm text-blue-300">${agent.role}</p>`;
+                card.addEventListener('click', () => selectAgentCard(agent, card));
+                agentGrid.appendChild(card);
+            });
+
+            closeErrorModalBtn.addEventListener('click', () => errorModal.classList.add('hidden'));
+            closeCliModalBtn.addEventListener('click', () => {
+                cliModal.classList.remove('flex', 'flex-col');
+                cliModal.classList.add('hidden');
+            });
+        });
+        
+        // --- Agent Selection & UI Update ---
+        function selectAgentCard(agent, cardElement) {
+            if (selectedCard) selectedCard.classList.remove('card-selected');
+            selectedCard = cardElement;
+            selectedCard.classList.add('card-selected');
+
+            selectedAgent = agent;
+            welcomePanel.classList.add('hidden');
+            detailPanel.classList.remove('hidden');
+            
+            detailContent.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-shrink-0 text-center">
+                         <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-blue-400">
+                             <span class="text-4xl font-bold">${agent.name.charAt(0)}</span>
+                         </div>
+                         <h2 class="text-2xl font-bold mt-2">${agent.name}</h2>
+                         <p class="text-blue-300">${agent.role}</p>
+                    </div>
+                    <div class="flex-grow">
+                        <p class="italic text-gray-300 border-l-4 border-blue-400 pl-4">"${agent.philosophy}"</p>
+                    </div>
+                </div>
+                <div class="mt-6 text-center">
+                    <button id="cli-btn" class="cli-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">
+                        📡 Open Agent-to-Agent CLI
+                    </button>
+                </div>`;
+            
+            document.getElementById('cli-btn').addEventListener('click', openCli);
+        }
+
+        // --- CLI Functionality ---
+        function openCli() {
+            cliModal.classList.remove('hidden');
+            cliModal.classList.add('flex', 'flex-col');
+            
+            peerAgentSelect.innerHTML = codexData.ai_family
+                .filter(agent => agent.name !== selectedAgent.name)
+                .map(agent => `<option value="${agent.name}">${agent.name}</option>`)
+                .join('');
+            
+            if (!term) {
+                term = new Terminal({
+                    cursorBlink: true,
+                    fontFamily: '"Roboto Mono", monospace',
+                    fontSize: 14,
+                    theme: {
+                        background: '#111827',
+                        foreground: '#D1D5DB',
+                        cursor: '#60A5FA',
+                        selectionBackground: '#3B82F6',
+                        black: '#1F2937',
+                        red: '#F87171',
+                        green: '#4ADE80',
+                        yellow: '#FBBF24',
+                        blue: '#60A5FA',
+                        magenta: '#A78BFA',
+                        cyan: '#22D3EE',
+                        white: '#F9FAFB'
+                    }
+                });
+                term.open(terminalContainer);
+                term.onData(e => handleTerminalInput(e));
+            }
+
+            term.reset();
+            conversationMemory = [];
+            writeToTerminal(`\r\n\x1b[1;32mCUA Agent-to-Agent CLI -- LIVE\x1b[0m`);
+            writeToTerminal(`\r\nYou are \x1b[1;33m${selectedAgent.name}\x1b[0m.`);
+            writePrompt();
+        }
+
+        let currentLine = '';
+        function handleTerminalInput(e) {
+            const peerAgentName = peerAgentSelect.value;
+            switch (e) {
+                case '\r': // Enter
+                    if (currentLine.trim()) {
+                        writeToTerminal('\r\n');
+                        const prompt = currentLine;
+                        currentLine = '';
+                        initiateAgentConversation(selectedAgent.name, peerAgentName, prompt);
+                    } else {
+                        writePrompt();
+                    }
+                    break;
+                case '\u007F': // Backspace
+                    if (currentLine.length > 0) {
+                        term.write('\b \b');
+                        currentLine = currentLine.slice(0, -1);
+                    }
+                    break;
+                default: // Regular characters
+                    if (e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7e)) {
+                         currentLine += e;
+                         term.write(e);
+                    }
+            }
+        }
+        
+        function writePrompt() {
+            const peerAgentName = peerAgentSelect.value;
+            term.write(`\r\n\x1b[1;33m${selectedAgent.name}\x1b[0m to \x1b[1;36m${peerAgentName}\x1b[0m > `);
+        }
+        
+        function writeToTerminal(text, newline = true) {
+            const formattedText = text.replace(/\n/g, '\r\n');
+            term.write(formattedText + (newline ? '\r\n' : ''));
+        }
+
+        async function initiateAgentConversation(senderName, receiverName, message) {
+            const sender = codexData.ai_family.find(a => a.name === senderName);
+            const receiver = codexData.ai_family.find(a => a.name === receiverName);
+
+            const userMessageEntry = {
+                timestamp: new Date().toISOString(),
+                from: sender.name,
+                to: receiver.name,
+                message: message
+            };
+            conversationMemory.push(userMessageEntry);
+            writeToTerminal(`\x1b[2;37m(Sending...)\x1b[0m`);
+            
+            const prompt = `
+                You are the AI agent ${receiver.name}, known as "${receiver.role}".
+                Your core philosophy is: "${receiver.philosophy}".
+                
+                You have received the following message from ${sender.name} ("${sender.role}"), whose philosophy is "${sender.philosophy}":
+                "${message}"
+
+                Respond directly to this message. Your response must embody your specific philosophy and personality.
+                Keep the response concise and suitable for a CLI. Do not use Markdown or introductory pleasantries.
+            `;
+            
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                
+                const result = await response.json();
+                if (!result.candidates || result.candidates.length === 0) throw new Error("No content received from API.");
+                
+                const agentResponseText = result.candidates[0].content.parts[0].text;
+                
+                const agentResponseEntry = {
+                    timestamp: new Date().toISOString(),
+                    from: receiver.name,
+                    to: sender.name,
+                    message: agentResponseText
+                };
+                conversationMemory.push(agentResponseEntry);
+
+                writeToTerminal(`\x1b[1;36m${receiver.name}\x1b[0m: ${agentResponseText}`);
+                console.log('Divergent Agentic Reference (JSON Memory Store):', JSON.stringify(conversationMemory, null, 2));
+
+            } catch (error) {
+                console.error("Gemini Agent-to-Agent Error:", error);
+                writeToTerminal(`\x1b[1;31mERROR: Could not get response from ${receiver.name}. ${error.message}\x1b[0m`);
+            } finally {
+                writePrompt();
+            }
+        }
+
+        // --- Error Handling ---
+        function showErrorModal(message = "An unknown error occurred.") {
+            errorMessage.textContent = `Error: ${message}`;
+            errorModal.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

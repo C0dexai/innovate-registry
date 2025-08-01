@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIVA Architectural Analysis SPA (Neon Gloom)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Dark Grey with Neon Accents -->
+    <!-- Application Structure Plan: This is a full-featured SPA with a gated entry via a simulated API key. The structure uses a fixed sidebar for navigating the deeply integrated content from the source report. Sections include a detailed breakdown of the DIVA agents, a comprehensive comparative analysis of frameworks and strategies, a multi-stage evolution roadmap, and the strategic/philosophical horizons. This structure transforms the dense report into an explorable, non-linear digital experience. Key interactions include clicking cards/tabs for detailed info and expanding timeline entries. -->
+    <!-- Visualization & Content Choices: 
+        - DIVA Pipeline (Sec 1.2): Report Info -> Detailed agent roles. Goal -> Organize & Inform. Viz/Presentation -> Interactive HTML cards. Interaction -> Click to reveal full descriptions from the report. Justification -> More engaging and focused than a long text block. Method -> HTML/Tailwind + JS.
+        - Framework Comparison (Table 2.2.1): Report Info -> Full comparison of DIVA, CrewAI, AutoGen, LangGraph. Goal -> Compare. Viz/Presentation -> Interactive card grid. Interaction -> Click a framework to see its detailed attributes. Justification -> Better for text-heavy comparison than a chart, allowing focused reading. Method -> HTML/Tailwind + JS.
+        - AI Strategy Comparison (Table 2.3.1): Report Info -> Full comparison of Orchestration, RAG, Fine-Tuning. Goal -> Compare. Viz/Presentation -> Tabbed interface. Interaction -> Click a tab to view the detailed comparison from the report. Justification -> A classic, intuitive UI pattern. Method -> JS-driven content switching.
+        - Future Roadmap (Sec 4.3): Report Info -> The full multi-stage strategic plan. Goal -> Show Change/Process. Viz/Presentation -> Interactive vertical timeline. Interaction -> Click a stage to expand the full, detailed plan for that stage. Justification -> The most intuitive way to present a chronological plan. Method -> HTML/Tailwind + JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; box-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff; }
+        ::-webkit-scrollbar-thumb:hover { background: #ffffff; }
+
+        .active-nav { 
+            background-color: #10b981; 
+            color: #000000;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+        }
+        .nav-item { transition: all 0.2s ease-in-out; }
+        .nav-item:hover { 
+            background-color: rgba(16, 185, 129, 0.2); 
+            color: #a7f3d0;
+            transform: translateX(4px);
+        }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .interactive-card {
+            background-color: rgba(31, 41, 55, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+        .interactive-card.active { 
+            border-color: #2dd4bf; 
+            box-shadow: 0 0 20px rgba(45, 212, 191, 0.5);
+        }
+        .interactive-card:hover {
+             transform: translateY(-5px);
+             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .tab-btn.active { 
+            background-color: #8b5cf6; 
+            color: #000000; 
+            font-weight: bold;
+            border-color: #a78bfa;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+        }
+        .roadmap-details ul { list-style-position: inside; }
+        
+        .glowing-orb {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ec4899, #8b5cf6, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 0 10px #ec4899, 0 0 20px #8b5cf6, 0 0 30px #3b82f6;
+            animation: pulse 2s infinite;
+            z-index: 100;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 10px #ec4899, 0 0 20px #8b5cf6, 0 0 30px #3b82f6; }
+            50% { transform: scale(1); box-shadow: 0 0 20px #ec4899, 0 0 40px #8b5cf6, 0 0 60px #3b82f6; }
+            100% { transform: scale(0.95); box-shadow: 0 0 10px #ec4899, 0 0 20px #8b5cf6, 0 0 30px #3b82f6; }
+        }
+        
+        #quick-menu {
+            position: fixed;
+            bottom: 6.5rem;
+            right: 2rem;
+            background-color: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid #4f46e5;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(79, 70, 229, 0.5);
+            z-index: 99;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-zinc-900 text-gray-300 antialiased">
+
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900 bg-opacity-90 backdrop-blur-sm">
+        <div class="w-full max-w-md p-8 bg-zinc-800 rounded-2xl shadow-2xl border border-purple-500/50" style="box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);">
+            <h2 class="text-2xl font-bold text-center text-white mb-2">DIVA Analysis Platform</h2>
+            <p class="text-center text-gray-400 mb-6">Enter API Key to Access the Neon Grid</p>
+            <div class="space-y-4">
+                <input type="text" id="api-key-input" class="w-full px-4 py-3 bg-zinc-900 border border-zinc-600 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="e.g., DIVA-PRO-2025-DEMO">
+                <button id="api-key-submit" class="w-full px-4 py-3 font-bold text-white bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-800 focus:ring-pink-500 transition-all">Connect to Platform</button>
+            </div>
+            <p id="api-key-error" class="text-red-400 text-center mt-4 text-sm h-4"></p>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="flex h-screen bg-zinc-900 hidden">
+        <aside class="w-72 flex-shrink-0 bg-zinc-900/80 backdrop-blur-md border-r border-green-400/20 flex flex-col">
+            <div class="h-16 flex items-center justify-center border-b border-green-400/20 px-4">
+                <h1 class="text-xl font-bold text-green-400 text-center" style="text-shadow: 0 0 8px rgba(52, 211, 153, 0.7);">DIVA Analysis</h1>
+            </div>
+            <nav id="main-nav" class="flex-1 px-4 py-6 space-y-2">
+                <a href="#" class="nav-item group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-300" data-target="introduction">Introduction</a>
+                <a href="#" class="nav-item group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-300" data-target="pipeline">The DIVA Pipeline</a>
+                <a href="#" class="nav-item group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-300" data-target="comparison">Comparative Analysis</a>
+                <a href="#" class="nav-item group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-300" data-target="roadmap">Evolution Roadmap</a>
+                <a href="#" class="nav-item group flex items-center px-3 py-2 text-base font-medium rounded-md text-gray-300" data-target="horizons">Strategic Horizons</a>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col">
+            <main class="flex-1 p-6 lg:p-10 overflow-y-auto">
+                <div id="introduction" class="content-section"></div>
+                <div id="pipeline" class="content-section"></div>
+                <div id="comparison" class="content-section"></div>
+                <div id="roadmap" class="content-section"></div>
+                <div id="horizons" class="content-section"></div>
+            </main>
+            <footer class="flex-shrink-0 p-3 border-t border-blue-500/20 text-xs text-gray-500 text-center bg-zinc-900">
+                User ID: 00290609122192439545 | Session ID: session_8b70d68d-316
+            </footer>
+        </div>
+    </div>
+    
+    <!-- Glowing Orb and Menu -->
+    <div id="glowing-orb-container" class="hidden">
+        <div id="quick-menu" class="hidden opacity-0 transform translate-y-4">
+             <div class="p-2 space-y-1">
+                 <a href="#" class="quick-link block text-sm text-gray-200 hover:bg-purple-500/30 px-3 py-1 rounded-md transition-colors" data-target="introduction">Introduction</a>
+                 <a href="#" class="quick-link block text-sm text-gray-200 hover:bg-purple-500/30 px-3 py-1 rounded-md transition-colors" data-target="pipeline">Pipeline</a>
+                 <a href="#" class="quick-link block text-sm text-gray-200 hover:bg-purple-500/30 px-3 py-1 rounded-md transition-colors" data-target="comparison">Comparison</a>
+                 <a href="#" class="quick-link block text-sm text-gray-200 hover:bg-purple-500/30 px-3 py-1 rounded-md transition-colors" data-target="roadmap">Roadmap</a>
+                 <a href="#" class="quick-link block text-sm text-gray-200 hover:bg-purple-500/30 px-3 py-1 rounded-md transition-colors" data-target="horizons">Horizons</a>
+             </div>
+        </div>
+        <div id="glowing-orb" class="glowing-orb"></div>
+    </div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const data = {
+            introduction: `
+                <h2 class="text-3xl font-bold text-white mb-4" style="text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">The AI-Powered Digital Assembly Line</h2>
+                <p class="text-lg text-gray-300 mb-6">The DIVA Orchestration Panel represents a significant and increasingly prevalent architectural pattern in applied AI. It signals a strategic shift away from monolithic, general-purpose models toward a collaborative ecosystem of specialized, autonomous agents. This paradigm mirrors the evolution of manufacturing, which transitioned from the all-in-one artisan to the specialized assembly line to unlock gains in quality, efficiency, and scalability.</p>
+                <p class="text-lg text-gray-300 mb-6">At its core, the DIVA system is engineered to solve complex, multi-stage creative and analytical problems that a single AI query would handle poorly. It addresses the limitations of LLMs in maintaining context, adhering to complex constraints, and ensuring consistent quality across a lengthy task by decomposing the problem into a sequence of discrete stages, each assigned to a specialized agent. This modular approach is a direct implementation of a digital assembly line for knowledge work.</p>
+                <div class="bg-zinc-800/50 border-l-4 border-green-400 text-green-200 p-4 rounded-r-lg" style="box-shadow: 0 0 15px rgba(52, 211, 153, 0.2);">
+                    <p class="font-bold">Dashboard Guide</p>
+                    <p>Use the navigation on the left to explore the different facets of the DIVA system analysis. Each section provides interactive elements to help you understand the core concepts from the source report.</p>
+                </div>`,
+            pipeline: `
+                <h2 class="text-3xl font-bold text-white mb-2" style="text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Anatomy of the DIVA System</h2>
+                <p class="text-lg text-gray-300 mb-8">The DIVA system operates as a centralized, sequential pipeline. A human user initiates the process, and an implicit orchestrator manages the workflow by passing the output of each agent to the next. Click on each agent card below to understand its specialized role in this digital assembly line.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="interactive-card p-5 rounded-lg border-2 border-zinc-700 cursor-pointer" data-agent="lyra"><h3 class="font-bold text-lg text-green-400">LYRA (Research)</h3><p class="text-sm text-gray-400">The Information Forager</p></div>
+                    <div class="interactive-card p-5 rounded-lg border-2 border-zinc-700 cursor-pointer" data-agent="kara"><h3 class="font-bold text-lg text-green-400">KARA (Synthesis)</h3><p class="text-sm text-gray-400">The Strategic Drafter</p></div>
+                    <div class="interactive-card p-5 rounded-lg border-2 border-zinc-700 cursor-pointer" data-agent="sophia"><h3 class="font-bold text-lg text-green-400">SOPHIA (Polish)</h3><p class="text-sm text-gray-400">The Clarity Enhancer</p></div>
+                    <div class="interactive-card p-5 rounded-lg border-2 border-zinc-700 cursor-pointer" data-agent="cecilia"><h3 class="font-bold text-lg text-green-400">CECILIA (Validate)</h3><p class="text-sm text-gray-400">The Qualitative Assessor</p></div>
+                    <div class="interactive-card p-5 rounded-lg border-2 border-zinc-700 cursor-pointer" data-agent="mistress"><h3 class="font-bold text-lg text-green-400">MISTRESS (Approve)</h3><p class="text-sm text-gray-400">The Final Arbiter</p></div>
+                </div>
+                <div id="agent-details-container" class="p-6 bg-zinc-800/50 rounded-lg border border-zinc-700 min-h-[150px]"><p class="text-gray-500 text-center py-12">Click an agent above to see its detailed description.</p></div>`,
+            comparison: `
+                <h2 class="text-3xl font-bold text-white mb-4" style="text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Comparative Analysis</h2>
+                <p class="text-lg text-gray-300 mb-8">To fully appreciate DIVA's design, it's essential to compare it against other approaches. The sections below break down how DIVA's architecture compares to other agentic frameworks and how orchestration as a strategy compares to other methods of AI adaptation.</p>
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-white mb-2">Agentic Frameworks</h3>
+                    <p class="text-gray-400 mb-6">DIVA is a purpose-built implementation of a hierarchical pipeline. The cards below compare it to leading general-purpose frameworks. Click each card to see its profile.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div class="framework-card interactive-card p-3 text-center rounded-lg border-2 border-zinc-700 cursor-pointer" data-framework="diva">DIVA</div>
+                        <div class="framework-card interactive-card p-3 text-center rounded-lg border-2 border-zinc-700 cursor-pointer" data-framework="crewai">CrewAI</div>
+                        <div class="framework-card interactive-card p-3 text-center rounded-lg border-2 border-zinc-700 cursor-pointer" data-framework="autogen">AutoGen</div>
+                        <div class="framework-card interactive-card p-3 text-center rounded-lg border-2 border-zinc-700 cursor-pointer" data-framework="langgraph">LangGraph</div>
+                    </div>
+                    <div id="framework-details-container" class="p-6 bg-zinc-800/50 rounded-lg border border-zinc-700 min-h-[200px]"><p class="text-gray-500 text-center py-20">Click a framework to see details.</p></div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-white mb-2">AI Adaptation Strategies</h3>
+                    <p class="text-gray-400 mb-6">Building a system like DIVA is an architectural choice. It is one of three primary strategies for adapting LLMs to specific needs. Use the tabs below to compare them.</p>
+                    <div class="flex justify-center border-b border-zinc-700 mb-6">
+                        <button class="tab-btn -mb-px px-4 py-2 font-medium border-b-2 border-transparent text-gray-300 hover:text-white" data-strategy="orchestration">Orchestration</button>
+                        <button class="tab-btn -mb-px px-4 py-2 font-medium border-b-2 border-transparent text-gray-300 hover:text-white" data-strategy="rag">RAG</button>
+                        <button class="tab-btn -mb-px px-4 py-2 font-medium border-b-2 border-transparent text-gray-300 hover:text-white" data-strategy="finetuning">Fine-Tuning</button>
+                    </div>
+                    <div id="strategy-details-container" class="p-6 bg-zinc-800/50 rounded-lg border border-zinc-700"></div>
+                </div>`,
+            roadmap: `
+                 <h2 class="text-3xl font-bold text-white mb-2" style="text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">The Evolution of DIVA: A Strategic Roadmap</h2>
+                 <p class="text-lg text-gray-300 mb-8">To unlock its full potential, DIVA must evolve from a rigid pipeline into a dynamic, robust, and highly capable agentic platform. The following roadmap outlines this evolution. Click each stage for details.</p>
+                 <div class="relative border-l-2 border-purple-500 ml-4 py-4">
+                    <div class="mb-10 ml-8 cursor-pointer roadmap-stage">
+                        <span class="absolute flex items-center justify-center w-8 h-8 bg-purple-800 rounded-full -left-4 ring-8 ring-zinc-900" style="box-shadow: 0 0 10px #a855f7;"><span class="font-bold text-purple-200">1</span></span>
+                        <h3 class="flex items-center mb-1 text-xl font-semibold text-white">Short-Term: Dynamic, Graph-Based Architecture</h3>
+                        <div class="roadmap-details hidden mt-2 text-base font-normal text-gray-300 bg-zinc-800/50 p-4 rounded-lg border border-zinc-700"></div>
+                    </div>
+                    <div class="mb-10 ml-8 cursor-pointer roadmap-stage">
+                        <span class="absolute flex items-center justify-center w-8 h-8 bg-purple-800 rounded-full -left-4 ring-8 ring-zinc-900" style="box-shadow: 0 0 10px #a855f7;"><span class="font-bold text-purple-200">2</span></span>
+                        <h3 class="flex items-center mb-1 text-xl font-semibold text-white">Mid-Term: Constitutional Governance</h3>
+                         <div class="roadmap-details hidden mt-2 text-base font-normal text-gray-300 bg-zinc-800/50 p-4 rounded-lg border border-zinc-700"></div>
+                    </div>
+                     <div class="ml-8 cursor-pointer roadmap-stage">
+                        <span class="absolute flex items-center justify-center w-8 h-8 bg-purple-800 rounded-full -left-4 ring-8 ring-zinc-900" style="box-shadow: 0 0 10px #a855f7;"><span class="font-bold text-purple-200">3</span></span>
+                        <h3 class="flex items-center mb-1 text-xl font-semibold text-white">Long-Term: Decentralized Agentic Ecosystem</h3>
+                         <div class="roadmap-details hidden mt-2 text-base font-normal text-gray-300 bg-zinc-800/50 p-4 rounded-lg border border-zinc-700"></div>
+                    </div>
+                 </div>`,
+            horizons: `
+                <h2 class="text-3xl font-bold text-white mb-4" style="text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Strategic & Philosophical Horizons</h2>
+                <p class="text-lg text-gray-300 mb-6">The development of sophisticated systems like DIVA extends beyond technical implementation, forcing us to confront profound challenges in governance, safety, and the future of creativity itself.</p>
+                <div class="space-y-6">
+                    <div class="p-6 bg-zinc-800/50 rounded-lg border border-zinc-700 hover:border-pink-500/50 transition-colors" style="box-shadow: 0 0 20px rgba(219, 39, 119, 0.1);">
+                        <h3 class="font-bold text-lg text-pink-400 mb-2">Governing Emergence with Constitutional AI</h3>
+                        <p>As multi-agent systems become more complex, their behavior becomes emergent and unpredictable. Simple rule-based governance is too brittle. Constitutional AI (CAI) offers a more robust solution, aligning agent behavior with a small set of high-level, normative principles (a "constitution") rather than an exhaustive list of rules. This provides a scalable safety layer that grows with the system's complexity.</p>
+                    </div>
+                    <div class="p-6 bg-zinc-800/50 rounded-lg border border-zinc-700 hover:border-blue-500/50 transition-colors" style="box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);">
+                        <h3 class="font-bold text-lg text-blue-400 mb-2">The Co-Evolution of Human and Machine Creativity</h3>
+                        <p>Systems like DIVA reconfigure the creative process into a symbiotic collaboration. The human operator becomes a conductor, guiding a team of AI agents. This initiates a co-evolutionary trajectory where human creative strategies and AI capabilities mutually enhance one another. However, it is crucial to temper techno-optimism with strong ethical guardrails to ensure this technology amplifies truth and fairness, not misinformation or bias.</p>
+                    </div>
+                </div>`
+        };
+
+        const details = {
+            agents: {
+                lyra: `<strong>LYRA (Research): The Information Forager.</strong> LYRA's designated task is to handle "factual + emotional resonance queries." This is a sophisticated mandate that goes beyond simple data retrieval. It implies a dual function: first, to gather factual information relevant to a topic, and second, to understand the intended audience's emotional landscape. This role is effectively a highly advanced form of Retrieval-Augmented Generation (RAG).`,
+                kara: `<strong>KARA (Synthesis): The Strategic Drafter.</strong> KARA receives the raw material from LYRA and is tasked with creating a "high-impact, strategic" draft. Its function is not merely to summarize but to shape the core message, transforming information into a persuasive and purposeful narrative. This is a critical step that bridges the gap between raw data and strategic communication.`,
+                sophia: `<strong>SOPHIA (Polish): The Clarity and Richness Enhancer.</strong> SOPHIA's role is to perform post-draft refinement. The goals specified—clarity, semantic richness, and flow—are qualitative and stylistic. This agent is responsible for the final texture and readability of the content, focusing on language, structure, and rhythm.`,
+                cecilia: `<strong>CECILIA (Validate): The Qualitative Assessor.</strong> CECILIA functions as an automated Quality Assurance (QA) layer. Its checks for abstract qualities like "emotional impact," "accessibility," and "authenticity" are tasks that are notoriously difficult to quantify. It provides a crucial, nuanced validation that a general-purpose model might miss.`,
+                mistress: `<strong>MISTRESS (Approve): The Final Arbiter.</strong> This agent represents the final governance gate before deployment. Its uncompromising attitude and quantitative threshold imply a strict, metric-based approval mechanism. MISTRESS enforces compliance with the highest quality standards, providing a reliable and objective final check.`
+            },
+            frameworks: {
+                diva: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Orchestration Style:</strong> Hierarchical, Linear Pipeline</li><li class="ml-4"><strong>Key Abstraction:</strong> Specialized Agents</li><li class="ml-4"><strong>Communication Pattern:</strong> State-Passing (Output of one is input to next)</li><li class="ml-4"><strong>Ideal Use Case:</strong> Well-defined, multi-stage content or report generation with fixed steps.</li></ul>`,
+                crewai: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Orchestration Style:</strong> Hierarchical, Role-Based</li><li class="ml-4"><strong>Key Abstraction:</strong> Agents, Tasks, Crews</li><li class="ml-4"><strong>Communication Pattern:</strong> Delegation, Sequential or Hierarchical Execution</li><li class="ml-4"><strong>Ideal Use Case:</strong> Automating business processes with clearly defined roles and responsibilities.</li></ul>`,
+                autogen: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Orchestration Style:</strong> Conversational, Group Chat</li><li class="ml-4"><strong>Key Abstraction:</strong> Conversable Agents</li><li class="ml-4"><strong>Communication Pattern:</strong> Asynchronous Message Passing (Chat)</li><li class="ml-4"><strong>Ideal Use Case:</strong> Complex problem-solving requiring iterative discussion, brainstorming, and refinement.</li></ul>`,
+                langgraph: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Orchestration Style:</strong> State Machine, Graph-Based</li><li class="ml-4"><strong>Key Abstraction:</strong> Nodes, Edges, Shared State</li><li class="ml-4"><strong>Communication Pattern:</strong> Modifying a Central State Object</li><li class="ml-4"><strong>Ideal Use Case:</strong> Workflows requiring cycles, branching, human-in-the-loop, and complex state management.</li></ul>`
+            },
+            strategies: {
+                orchestration: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Primary Goal:</strong> To execute a complex, multi-step <strong>process</strong>.</li><li class="ml-4"><strong>When to Use:</strong> When a task is decomposable into a sequence or graph of distinct sub-tasks.</li><li class="ml-4"><strong>Data Dynamics:</strong> The process involves multiple, disparate data sources and types.</li><li class="ml-4"><strong>Explainability:</strong> <strong>High</strong>. The system's logic is explicit in the workflow; each step is traceable.</li></ul>`,
+                rag: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Primary Goal:</strong> To provide the model with new, up-to-date <strong>knowledge</strong>.</li><li class="ml-4"><strong>When to Use:</strong> When a task requires responses to be grounded in verifiable, external facts to prevent hallucination.</li><li class="ml-4"><strong>Data Dynamics:</strong> The knowledge is <strong>dynamic</strong>, proprietary, or requires real-time access.</li><li class="ml-4"><strong>Explainability:</strong> <strong>High</strong>. The system can cite the exact sources used to generate the response.</li></ul>`,
+                finetuning: `<ul class="space-y-2 list-disc"><li class="ml-4"><strong>Primary Goal:</strong> To teach a new <strong>style</strong>, <strong>behavior</strong>, or structured <strong>format</strong>.</li><li class="ml-4"><strong>When to Use:</strong> When the task requires specific nuance or expertise that is not present in the base model.</li><li class="ml-4"><strong>Data Dynamics:</strong> The knowledge is <strong>static</strong> and foundational (e.g., brand voice, medical terminology).</li><li class="ml-4"><strong>Explainability:</strong> <strong>Opaque</strong>. It changes the model's internal weights, making decisions hard to trace.</li></ul>`
+            },
+            roadmap: [
+                `<p class="font-semibold text-purple-300">Action:</p><ul class="list-disc space-y-1 mb-2"><li>Transition the backend from a linear pipeline to a dynamic, stateful graph using a framework like LangGraph.</li><li>Enhance the UI into a true Human-in-the-Loop (HITL) dashboard.</li></ul><p class="font-semibold text-purple-300">Key Outcomes:</p><ul class="list-disc space-y-1"><li>Enable iterative refinement loops, conditional branching, and parallel execution.</li><li>Implement robust HITL patterns like approval gates and automated escalation paths for agent failures.</li></ul>`,
+                `<p class="font-semibold text-purple-300">Action:</p><ul class="list-disc space-y-1 mb-2"><li>Define and codify a "DIVA Constitution"—a set of high-level principles governing agent behavior (ethics, quality, safety).</li><li>Begin containerizing each agent as an independent "smart microservice."</li></ul><p class="font-semibold text-purple-300">Key Outcomes:</p><ul class="list-disc space-y-1"><li>Move from brittle, hard-coded rules to a flexible, values-based alignment system to safely manage emergent behaviors.</li><li>Create a more resilient, scalable, and decentralized architecture.</li></ul>`,
+                `<p class="font-semibold text-purple-300">Action:</p><ul class="list-disc space-y-1 mb-2"><li>Explore integration with open standards for agent communication (e.g., A2A protocols).</li><li>Investigate participation in decentralized agent discovery networks and experiment with tokenomics and DAOs.</li></ul><p class="font-semibold text-purple-300">Key Outcomes:</p><ul class="list-disc space-y-1"><li>Enable DIVA agents to interoperate with a broader, open ecosystem of external agents and tools.</li><li>Transform DIVA from an application into a self-sustaining, community-governed ecosystem.</li></ul>`
+            ]
+        };
+
+        const apiKeyModal = document.getElementById('api-key-modal');
+        const mainApp = document.getElementById('main-app');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiKeySubmit = document.getElementById('api-key-submit');
+        const apiKeyError = document.getElementById('api-key-error');
+        const validApiKey = "DIVA-PRO-2025-DEMO";
+        
+        const orbContainer = document.getElementById('glowing-orb-container');
+        const orb = document.getElementById('glowing-orb');
+        const quickMenu = document.getElementById('quick-menu');
+
+        apiKeySubmit.addEventListener('click', function() {
+            if (apiKeyInput.value.trim() === validApiKey) {
+                apiKeyModal.style.display = 'none';
+                mainApp.classList.remove('hidden');
+                mainApp.classList.add('flex');
+                orbContainer.classList.remove('hidden');
+                initializeMainApp();
+            } else {
+                apiKeyError.textContent = 'Invalid API Key. Please try again.';
+                apiKeyInput.classList.add('border-red-500');
+                setTimeout(() => { 
+                    apiKeyError.textContent = '';
+                    apiKeyInput.classList.remove('border-red-500');
+                }, 3000);
+            }
+        });
+        
+        apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                apiKeySubmit.click();
+            }
+        });
+
+        function initializeMainApp() {
+            const navLinks = document.querySelectorAll('#main-nav a');
+            const quickLinks = document.querySelectorAll('.quick-link');
+            const contentSections = {
+                introduction: document.getElementById('introduction'),
+                pipeline: document.getElementById('pipeline'),
+                comparison: document.getElementById('comparison'),
+                roadmap: document.getElementById('roadmap'),
+                horizons: document.getElementById('horizons')
+            };
+
+            for (const section in contentSections) {
+                if (data[section]) {
+                    contentSections[section].innerHTML = data[section];
+                }
+            }
+
+            function switchView(targetId) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active-nav', link.dataset.target === targetId);
+                });
+                for (const section in contentSections) {
+                    contentSections[section].classList.toggle('active', section === targetId);
+                }
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchView(e.currentTarget.dataset.target);
+                });
+            });
+            
+            quickLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchView(e.currentTarget.dataset.target);
+                    toggleMenu(false);
+                });
+            });
+            
+            function toggleMenu(forceState) {
+                const isHidden = quickMenu.classList.contains('hidden');
+                const show = forceState !== undefined ? forceState : isHidden;
+                
+                if (show) {
+                    quickMenu.classList.remove('hidden');
+                    setTimeout(() => {
+                        quickMenu.classList.remove('opacity-0', 'translate-y-4');
+                    }, 10);
+                } else {
+                    quickMenu.classList.add('opacity-0', 'translate-y-4');
+                    setTimeout(() => {
+                        quickMenu.classList.add('hidden');
+                    }, 300);
+                }
+            }
+            
+            orb.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMenu();
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (!quickMenu.contains(e.target) && !orb.contains(e.target)) {
+                    toggleMenu(false);
+                }
+            });
+
+            const agentCards = document.querySelectorAll('.interactive-card[data-agent]');
+            const agentDetailsContainer = document.getElementById('agent-details-container');
+            agentCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    agentDetailsContainer.innerHTML = `<p>${details.agents[card.dataset.agent]}</p>`;
+                    agentCards.forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                });
+            });
+
+            const frameworkCards = document.querySelectorAll('.framework-card');
+            const frameworkDetailsContainer = document.getElementById('framework-details-container');
+            frameworkCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    frameworkDetailsContainer.innerHTML = details.frameworks[card.dataset.framework];
+                    frameworkCards.forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                });
+            });
+
+            const strategyTabs = document.querySelectorAll('.tab-btn');
+            const strategyDetailsContainer = document.getElementById('strategy-details-container');
+            function showStrategy(strategyId) {
+                strategyDetailsContainer.innerHTML = details.strategies[strategyId];
+                strategyTabs.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.strategy === strategyId);
+                });
+            }
+            strategyTabs.forEach(button => {
+                button.addEventListener('click', () => showStrategy(button.dataset.strategy));
+            });
+
+            const roadmapStages = document.querySelectorAll('.roadmap-stage');
+            roadmapStages.forEach((stage, index) => {
+                const detailsContainer = stage.querySelector('.roadmap-details');
+                detailsContainer.innerHTML = details.roadmap[index];
+                stage.addEventListener('click', () => {
+                    detailsContainer.classList.toggle('hidden');
+                });
+            });
+
+            // Initialize default views
+            switchView('introduction');
+            if(frameworkCards.length > 0) frameworkCards[0].click();
+            if(strategyTabs.length > 0) showStrategy('orchestration');
+        }
+    });
+</script>
+</body>
+</html>

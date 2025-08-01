@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced AI Orchestration Canvas</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the application */
+        .resize-handle {
+            cursor: col-resize;
+        }
+        .canvas-grid {
+            background-image: radial-gradient(#3f3f46 1px, transparent 0);
+            background-size: 20px 20px; /* SNAP_GRID_SIZE */
+        }
+        .overflow-auto-hidden-scrollbar {
+            overflow: auto;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .overflow-auto-hidden-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+        /* Styles for modals */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-backdrop.visible .modal-content {
+            transform: scale(1);
+        }
+        /* Node execution status styling */
+        .node-processing {
+            box-shadow: 0 0 15px 5px rgba(168, 85, 247, 0.6); /* Purple glow */
+            border-color: #a855f7;
+        }
+        .node-success {
+            box-shadow: 0 0 15px 5px rgba(34, 197, 94, 0.6); /* Green glow */
+            border-color: #22c55e;
+        }
+        .node-error {
+            box-shadow: 0 0 15px 5px rgba(239, 68, 68, 0.6); /* Red glow */
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+    <div id="app-root" class="flex h-screen w-screen bg-gray-900 text-slate-300 overflow-hidden">
+        <!-- App content will be injected here by JavaScript -->
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <script>
+        // --- Icon SVGs (from Lucide React) ---
+        const Icons = {
+            BrainCircuit: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-brain-circuit"><path d="M12 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z"/><path d="M16 20a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2Z"/><path d="M7 8v2"/><path d="M7 14v2"/><path d="M10 17h2"/><path d="M10 11h2"/><path d="M14 7h2"/><path d="M14 1h2"/><path d="M18 11h2"/><path d="M18 17h2"/><path d="M22 4h-2"/><path d="M22 20h-2"/><path d="M2 4h2"/><path d="M2 20h2"/><path d="M3 10h2"/><path d="M3 14h2"/><path d="M7 22h2"/><path d="M15 22h2"/><path d="M15 2h2"/></svg>`,
+            Play: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+            Trash2: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`,
+            User: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+            Settings2: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>`,
+            Terminal: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`,
+            Key: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key"><path d="m21.79 11.79-1.6-1.6a3 3 0 0 0-4.24 0l-9.19 9.19a3 3 0 0 0 0 4.24l1.6 1.6a3 3 0 0 0 4.24 0l9.19-9.19a3 3 0 0 0 0-4.24Z"/><path d="m15.5 7.5 3 3"/><path d="M13.4 4.6a2 2 0 0 1 2.83 0"/></svg>`,
+            Share2: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-share-2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>`,
+            PanelLeftClose: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M10 3v18"/><path d="m15 9-3 3 3 3"/></svg>`,
+            PanelLeftOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M10 3v18"/><path d="m9 15 3-3-3-3"/></svg>`,
+            GitFork: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-fork"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v.2c0 1.1.9 2 2 2h.8"/><path d="M6 9v.2c0 1.1-.9 2-2 2H2"/><path d="M12 12V6"/></svg>`,
+            Combine: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-combine"><rect x="14" y="14" width="8" height="8" rx="2"/><rect x="2" y="2" width="8" height="8" rx="2"/><path d="M6 14v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/></svg>`,
+            Bot: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/></svg>`,
+            Save: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+            Upload: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+            LayoutTemplate: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-template"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>`,
+            Settings: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
+        };
+
+        // --- Helper Functions & Constants ---
+        const NODE_TYPES = {
+            USER_PROMPT: { name: 'User Prompt', type: 'USER_PROMPT', icon: 'User', description: 'Represents the primary input or question from the end-user.', inputs: [], outputs: [{ id: 'out', name: 'Prompt Text' }], color: 'bg-sky-600', category: 'Inputs', defaultData: { text: 'Analyze the attached financial report and summarize key risks.' } },
+            SYSTEM_CONTEXT: { name: 'System Context', type: 'SYSTEM_CONTEXT', icon: 'Settings2', description: 'Provides custom instructions, personality, or background context to the AI.', inputs: [], outputs: [{ id: 'out', name: 'Context' }], color: 'bg-slate-600', category: 'Inputs', defaultData: { text: 'You are a helpful and creative assistant.' } },
+            PARAMETERS: { name: 'Parameters', type: 'PARAMETERS', icon: 'Key', description: 'Defines key-value pairs for configuration (e.g., API keys, settings).', inputs: [], outputs: [{ id: 'out', name: 'Params Object' }], color: 'bg-amber-600', category: 'Inputs', defaultData: { params: '{\n  "temperature": 0.7,\n  "maxLength": 256\n}' } },
+            ROUTER: { name: 'Router', type: 'ROUTER', icon: 'GitFork', description: 'Routes input to different paths based on a condition.', inputs: [{ id: 'in', name: 'Input' }], outputs: [{ id: 'task', name: 'Task' }, { id: 'system', name: 'System' }, { id: 'chat', name: 'Chat' }], color: 'bg-cyan-600', category: 'Logic', defaultData: { route: 'task', text: '' } },
+            AI_AGENT: { name: 'AI Agent', type: 'AI_AGENT', icon: 'Bot', description: 'Assigns a task to a specific AI persona from the AI Family.', inputs: [{ id: 'in', name: 'Task' }], outputs: [{ id: 'out', name: 'Result' }], color: 'bg-indigo-600', category: 'Logic', defaultData: { agent: 'Lyra', result: '' } },
+            RESULT_COLLECTOR: { name: 'Result Collector', type: 'RESULT_COLLECTOR', icon: 'Combine', description: 'Collects results from multiple branches into a single output.', inputs: [{ id: 'in1', name: 'Input 1' }, { id: 'in2', name: 'Input 2' }, { id: 'in3', name: 'Input 3' }], outputs: [{ id: 'out', name: 'Combined Result' }], color: 'bg-orange-600', category: 'Logic', defaultData: { result: '' } },
+            GEMINI: { name: 'Gemini Model', type: 'GEMINI', icon: 'BrainCircuit', description: 'Processes inputs using the Gemini model.', inputs: [{ id: 'prompt', name: 'User Prompt' }, { id: 'context', name: 'System Context' }, { id: 'params', name: 'Parameters' }], outputs: [{ id: 'out', name: 'Result' }], color: 'bg-purple-600', category: 'AI / Models', defaultData: { result: '', isLoading: false, error: null } },
+            CODE_EXECUTOR: { name: 'Code Executor', type: 'CODE_EXECUTOR', icon: 'Terminal', description: 'Mocks the execution of a code snippet (e.g., Node.js).', inputs: [{ id: 'in', name: 'Script' }], outputs: [{ id: 'out', name: 'Console Output' }], color: 'bg-gray-600', category: 'Development', defaultData: { script: 'console.log("Hello from Node.js!");', result: '' } },
+            OUTPUT: { name: 'Final Output', type: 'OUTPUT', icon: 'Share2', description: 'Displays the final result of the orchestration.', inputs: [{ id: 'in', name: 'Result' }], outputs: [], color: 'bg-rose-600', category: 'Output', defaultData: { text: '' } },
+        };
+
+        const TEMPLATES = {
+            'Default': {
+                nodes: [
+                    { id: 'node-user-input', type: 'USER_PROMPT', x: 50, y: 250, data: { ...NODE_TYPES.USER_PROMPT.defaultData } },
+                    { id: 'node-router', type: 'ROUTER', x: 350, y: 250, data: { ...NODE_TYPES.ROUTER.defaultData, route: 'task' } },
+                    { id: 'node-agent-task', type: 'AI_AGENT', x: 650, y: 150, data: { ...NODE_TYPES.AI_AGENT.defaultData, agent: 'Kara' } },
+                    { id: 'node-agent-chat', type: 'AI_AGENT', x: 650, y: 350, data: { ...NODE_TYPES.AI_AGENT.defaultData, agent: 'Lyra' } },
+                    { id: 'node-collector', type: 'RESULT_COLLECTOR', x: 950, y: 250, data: { ...NODE_TYPES.RESULT_COLLECTOR.defaultData } },
+                    { id: 'node-output', type: 'OUTPUT', x: 1250, y: 250, data: { ...NODE_TYPES.OUTPUT.defaultData } },
+                ],
+                connections: [
+                    { id: 'conn-input-router', startNodeId: 'node-user-input', startPortId: 'out', endNodeId: 'node-router', endPortId: 'in' },
+                    { id: 'conn-router-agent-task', startNodeId: 'node-router', startPortId: 'task', endNodeId: 'node-agent-task', endPortId: 'in' },
+                    { id: 'conn-router-agent-chat', startNodeId: 'node-router', startPortId: 'chat', endNodeId: 'node-agent-chat', endPortId: 'in' },
+                    { id: 'conn-agent-task-collector', startNodeId: 'node-agent-task', startPortId: 'out', endNodeId: 'node-collector', endPortId: 'in1' },
+                    { id: 'conn-agent-chat-collector', startNodeId: 'node-agent-chat', startPortId: 'out', endNodeId: 'node-collector', endPortId: 'in2' },
+                    { id: 'conn-collector-output', startNodeId: 'node-collector', startPortId: 'out', endNodeId: 'node-output', endPortId: 'in' },
+                ]
+            },
+            'Basic Q&A': {
+                nodes: [
+                    { id: 'node-user-input', type: 'USER_PROMPT', x: 50, y: 150, data: { text: "What is the capital of France?" } },
+                    { id: 'node-system-context', type: 'SYSTEM_CONTEXT', x: 50, y: 300, data: { text: "You are a helpful geography expert. Answer concisely." } },
+                    { id: 'node-gemini', type: 'GEMINI', x: 400, y: 225, data: { ...NODE_TYPES.GEMINI.defaultData } },
+                    { id: 'node-output', type: 'OUTPUT', x: 750, y: 225, data: { ...NODE_TYPES.OUTPUT.defaultData } }
+                ],
+                connections: [
+                    { id: 'conn-prompt-gemini', startNodeId: 'node-user-input', startPortId: 'out', endNodeId: 'node-gemini', endPortId: 'prompt' },
+                    { id: 'conn-context-gemini', startNodeId: 'node-system-context', startPortId: 'out', endNodeId: 'node-gemini', endPortId: 'context' },
+                    { id: 'conn-gemini-output', startNodeId: 'node-gemini', startPortId: 'out', endNodeId: 'node-output', endPortId: 'in' }
+                ]
+            },
+            'Code Generation': {
+                nodes: [
+                    { id: 'node-user-input', type: 'USER_PROMPT', x: 50, y: 150, data: { text: "Write a python function to calculate fibonacci." } },
+                    { id: 'node-system-context', type: 'SYSTEM_CONTEXT', x: 50, y: 300, data: { text: "You are an expert Python programmer. Provide only the code, no explanations." } },
+                    { id: 'node-gemini', type: 'GEMINI', x: 400, y: 225, data: { ...NODE_TYPES.GEMINI.defaultData } },
+                    { id: 'node-executor', type: 'CODE_EXECUTOR', x: 750, y: 225, data: { ...NODE_TYPES.CODE_EXECUTOR.defaultData } },
+                    { id: 'node-output', type: 'OUTPUT', x: 1100, y: 225, data: { ...NODE_TYPES.OUTPUT.defaultData } }
+                ],
+                connections: [
+                    { id: 'conn-prompt-gemini', startNodeId: 'node-user-input', startPortId: 'out', endNodeId: 'node-gemini', endPortId: 'prompt' },
+                    { id: 'conn-context-gemini', startNodeId: 'node-system-context', startPortId: 'out', endNodeId: 'node-gemini', endPortId: 'context' },
+                    { id: 'conn-gemini-executor', startNodeId: 'node-gemini', startPortId: 'out', endNodeId: 'node-executor', endPortId: 'in' },
+                    { id: 'conn-executor-output', startNodeId: 'node-executor', startPortId: 'out', endNodeId: 'node-output', endPortId: 'in' }
+                ]
+            }
+        };
+
+        const SNAP_GRID_SIZE = 20;
+        const NODE_CATEGORIES = ['Inputs', 'Logic', 'AI / Models', 'Development', 'Output'];
+        const MIN_SIDEBAR_WIDTH = 200;
+        const MAX_SIDEBAR_WIDTH = 500;
+
+        // --- Global State Variables ---
+        let nodes = [];
+        let connections = [];
+        let draggingNode = null;
+        let connecting = null;
+        let mousePosition = { x: 0, y: 0 };
+        let apiKey = '';
+        let sidebarWidth = 288;
+        let isSidebarCollapsed = false;
+        let isResizing = false;
+
+        // --- DOM Elements References ---
+        let appRoot;
+        let canvasRef;
+        let svgCanvas;
+        let modalContainer;
+
+        // --- Utility Functions ---
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+        // --- State Update Functions ---
+        function setNodes(newNodes) {
+            nodes = newNodes;
+            renderCanvas();
+        }
+
+        function setConnections(newConnections) {
+            connections = newConnections;
+            renderCanvas();
+        }
+
+        function setDraggingNode(nodeInfo) {
+            draggingNode = nodeInfo;
+        }
+
+        function setConnecting(connectionInfo) {
+            connecting = connectionInfo;
+            renderCanvas();
+        }
+
+        function setMousePosition(pos) {
+            mousePosition = pos;
+            if (connecting) {
+                renderConnectingLine();
+            }
+        }
+
+        function setApiKey(key) {
+            apiKey = key;
+        }
+
+        function setSidebarWidth(width) {
+            sidebarWidth = width;
+            document.querySelector('aside').style.width = `${width}px`;
+        }
+
+        function setIsSidebarCollapsed(collapsed) {
+            isSidebarCollapsed = collapsed;
+            const sidebar = document.querySelector('aside');
+            const sidebarContent = sidebar.querySelector('.flex-col.h-full');
+            const toggleButton = sidebar.querySelector('button[title*="sidebar"]');
+
+            if (collapsed) {
+                sidebar.style.width = '0';
+                sidebarContent.classList.add('opacity-0');
+                toggleButton.innerHTML = Icons.PanelLeftOpen;
+                toggleButton.title = "Open sidebar";
+            } else {
+                sidebar.style.width = `${sidebarWidth}px`;
+                sidebarContent.classList.remove('opacity-0');
+                toggleButton.innerHTML = Icons.PanelLeftClose;
+                toggleButton.title = "Collapse sidebar";
+            }
+        }
+
+        function updateNodeData(nodeId, newData) {
+            const nodeIndex = nodes.findIndex(n => n.id === nodeId);
+            if (nodeIndex !== -1) {
+                nodes[nodeIndex].data = { ...nodes[nodeIndex].data, ...newData };
+                // Re-render only the affected node for efficiency
+                const existingNodeElement = document.getElementById(nodeId);
+                if (existingNodeElement) {
+                    const newNodeElement = renderNode(nodes[nodeIndex]);
+                    existingNodeElement.replaceWith(newNodeElement);
+                }
+            }
+        }
+        
+        function highlightNode(nodeId, status = 'processing', duration = 2000) {
+            const nodeElement = document.getElementById(nodeId);
+            if (!nodeElement) return;
+
+            // Remove any existing status classes
+            nodeElement.classList.remove('node-processing', 'node-success', 'node-error');
+            
+            if (status) {
+                nodeElement.classList.add(`node-${status}`);
+                // Remove the highlight after a duration
+                setTimeout(() => {
+                    nodeElement.classList.remove(`node-${status}`);
+                }, duration);
+            }
+        }
+
+
+        // --- Event Handlers ---
+        function getCanvasRelativePosition(event) {
+            if (!canvasRef) return { x: 0, y: 0 };
+            const rect = canvasRef.getBoundingClientRect();
+            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        }
+
+        function handleMouseMove(event) {
+            if (isResizing) {
+                const newWidth = event.clientX;
+                if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
+                    setSidebarWidth(newWidth);
+                }
+                return;
+            }
+
+            const pos = getCanvasRelativePosition(event);
+            setMousePosition(pos);
+
+            if (draggingNode) {
+                const updatedNodes = nodes.map(node => {
+                    if (node.id === draggingNode.id) {
+                        return {
+                            ...node,
+                            x: Math.round((pos.x - draggingNode.offsetX) / SNAP_GRID_SIZE) * SNAP_GRID_SIZE,
+                            y: Math.round((pos.y - draggingNode.offsetY) / SNAP_GRID_SIZE) * SNAP_GRID_SIZE
+                        };
+                    }
+                    return node;
+                });
+                setNodes(updatedNodes);
+            }
+        }
+
+        function handleMouseUp() {
+            isResizing = false;
+            setDraggingNode(null);
+            setConnecting(null);
+        }
+
+        function handleGlobalMouseUp(e) {
+            if (isResizing || draggingNode || connecting) {
+                handleMouseUp(e);
+            }
+        }
+
+        function handleResizeMouseDown(e) {
+            e.preventDefault();
+            isResizing = true;
+        }
+
+        function handleCanvasClick(e) {
+            if (e.target === canvasRef || e.target === svgCanvas) {
+                setConnecting(null);
+            }
+        }
+
+        function addNode(nodeType, x, y) {
+            const newNode = {
+                id: `node-${Date.now()}`,
+                type: nodeType,
+                x: Math.round(x / SNAP_GRID_SIZE) * SNAP_GRID_SIZE,
+                y: Math.round(y / SNAP_GRID_SIZE) * SNAP_GRID_SIZE,
+                data: { ...NODE_TYPES[nodeType].defaultData },
+            };
+            setNodes([...nodes, newNode]);
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            const nodeType = event.dataTransfer.getData('application/reactflow');
+            if (typeof nodeType === 'string' && NODE_TYPES[nodeType]) {
+                const pos = getCanvasRelativePosition(event);
+                addNode(nodeType, pos.x, pos.y);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function handlePortClick(event, nodeId, port, isOutput) {
+            event.stopPropagation(); // Prevent node drag from starting
+            if (isOutput) {
+                const pos = getCanvasRelativePosition(event);
+                setMousePosition(pos);
+                setConnecting({ startNodeId: nodeId, startPortId: port.id });
+            } else {
+                if (connecting && connecting.startNodeId !== nodeId) {
+                    const newConnection = {
+                        id: `conn-${connecting.startNodeId}-${nodeId}-${port.id}`,
+                        ...connecting,
+                        endNodeId: nodeId,
+                        endPortId: port.id,
+                    };
+                    if (!connections.some(c => c.endNodeId === newConnection.endNodeId && c.endPortId === newConnection.endPortId)) {
+                        setConnections([...connections, newConnection]);
+                    }
+                    setConnecting(null);
+                }
+            }
+        }
+
+        async function runOrchestration() {
+            // Reset node data and highlights
+            setNodes(nodes.map(n => {
+                const nodeElement = document.getElementById(n.id);
+                if(nodeElement) nodeElement.classList.remove('node-processing', 'node-success', 'node-error');
+                
+                if (NODE_TYPES[n.type].category !== 'Inputs') {
+                    return { ...n, data: { ...NODE_TYPES[n.type].defaultData } };
+                }
+                return n;
+            }));
+            await sleep(100); // Allow UI to update
+
+            const executionOrder = [];
+            const visited = new Set();
+            const inputNodes = nodes.filter(n => NODE_TYPES[n.type].inputs.length === 0);
+
+            function topologicalSort(nodeId) {
+                if (!nodeId || visited.has(nodeId)) return;
+                visited.add(nodeId);
+                const outgoingConnections = connections.filter(c => c.startNodeId === nodeId);
+                for (const conn of outgoingConnections) {
+                    topologicalSort(conn.endNodeId);
+                }
+                executionOrder.unshift(nodeId);
+            }
+
+            inputNodes.forEach(n => topologicalSort(n.id));
+
+            for (const nodeId of executionOrder.reverse()) {
+                const node = nodes.find(n => n.id === nodeId);
+                if (!node) continue;
+
+                highlightNode(node.id, 'processing', 2000);
+                await sleep(500); // Pause for visual feedback
+
+                const incomingConnections = connections.filter(c => c.endNodeId === nodeId);
+                let inputData = {};
+                for (const conn of incomingConnections) {
+                    const sourceNode = nodes.find(n => n.id === conn.startNodeId);
+                    if (sourceNode) {
+                        const sourceOutput = sourceNode.data.result ?? sourceNode.data.text ?? sourceNode.data.params;
+                        if (sourceNode.type === 'ROUTER') {
+                            if (conn.startPortId === sourceNode.data.route) {
+                                inputData[conn.endPortId] = sourceNode.data.text;
+                            }
+                        } else {
+                            inputData[conn.endPortId] = sourceOutput;
+                        }
+                    }
+                }
+                await processNode(node, inputData);
+            }
+        }
+
+        async function processNode(node, inputData) {
+            let output = { ...node.data };
+            let success = true;
+
+            try {
+                switch (node.type) {
+                    case 'USER_PROMPT':
+                    case 'SYSTEM_CONTEXT':
+                        output.text = node.data.text;
+                        break;
+                    case 'PARAMETERS':
+                        output.params = node.data.params;
+                        break;
+                    case 'ROUTER':
+                        output.text = inputData.in;
+                        break;
+                    case 'AI_AGENT':
+                        if (inputData.in) {
+                            output.result = `[${output.agent}]: "${inputData.in}" -> Processing complete.`;
+                        }
+                        break;
+                    case 'RESULT_COLLECTOR':
+                        const results = [inputData.in1, inputData.in2, inputData.in3].filter(Boolean).join('\n');
+                        output.result = results || '(no results collected)';
+                        break;
+                    case 'OUTPUT':
+                        output.text = typeof inputData.in === 'object' ? JSON.stringify(inputData.in, null, 2) : inputData.in || '';
+                        break;
+                    case 'GEMINI':
+                        updateNodeData(node.id, { isLoading: true, error: null });
+                        output.result = await callGeminiAPI(inputData.prompt || '', inputData.context || '');
+                        output.error = null;
+                        break;
+                    case 'CODE_EXECUTOR':
+                        // This is a mock execution. For a real app, this would need a secure sandbox.
+                        output.result = `Executing script:\n${node.data.script || inputData.in}\n--- Mock Output ---\nScript executed successfully.`;
+                        break;
+                }
+            } catch (error) {
+                console.error("Node Processing Error:", error);
+                output.error = error.message || 'Processing failed.';
+                success = false;
+            } finally {
+                output.isLoading = false;
+                updateNodeData(node.id, output);
+                highlightNode(node.id, success ? 'success' : 'error', 3000);
+            }
+        }
+
+        async function callGeminiAPI(prompt, systemContext) {
+            if (!apiKey) {
+               throw new Error("API Key is missing. Please set it in the Settings.");
+            }
+            const fullPrompt = `${systemContext}\n\nUser Question: ${prompt}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API request failed: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return result.candidates[0].content.parts[0].text;
+            }
+            console.warn("Unexpected API response:", result);
+            throw new Error("Could not get a valid response from the model.");
+        }
+        
+        function loadTemplate(templateName) {
+            const template = TEMPLATES[templateName];
+            if (template) {
+                setNodes(deepClone(template.nodes));
+                setConnections(deepClone(template.connections));
+            }
+        }
+
+        function handleSave() {
+            const data = {
+                nodes,
+                connections,
+                apiKey,
+                sidebarWidth
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'orchestration.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function handleLoad() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            if (data.nodes && data.connections) {
+                                setNodes(data.nodes);
+                                setConnections(data.connections);
+                                if(data.apiKey) setApiKey(data.apiKey);
+                                if(data.sidebarWidth) setSidebarWidth(data.sidebarWidth);
+                                renderApp(); // Full re-render to apply all settings
+                            } else {
+                                alert('Invalid orchestration file format.');
+                            }
+                        } catch (err) {
+                            console.error("Error loading file:", err);
+                            alert('Failed to load or parse the file.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        // --- Modal Management ---
+        function showModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add('visible');
+        }
+
+        function hideModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('visible');
+        }
+
+        function createModals() {
+            modalContainer.innerHTML = `
+                <!-- Clear Confirmation Modal -->
+                <div id="clear-confirm-modal" class="modal-backdrop">
+                    <div class="modal-content bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700">
+                        <h3 class="text-lg font-bold text-slate-100">Confirm Clear</h3>
+                        <p class="text-sm text-slate-400 mt-2">Are you sure you want to clear the canvas and reset to the default template? This action cannot be undone.</p>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button id="cancel-clear-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Cancel</button>
+                            <button id="confirm-clear-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Clear Canvas</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Modal -->
+                <div id="settings-modal" class="modal-backdrop">
+                    <div class="modal-content bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700">
+                        <h3 class="text-lg font-bold text-slate-100">Settings</h3>
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <label for="api-key-input" class="block text-sm font-medium text-slate-300">Gemini API Key</label>
+                                <input type="password" id="api-key-input" placeholder="Enter Gemini API Key"
+                                    class="mt-1 text-sm p-2 rounded-md border border-gray-600 w-full bg-gray-700 text-slate-200 placeholder-gray-500"
+                                    aria-label="Gemini API Key Input"
+                                />
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                            <button id="close-settings-btn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Done</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Event Listeners for Modals
+            document.getElementById('cancel-clear-btn').onclick = () => hideModal('clear-confirm-modal');
+            document.getElementById('close-settings-btn').onclick = () => {
+                setApiKey(document.getElementById('api-key-input').value);
+                hideModal('settings-modal');
+            };
+            document.getElementById('confirm-clear-btn').onclick = () => {
+                loadTemplate('Default');
+                hideModal('clear-confirm-modal');
+            };
+        }
+
+
+        // --- Rendering Functions ---
+        function renderSidebar() {
+            const sidebar = document.createElement('aside');
+            sidebar.className = `bg-gray-900 border-r border-gray-700 flex flex-col relative flex-shrink-0 transition-all duration-300 ease-in-out`;
+            sidebar.style.width = isSidebarCollapsed ? '0' : `${sidebarWidth}px`;
+
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'absolute -right-3 top-1/2 -translate-y-1/2 z-20 bg-gray-700 hover:bg-purple-600 text-white p-1 rounded-full';
+            toggleButton.title = isSidebarCollapsed ? "Open sidebar" : "Collapse sidebar";
+            toggleButton.innerHTML = isSidebarCollapsed ? Icons.PanelLeftOpen : Icons.PanelLeftClose;
+            toggleButton.onclick = () => setIsSidebarCollapsed(!isSidebarCollapsed);
+            sidebar.appendChild(toggleButton);
+
+            const sidebarContent = document.createElement('div');
+            sidebarContent.className = `flex flex-col h-full transition-opacity duration-300 ${isSidebarCollapsed ? 'opacity-0' : 'opacity-100'}`;
+            sidebarContent.innerHTML = `
+                <div class="p-4 border-b border-gray-700">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-gradient-to-br from-purple-600 to-sky-600 rounded-lg text-white">${Icons.BrainCircuit}</div>
+                        <h1 class="text-xl font-bold text-slate-100">AI Orchestration</h1>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 border-b border-gray-700">
+                    <nav class="flex -mb-px" id="sidebar-tabs"></nav>
+                </div>
+                <div class="flex-1 p-4 overflow-y-auto overflow-auto-hidden-scrollbar" id="node-types-container">
+                    <div class="flex flex-col gap-3"></div>
+                </div>
+            `;
+            sidebar.appendChild(sidebarContent);
+
+            const tabsContainer = sidebarContent.querySelector('#sidebar-tabs');
+            let activeTab = NODE_CATEGORIES[0];
+
+            const updateNodeTypesDisplay = () => {
+                const nodeTypesContainer = sidebarContent.querySelector('#node-types-container > div');
+                nodeTypesContainer.innerHTML = '';
+                Object.values(NODE_TYPES)
+                    .filter(n => n.category === activeTab)
+                    .forEach(nodeInfo => {
+                        const nodeDiv = document.createElement('div');
+                        nodeDiv.draggable = true;
+                        nodeDiv.ondragstart = (e) => e.dataTransfer.setData('application/reactflow', nodeInfo.type);
+                        nodeDiv.className = "p-3 border border-gray-700 rounded-lg shadow-sm hover:shadow-lg hover:border-purple-500 cursor-grab transition-all bg-gray-800";
+                        nodeDiv.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 rounded-md ${nodeInfo.color} text-white">${Icons[nodeInfo.icon]}</div>
+                                <span class="font-semibold text-slate-200">${nodeInfo.name}</span>
+                            </div>`;
+                        nodeTypesContainer.appendChild(nodeDiv);
+                    });
+            };
+
+            NODE_CATEGORIES.forEach(cat => {
+                const tabButton = document.createElement('button');
+                tabButton.className = `flex-1 p-3 text-sm font-semibold transition-colors`;
+                tabButton.textContent = cat;
+                if (activeTab === cat) {
+                    tabButton.classList.add('border-b-2', 'border-purple-500', 'text-purple-400');
+                } else {
+                    tabButton.classList.add('text-slate-400', 'hover:bg-gray-800');
+                }
+                tabButton.onclick = () => {
+                    activeTab = cat;
+                    tabsContainer.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('border-b-2', 'border-purple-500', 'text-purple-400');
+                        btn.classList.add('text-slate-400', 'hover:bg-gray-800');
+                    });
+                    tabButton.classList.add('border-b-2', 'border-purple-500', 'text-purple-400');
+                    tabButton.classList.remove('text-slate-400', 'hover:bg-gray-800');
+                    updateNodeTypesDisplay();
+                };
+                tabsContainer.appendChild(tabButton);
+            });
+
+            updateNodeTypesDisplay();
+            return sidebar;
+        }
+
+        function renderToolbar() {
+            const toolbar = document.createElement('div');
+            toolbar.className = "bg-gray-900 border-b border-gray-700 p-2 flex items-center justify-between shadow-md flex-shrink-0";
+            toolbar.innerHTML = `
+                <div class="flex items-center gap-2">
+                     <div class="relative inline-block text-left">
+                        <button id="templates-btn" class="flex items-center gap-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-sm font-semibold">
+                            ${Icons.LayoutTemplate} Templates
+                        </button>
+                        <div id="templates-dropdown" class="origin-top-left absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none hidden">
+                           <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="templates-btn">
+                                <!-- Dropdown items will be injected here -->
+                           </div>
+                        </div>
+                    </div>
+                    <button id="save-btn" title="Save Workflow" class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-semibold">${Icons.Save} Save</button>
+                    <button id="load-btn" title="Load Workflow" class="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-semibold">${Icons.Upload} Load</button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="settings-btn" title="Settings" class="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">${Icons.Settings}</button>
+                    <button id="run-orchestration-btn" title="Run Orchestration" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm font-semibold">${Icons.Play} Run</button>
+                    <button id="clear-canvas-btn" title="Clear Canvas" class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm font-semibold">${Icons.Trash2} Clear</button>
+                </div>
+            `;
+
+            // Toolbar Event Listeners
+            toolbar.querySelector('#settings-btn').onclick = () => {
+                document.getElementById('api-key-input').value = apiKey;
+                showModal('settings-modal');
+            };
+            toolbar.querySelector('#run-orchestration-btn').onclick = runOrchestration;
+            toolbar.querySelector('#clear-canvas-btn').onclick = () => showModal('clear-confirm-modal');
+            toolbar.querySelector('#save-btn').onclick = handleSave;
+            toolbar.querySelector('#load-btn').onclick = handleLoad;
+
+            // Templates Dropdown Logic
+            const templatesBtn = toolbar.querySelector('#templates-btn');
+            const templatesDropdown = toolbar.querySelector('#templates-dropdown');
+            const dropdownMenu = templatesDropdown.querySelector('div.py-1');
+
+            Object.keys(TEMPLATES).forEach(name => {
+                const item = document.createElement('a');
+                item.href = '#';
+                item.className = 'text-gray-300 block px-4 py-2 text-sm hover:bg-purple-600 hover:text-white';
+                item.textContent = name;
+                item.onclick = (e) => {
+                    e.preventDefault();
+                    loadTemplate(name);
+                    templatesDropdown.classList.add('hidden');
+                };
+                dropdownMenu.appendChild(item);
+            });
+            
+            templatesBtn.onclick = () => templatesDropdown.classList.toggle('hidden');
+            document.addEventListener('click', (e) => {
+                if (!templatesBtn.contains(e.target) && !templatesDropdown.contains(e.target)) {
+                    templatesDropdown.classList.add('hidden');
+                }
+            });
+
+            return toolbar;
+        }
+
+        function renderNodeContent(node) {
+            const data = node.data;
+            const baseTextAreaClass = "w-full p-2 border rounded-md bg-gray-700 text-slate-200 border-gray-600 focus:border-purple-500 focus:ring-purple-500 focus:outline-none";
+            const baseSelectClass = `${baseTextAreaClass} appearance-none`;
+            let contentHtml = '';
+
+            switch (node.type) {
+                case 'USER_PROMPT':
+                case 'SYSTEM_CONTEXT':
+                    contentHtml = `<textarea name="text" class="${baseTextAreaClass} h-28 resize-none">${data.text}</textarea>`;
+                    break;
+                case 'PARAMETERS':
+                    contentHtml = `<textarea name="params" class="${baseTextAreaClass} h-28 resize-none font-mono text-xs">${data.params}</textarea>`;
+                    break;
+                case 'ROUTER':
+                    contentHtml = `<select name="route" class="${baseSelectClass}">
+                        ${NODE_TYPES.ROUTER.outputs.map(o => `<option value="${o.id}" ${data.route === o.id ? 'selected' : ''}>${o.name}</option>`).join('')}
+                    </select>`;
+                    break;
+                case 'AI_AGENT':
+                    contentHtml = `<select name="agent" class="${baseSelectClass} mb-2">
+                        <option ${data.agent === 'Lyra' ? 'selected' : ''}>Lyra</option>
+                        <option ${data.agent === 'Kara' ? 'selected' : ''}>Kara</option>
+                    </select>
+                    ${data.result ? `<div class="p-2 mt-2 bg-indigo-900/50 rounded-md border border-indigo-800 text-indigo-300 break-words">${data.result}</div>` : ''}`;
+                    break;
+                case 'RESULT_COLLECTOR':
+                    contentHtml = `<div class="p-2 mt-2 bg-orange-900/50 rounded-md border border-orange-800 text-orange-300 break-words min-h-[50px]">${data.result || '<em>(no results)</em>'}</div>`;
+                    break;
+                case 'CODE_EXECUTOR':
+                    contentHtml = `<textarea name="script" class="${baseTextAreaClass} h-24 resize-none font-mono text-xs">${data.script}</textarea>
+                    ${data.result ? `<pre class="p-2 mt-2 bg-gray-900 text-green-400 rounded-md text-xs whitespace-pre-wrap">${data.result}</pre>` : ''}`;
+                    break;
+                case 'GEMINI':
+                    contentHtml = `
+                    ${data.isLoading ? '<div class="text-purple-400 flex items-center gap-2"><div class="animate-spin w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>Processing...</div>' : ''}
+                    ${data.error ? `<div class="text-red-400 text-xs p-2 bg-red-900/50 rounded border border-red-800">${data.error}</div>` : ''}
+                    ${data.result ? `<div class="p-2 mt-2 bg-purple-900/50 rounded-md border border-purple-800 text-purple-300 break-words">${data.result}</div>` : ''}`;
+                    break;
+                case 'OUTPUT':
+                    contentHtml = `<pre class="p-2 bg-gray-700 rounded-md border border-gray-600 min-h-[50px] break-words whitespace-pre-wrap">${data.text || '<em>(no result)</em>'}</pre>`;
+                    break;
+                default:
+                    contentHtml = '';
+            }
+            return contentHtml;
+        }
+
+        function renderNode(node) {
+            const nodeInfo = NODE_TYPES[node.type];
+            const nodeElement = document.createElement('div');
+            nodeElement.id = node.id;
+            nodeElement.className = `absolute bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-64 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-900/20`;
+            nodeElement.style.left = `${node.x}px`;
+            nodeElement.style.top = `${node.y}px`;
+            nodeElement.onmousedown = (e) => e.stopPropagation();
+
+            const header = document.createElement('div');
+            header.className = `flex items-center gap-3 p-3 rounded-t-xl ${nodeInfo.color} text-white cursor-move`;
+            header.innerHTML = `<span class="w-5 h-5 flex items-center justify-center">${Icons[nodeInfo.icon]}</span><h3 class="font-bold">${nodeInfo.name}</h3>`;
+            header.onmousedown = (e) => {
+                const pos = getCanvasRelativePosition(e);
+                setDraggingNode({ id: node.id, offsetX: pos.x - node.x, offsetY: pos.y - node.y });
+            };
+            nodeElement.appendChild(header);
+
+            const contentArea = document.createElement('div');
+            contentArea.className = "p-4 text-sm text-slate-400";
+            contentArea.innerHTML = `<p class="mb-3 text-xs">${nodeInfo.description}</p>${renderNodeContent(node)}`;
+            nodeElement.appendChild(contentArea);
+
+            contentArea.querySelectorAll('textarea, select').forEach(input => {
+                input.oninput = (e) => updateNodeData(node.id, { [e.target.name]: e.target.value });
+            });
+
+            const portYOffset = 75;
+            const portSpacing = 30;
+
+            nodeInfo.inputs.forEach((port, i) => {
+                const portDiv = document.createElement('div');
+                let portClasses = `absolute w-4 h-4 bg-gray-700 border-2 rounded-full -left-2 cursor-crosshair transition-all`;
+                portClasses += connecting ? ' border-fuchsia-500 hover:bg-fuchsia-400' : ' border-gray-500 hover:bg-gray-400';
+                portDiv.className = portClasses;
+                portDiv.style.top = `${portYOffset + i * portSpacing}px`;
+                portDiv.onclick = (e) => handlePortClick(e, node.id, port, false);
+                portDiv.title = `Input: ${port.name}`;
+                nodeElement.appendChild(portDiv);
+            });
+
+            nodeInfo.outputs.forEach((port, i) => {
+                const portDiv = document.createElement('div');
+                let portClasses = `absolute w-4 h-4 bg-gray-700 border-2 rounded-full -right-2 cursor-crosshair transition-all`;
+                if (node.type === 'ROUTER' && node.data.route === port.id) {
+                    portClasses += ' bg-green-500 border-green-400';
+                }
+                if (connecting?.startNodeId === node.id && connecting?.startPortId === port.id) {
+                    portClasses += ' bg-fuchsia-500 border-fuchsia-400';
+                } else {
+                    portClasses += ' border-gray-500 hover:bg-gray-400';
+                }
+                portDiv.className = portClasses;
+                portDiv.style.top = `${portYOffset + i * portSpacing}px`;
+                portDiv.onclick = (e) => handlePortClick(e, node.id, port, true);
+                portDiv.title = `Output: ${port.name}`;
+                nodeElement.appendChild(portDiv);
+            });
+
+            return nodeElement;
+        }
+
+        function renderConnection(connection) {
+            const startNode = nodes.find(n => n.id === connection.startNodeId);
+            const endNode = nodes.find(n => n.id === connection.endNodeId);
+            if (!startNode || !endNode) return null;
+
+            const startPortInfo = NODE_TYPES[startNode.type].outputs;
+            const endPortInfo = NODE_TYPES[endNode.type].inputs;
+            const startPortIndex = startPortInfo.findIndex(p => p.id === connection.startPortId);
+            const endPortIndex = endPortInfo.findIndex(p => p.id === connection.endPortId);
+            if (startPortIndex === -1 || endPortIndex === -1) return null;
+
+            const portYOffset = 75;
+            const portSpacing = 30;
+            const startY = startNode.y + portYOffset + (startPortIndex * portSpacing) + 8; // +8 for port height/2
+            const startX = startNode.x + 256; // Node width
+            const endY = endNode.y + portYOffset + (endPortIndex * portSpacing) + 8;
+            const endX = endNode.x;
+
+            const d = `M ${startX},${startY} C ${startX + 80},${startY} ${endX - 80},${endY} ${endX},${endY}`;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', '#52525b');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
+            return path;
+        }
+
+        function renderConnectingLine() {
+            const existingLine = svgCanvas.querySelector('#connecting-line');
+            if (existingLine) existingLine.remove();
+            if (!connecting) return;
+
+            const startNode = nodes.find(n => n.id === connecting.startNodeId);
+            if (!startNode) return;
+
+            const startPortInfo = NODE_TYPES[startNode.type].outputs;
+            const startPortIndex = startPortInfo.findIndex(p => p.id === connecting.startPortId);
+            if (startPortIndex === -1) return;
+
+            const portYOffset = 75;
+            const portSpacing = 30;
+            const startY = startNode.y + portYOffset + (startPortIndex * portSpacing) + 8;
+            const startX = startNode.x + 256;
+            const { x: endX, y: endY } = mousePosition;
+
+            const d = `M ${startX},${startY} C ${startX + 80},${startY} ${endX - 80},${endY} ${endX},${endY}`;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.id = 'connecting-line';
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', '#f43f5e');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-dasharray', '5,5');
+            svgCanvas.appendChild(path);
+        }
+
+        function renderCanvas() {
+            if (!canvasRef || !svgCanvas) return;
+            canvasRef.querySelectorAll('.absolute.bg-gray-800').forEach(el => el.remove());
+            svgCanvas.innerHTML = '';
+
+            connections.forEach(conn => {
+                const path = renderConnection(conn);
+                if (path) svgCanvas.appendChild(path);
+            });
+
+            nodes.forEach(node => {
+                const nodeElement = renderNode(node);
+                canvasRef.appendChild(nodeElement);
+            });
+
+            renderConnectingLine();
+        }
+
+        function renderApp() {
+            appRoot.innerHTML = '';
+
+            const sidebar = renderSidebar();
+            appRoot.appendChild(sidebar);
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = "resize-handle w-1.5 cursor-col-resize bg-gray-950 hover:bg-purple-600 transition-colors z-10";
+            resizeHandle.onmousedown = handleResizeMouseDown;
+            appRoot.appendChild(resizeHandle);
+
+            const mainContent = document.createElement('main');
+            mainContent.className = "flex-1 flex flex-col";
+            appRoot.appendChild(mainContent);
+
+            const toolbar = renderToolbar();
+            mainContent.appendChild(toolbar);
+
+            canvasRef = document.createElement('div');
+            canvasRef.className = "flex-1 bg-gray-800 relative overflow-auto overflow-auto-hidden-scrollbar canvas-grid";
+            canvasRef.onclick = handleCanvasClick;
+            canvasRef.ondrop = handleDrop;
+            canvasRef.ondragover = handleDragOver;
+            mainContent.appendChild(canvasRef);
+
+            svgCanvas = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svgCanvas.className = "absolute w-full h-full pointer-events-none";
+            canvasRef.appendChild(svgCanvas);
+
+            renderCanvas();
+        }
+
+        // --- Initial Application Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            appRoot = document.getElementById('app-root');
+            modalContainer = document.getElementById('modal-container');
+            
+            // Setup global listeners
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleGlobalMouseUp);
+
+            createModals();
+            loadTemplate('Default'); // Load initial state
+            renderApp();
+        });
+    </script>
+</body>
+</html>

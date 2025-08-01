@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Records Management SPA</title>
+    <style>
+        /* Custom Properties (CSS Variables) for dark theme */
+        :root {
+            --primary-color: #007bff; /* Still customizable, but a good default for dark theme */
+            --background-color: #1a1a2e; /* Dark background */
+            --text-color: #e0e0e0; /* Light text */
+            --border-color: #333; /* Darker border */
+            --card-bg: #2a2a4a; /* Darker card background */
+            --hover-color: #0056b3; /* Primary hover color */
+            --delete-color: #dc3545; /* Red for delete */
+            --edit-color: #28a745; /* Green for edit */
+            --primary-color-rgb-val: 0, 123, 255; /* Default RGB for #007bff */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.2rem;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Darker shadow for dark theme */
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+
+        header h1 {
+            margin-bottom: 10px;
+        }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        nav button {
+            background-color: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 0.7rem 1.5rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.1s ease;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        nav button:hover,
+        nav button.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: white;
+            transform: translateY(-2px);
+        }
+
+        #app {
+            padding: 25px;
+            max-width: 960px;
+            margin: 25px auto;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); /* Stronger shadow for dark theme */
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        h3 {
+            color: var(--text-color);
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        /* Form Styling */
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background-color: #3a3a5a; /* Darker form background */
+        }
+
+        form label {
+            font-weight: bold;
+            color: var(--text-color); /* Adjusted for dark theme */
+        }
+
+        form input[type="text"],
+        form textarea,
+        form select {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            background-color: #4a4a6a; /* Darker input background */
+            color: var(--text-color); /* Light text in inputs */
+        }
+
+        form input[type="text"]:focus,
+        form textarea:focus,
+        form select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb-val), 0.3);
+        }
+
+        form button[type="submit"] {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(var(--primary-color-rgb-val), 0.2);
+        }
+
+        form button[type="submit"]:hover {
+            background-color: var(--hover-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(var(--primary-color-rgb-val), 0.3);
+        }
+
+        /* Records List Styling */
+        .filter-buttons {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-buttons button {
+            padding: 8px 18px;
+            border: 1px solid var(--primary-color);
+            background-color: var(--card-bg); /* Use card background for filter buttons */
+            color: var(--primary-color);
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .filter-buttons button.active,
+        .filter-buttons button:hover {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(var(--primary-color-rgb-val), 0.3);
+            transform: translateY(-1px);
+        }
+
+        #records-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 25px;
+            transition: grid-template-columns 0.3s ease; /* Smooth transition for layout change */
+        }
+
+        #records-list.single-column-layout {
+            grid-template-columns: 1fr; /* Force single column */
+        }
+
+        .record-item {
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 10px;
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Stronger shadow for dark theme */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex; /* Make record-item a flex container */
+            flex-direction: column; /* Revert to column for full width */
+            gap: 20px; /* Space between main content and prompt section */
+            align-items: flex-start; /* Align items to the top */
+        }
+
+        .record-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); /* Stronger shadow on hover */
+        }
+
+        .record-item h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 1.4rem;
+        }
+
+        .record-item p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+        /* Style for description code block */
+        .record-item pre {
+            background-color: #3a3a5a; /* Darker background for code */
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #4a4a6a;
+            overflow-x: auto; /* Enable horizontal scrolling for long lines */
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        .record-item pre code {
+            font-family: 'monospace', monospace;
+            color: #b0b0b0; /* Lighter text for code */
+        }
+
+
+        .record-item .category {
+            font-size: 0.85em;
+            background-color: #4a4a6a; /* Darker category background */
+            color: #b0b0b0; /* Lighter text for category */
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            display: inline-block;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .record-item .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .record-item .actions button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Darker shadow for buttons */
+        }
+
+        .record-item .actions .edit-btn {
+            background-color: var(--edit-color);
+            color: white;
+        }
+
+        .record-item .actions .edit-btn:hover {
+            background-color: #218838;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .record-item .actions .delete-btn {
+            background-color: var(--delete-color);
+            color: white;
+        }
+
+        .record-item .actions .delete-btn:hover {
+            background-color: #c82333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+        }
+
+        /* Settings Page Specifics */
+        #settings-form {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        #settings-form div {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #settings-form input[type="color"] {
+            height: 40px;
+            width: 60px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 2px;
+            cursor: pointer;
+        }
+
+        /* Custom Alert/Message Box */
+        .message-box-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .message-box-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .message-box {
+            background-color: var(--card-bg); /* Use card background for message box */
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .message-box-overlay.show .message-box {
+            transform: translateY(0);
+        }
+
+        .message-box p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .message-box button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        .message-box button:hover {
+            background-color: var(--hover-color);
+        }
+
+        .message-box .confirm-buttons button {
+            margin: 0 10px;
+        }
+
+        .message-box .confirm-buttons .cancel-btn {
+            background-color: #6c757d;
+        }
+
+        .message-box .confirm-buttons .cancel-btn:hover {
+            background-color: #5a6268;
+        }
+
+        /* Loading indicator styles */
+        .loading-indicator {
+            display: none; /* Hidden by default */
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+        }
+
+        .loading-indicator.show {
+            display: block;
+        }
+
+        /* Specific styles for new features */
+        .record-main-content {
+            flex: 1; /* Takes full width now */
+            display: flex;
+            flex-direction: column;
+        }
+        /* Removed .record-prompt-section styles as it's gone */
+
+
+        .ai-features, .user-chat, .system-api-keys, .ai-suggestion-output {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ai-suggestion-output h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .ai-image-preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid var(--border-color);
+            display: block; /* Ensure it takes full width */
+        }
+
+        .ai-image-container {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .ai-image-container p {
+            font-style: italic;
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .user-chat textarea {
+            min-height: 80px;
+            resize: vertical;
+            width: 100%; /* Ensure it stretches to 100% */
+            box-sizing: border-box; /* Include padding and border in width */
+            margin-bottom: 10px;
+        }
+
+        .user-chat .chat-actions, .ai-image-actions, .ai-suggestion-output .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .user-chat .chat-actions button, .ai-image-actions button, .ai-suggestion-output .action-buttons button {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            color: white;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .user-chat .chat-actions .ai-aid-btn {
+            background-color: #6f42c1; /* Purple for AI Aid */
+        }
+
+        .user-chat .chat-actions .ai-aid-btn:hover {
+            background-color: #5a359d;
+            transform: translateY(-1px);
+        }
+        .ai-suggestion-output .action-buttons .copy-btn {
+            background-color: #6f42c1; /* Purple for AI Aid */
+        }
+        .ai-suggestion-output .action-buttons .copy-btn:hover {
+            background-color: #5a359d;
+            transform: translateY(-1px);
+        }
+
+
+        .ai-image-actions .upload-btn {
+             background-color: #17a2b8; /* Info blue for upload */
+        }
+        .ai-image-actions .upload-btn:hover {
+            background-color: #138496;
+            transform: translateY(-1px);
+        }
+
+        .ai-image-actions .generate-btn {
+            background-color: #fd7e14; /* Orange for generate */
+        }
+        .ai-image-actions .generate-btn:hover {
+            background-color: #e66a00;
+            transform: translateY(-1px);
+        }
+
+        .system-api-keys div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .system-api-keys input {
+            font-family: 'monospace', monospace;
+        }
+
+        /* Pagination controls */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .pagination-controls button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        .pagination-controls button:hover:not(:disabled) {
+            background-color: var(--hover-color);
+            transform: translateY(-1px);
+        }
+
+        .pagination-controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .pagination-controls span {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        /* Layout Toggle Button */
+        .layout-toggle-button {
+            background-color: #6c757d; /* Grey for toggle */
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            margin-left: 15px; /* Space from nav buttons */
+        }
+
+        .layout-toggle-button:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        /* API Payload Display */
+        .api-payload-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .api-payload-section h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+        .api-payload-section pre {
+            background-color: #3a3a5a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #4a4a6a;
+            overflow-x: auto;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+            white-space: pre-wrap; /* Wrap long lines */
+            word-wrap: break-word; /* Break words for long lines */
+            max-height: 250px; /* Limit height */
+        }
+        .api-payload-section code {
+            color: #b0b0b0;
+            font-family: 'monospace', monospace;
+        }
+        .api-payload-section .copy-btn {
+            background-color: #007bff; /* Primary color for copy button */
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        .api-payload-section .copy-btn:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #app {
+                margin: 15px;
+                padding: 15px;
+            }
+
+            nav {
+                flex-direction: column;
+                gap: 10px;
+            }
+            nav button {
+                width: 80%;
+                margin: 0 auto;
+            }
+            .layout-toggle-button {
+                margin-left: 0;
+                margin-top: 10px;
+                width: 80%;
+            }
+
+            #records-list {
+                grid-template-columns: 1fr;
+            }
+
+            .record-item {
+                flex-direction: column; /* Stack main content and prompt section vertically */
+            }
+            /* Removed .record-prompt-section styles for mobile as it's gone */
+
+            .filter-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .user-chat .chat-actions, .ai-image-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Records Management Hub</h1>
+        <nav>
+            <button id="navRecords" class="active">Records</button>
+            <button id="navSettings">Settings</button>
+            <button id="layoutToggleBtn" class="layout-toggle-button">Toggle Layout</button>
+        </nav>
+    </header>
+    <main id="app">
+        <!-- Content will be rendered here by JavaScript -->
+        <div id="loading-indicator" class="loading-indicator">Loading records...</div>
+    </main>
+
+    <!-- Custom Message Box HTML -->
+    <div id="message-box-overlay" class="message-box-overlay">
+        <div class="message-box">
+            <p id="message-box-text"></p>
+            <div id="message-box-actions">
+                <!-- Buttons will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. IndexedDB Constants ---
+        const DB_NAME = 'RecordsDB';
+        const DB_VERSION = 2; // Incremented for new object store and record fields
+        const RECORDS_STORE_NAME = 'records';
+        const SETTINGS_STORE_NAME = 'settings'; // New store for API keys and other settings
+
+        // --- 2. IndexedDB Database Instance ---
+        let db;
+
+        // --- 3. Utility Functions ---
+        // Generates a unique ID for new records
+        const generateId = () => 'rec-' + Date.now() + Math.floor(Math.random() * 1000);
+
+        // Custom message box function instead of alert/confirm
+        function showMessageBox(message, type = 'alert', callback = null) {
+            const overlay = document.getElementById('message-box-overlay');
+            const messageText = document.getElementById('message-box-text');
+            const messageActions = document.getElementById('message-box-actions');
+
+            messageText.textContent = message;
+            messageActions.innerHTML = ''; // Clear previous buttons
+
+            if (type === 'alert') {
+                const okButton = document.createElement('button');
+                okButton.textContent = 'OK';
+                okButton.onclick = () => {
+                    overlay.classList.remove('show');
+                    if (callback) callback(true);
+                };
+                messageActions.appendChild(okButton);
+            } else if (type === 'confirm') {
+                const confirmButtonsDiv = document.createElement('div');
+                confirmButtonsDiv.className = 'confirm-buttons';
+
+                const yesButton = document.createElement('button');
+                yesButton.textContent = 'Yes';
+                yesButton.onclick = () => {
+                    overlay.classList.remove('show');
+                    if (callback) callback(true);
+                };
+                confirmButtonsDiv.appendChild(yesButton);
+
+                const noButton = document.createElement('button');
+                noButton.textContent = 'No';
+                noButton.className = 'cancel-btn'; // Add a class for styling
+                noButton.onclick = () => {
+                    overlay.classList.remove('show');
+                    if (callback) callback(false);
+                };
+                confirmButtonsDiv.appendChild(noButton);
+                messageActions.appendChild(confirmButtonsDiv);
+            } else if (type === 'prompt') {
+                const promptInput = document.createElement('textarea');
+                promptInput.placeholder = 'Enter your prompt here...';
+                promptInput.style.width = '100%';
+                promptInput.style.minHeight = '80px';
+                promptInput.style.marginBottom = '10px';
+                promptInput.style.padding = '8px';
+                promptInput.style.borderRadius = '5px';
+                promptInput.style.border = '1px solid var(--border-color)';
+                promptInput.style.backgroundColor = 'var(--background-color)'; /* Use background color for input */
+                promptInput.style.color = 'var(--text-color)'; /* Use text color for input */
+                messageActions.appendChild(promptInput);
+
+                const submitButton = document.createElement('button');
+                submitButton.textContent = 'Submit';
+                submitButton.onclick = () => {
+                    overlay.classList.remove('show');
+                    if (callback) callback(promptInput.value);
+                };
+                messageActions.appendChild(submitButton);
+
+                const cancelButton = document.createElement('button');
+                cancelButton.textContent = 'Cancel';
+                cancelButton.className = 'cancel-btn';
+                cancelButton.style.marginLeft = '10px';
+                cancelButton.onclick = () => {
+                    overlay.classList.remove('show');
+                    if (callback) callback(null); // Indicate cancellation
+                };
+                messageActions.appendChild(cancelButton);
+            }
+
+            overlay.classList.add('show');
+        }
+
+        // --- 4. IndexedDB Operations ---
+
+        /**
+         * Opens the IndexedDB database.
+         * @returns {Promise<IDBDatabase>} A promise that resolves with the database instance.
+         */
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    // Create records object store if it doesn't exist
+                    if (!db.objectStoreNames.contains(RECORDS_STORE_NAME)) {
+                        db.createObjectStore(RECORDS_STORE_NAME, { keyPath: 'id' });
+                    }
+                    // Create settings object store if it doesn't exist
+                    if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
+                        db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    console.log('IndexedDB opened successfully.');
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    console.error('IndexedDB error:', event.target.errorCode);
+                    showMessageBox('Error opening database. Please check console for details.', 'alert');
+                    reject(new Error('IndexedDB error'));
+                };
+            });
+        }
+
+        /**
+         * Fetches all records from IndexedDB.
+         * @returns {Promise<Array>} A promise that resolves with an array of records.
+         */
+        async function getRecordsFromDB() {
+            if (!db) {
+                console.error('Database not open.');
+                return [];
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([RECORDS_STORE_NAME], 'readonly');
+                const objectStore = transaction.objectStore(RECORDS_STORE_NAME);
+                const request = objectStore.getAll();
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                request.onerror = (event) => {
+                    console.error('Error fetching records:', event.target.errorCode);
+                    showMessageBox('Error fetching records from database.', 'alert');
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Adds a new record to IndexedDB.
+         * @param {Object} record - The record object to add.
+         * @returns {Promise<void>} A promise that resolves when the record is added.
+         */
+        async function addRecordToDB(record) {
+            if (!db) {
+                console.error('Database not open.');
+                return;
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([RECORDS_STORE_NAME], 'readwrite');
+                const objectStore = transaction.objectStore(RECORDS_STORE_NAME);
+                const request = objectStore.add(record);
+
+                request.onsuccess = () => {
+                    resolve();
+                };
+
+                request.onerror = (event) => {
+                    console.error('Error adding record:', event.target.errorCode);
+                    showMessageBox('Error adding record to database.', 'alert');
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Updates an existing record in IndexedDB.
+         * @param {Object} record - The record object to update. Must contain the 'id'.
+         * @returns {Promise<void>} A promise that resolves when the record is updated.
+         */
+        async function updateRecordInDB(record) {
+            if (!db) {
+                console.error('Database not open.');
+                return;
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([RECORDS_STORE_NAME], 'readwrite');
+                const objectStore = transaction.objectStore(RECORDS_STORE_NAME);
+                const request = objectStore.put(record); // 'put' updates if exists, adds if not
+
+                request.onsuccess = () => {
+                    resolve();
+                };
+
+                request.onerror = (event) => {
+                    console.error('Error updating record:', event.target.errorCode);
+                    showMessageBox('Error updating record in database.', 'alert');
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Deletes a record from IndexedDB by its ID.
+         * @param {string} id - The ID of the record to delete.
+         * @returns {Promise<void>} A promise that resolves when the record is deleted.
+         */
+        async function deleteRecordFromDB(id) {
+            if (!db) {
+                console.error('Database not open.');
+                return;
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([RECORDS_STORE_NAME], 'readwrite');
+                const objectStore = transaction.objectStore(RECORDS_STORE_NAME);
+                const request = objectStore.delete(id);
+
+                request.onsuccess = () => {
+                    resolve();
+                };
+
+                request.onerror = (event) => {
+                    console.error('Error deleting record:', event.target.errorCode);
+                    showMessageBox('Error deleting record from database.', 'alert');
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Fetches a single record by ID from IndexedDB.
+         * @param {string} id - The ID of the record to fetch.
+         * @returns {Promise<Object|undefined>} A promise that resolves with the record object or undefined if not found.
+         */
+        async function getRecordByIdFromDB(id) {
+            if (!db) {
+                console.error('Database not open.');
+                return undefined;
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([RECORDS_STORE_NAME], 'readonly');
+                const objectStore = transaction.objectStore(RECORDS_STORE_NAME);
+                const request = objectStore.get(id);
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                request.onerror = (event) => {
+                    console.error('Error getting record by ID:', event.target.errorCode);
+                    showMessageBox('Error retrieving record for edit.', 'alert');
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Saves application settings to IndexedDB.
+         * @param {Object} settings - The settings object to save.
+         * @returns {Promise<void>}
+         */
+        async function saveSettingsToDB(settings) {
+            if (!db) {
+                console.error('Database not open.');
+                return;
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([SETTINGS_STORE_NAME], 'readwrite');
+                const objectStore = transaction.objectStore(SETTINGS_STORE_NAME);
+                const request = objectStore.put({ id: 'appSettings', ...settings }); // Use a fixed ID for the single settings object
+
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => {
+                    console.error('Error saving settings:', event.target.errorCode);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        /**
+         * Loads application settings from IndexedDB.
+         * @returns {Promise<Object>}
+         */
+        async function loadSettingsFromDB() {
+            if (!db) {
+                console.error('Database not open.');
+                return {};
+            }
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([SETTINGS_STORE_NAME], 'readonly');
+                const objectStore = transaction.objectStore(SETTINGS_STORE_NAME);
+                const request = objectStore.get('appSettings');
+
+                request.onsuccess = (event) => {
+                    resolve(event.target.result || {});
+                };
+                request.onerror = (event) => {
+                    console.error('Error loading settings:', event.target.errorCode);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+
+        // --- 5. DOM Elements (updated to include loading indicator) ---
+        const appDiv = document.getElementById('app');
+        const navRecordsBtn = document.getElementById('navRecords');
+        const navSettingsBtn = document.getElementById('navSettings');
+        const layoutToggleBtn = document.getElementById('layoutToggleBtn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // --- 6. Global State for current filter and pagination ---
+        let currentFilter = 'ALL'; // Can be 'ALL', 'USER', 'AI', 'SYSTEM'
+        let appSettings = {}; // To store loaded settings
+        let recordsPerPage = 1; // Always 1 record per page for pagination
+        let currentPage = 1;
+        let totalFilteredRecords = 0; // To store the count of records after filtering
+
+        // --- 7. View Rendering Functions ---
+
+        // Renders the main Records management page
+        function renderRecordsPage() {
+            appDiv.innerHTML = `
+                <h2>Manage Application Records</h2>
+
+                <h3>Add / Edit Record</h3>
+                <form id="record-form">
+                    <label for="record-name">Record Name:</label>
+                    <input type="text" id="record-name" placeholder="e.g., User Preferences" required>
+
+                    <label for="record-description">Description:</label>
+                    <textarea id="record-description" placeholder="A brief description of the record." rows="3"></textarea>
+
+                    <label for="record-category">Category:</label>
+                    <select id="record-category" required>
+                        <option value="USER">USER Data</option>
+                        <option value="AI">AI Data</option>
+                        <option value="SYSTEM">SYSTEM Data</option>
+                    </select>
+
+                    <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                        <label for="json-input">Load from JSON (Optional):</label>
+                        <textarea id="json-input" placeholder='Paste JSON here, e.g., {"record_name": "My Record", "description": "Details", "category": ["USER"]}' rows="5" style="font-family: monospace;"></textarea>
+                        <button type="button" id="load-json-btn" style="margin-top: 10px; background-color: #6f42c1;">Load JSON into Form</button>
+                    </div>
+
+                    <button type="submit">Add Record</button>
+                </form>
+
+                <h3>Existing Records</h3>
+                <div class="filter-buttons">
+                    <button data-filter="ALL" class="${currentFilter === 'ALL' ? 'active' : ''}">All Records</button>
+                    <button data-filter="USER" class="${currentFilter === 'USER' ? 'active' : ''}">User Data</button>
+                    <button data-filter="AI" class="${currentFilter === 'AI' ? 'active' : ''}">AI Data</button>
+                    <button data-filter="SYSTEM" class="${currentFilter === 'SYSTEM' ? 'active' : ''}">System Data</button>
+                </div>
+                <div id="records-list">
+                    <!-- Records will be displayed here -->
+                </div>
+                <div class="pagination-controls">
+                    <button id="prevPageBtn" disabled>Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPageBtn" disabled>Next</button>
+                </div>
+                <div id="loading-indicator" class="loading-indicator">Loading records...</div>
+            `;
+            attachRecordsPageListeners(); // Attach event listeners specific to this page
+            displayRecords(); // Populate the records list
+        }
+
+        // Displays (or re-displays) the records based on the current filter and pagination
+        async function displayRecords() {
+            const recordsListDiv = document.getElementById('records-list');
+            const currentLoadingIndicator = document.getElementById('loading-indicator');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const pageInfoSpan = document.getElementById('pageInfo');
+
+            if (!recordsListDiv || !currentLoadingIndicator || !prevPageBtn || !nextPageBtn || !pageInfoSpan) return;
+
+            currentLoadingIndicator.classList.add('show'); // Show loading indicator
+            recordsListDiv.innerHTML = ''; // Clear current list
+
+            try {
+                const allRecords = await getRecordsFromDB();
+
+                // Filter records based on `currentFilter`
+                const filteredRecords = currentFilter === 'ALL'
+                    ? allRecords
+                    : allRecords.filter(record => record.category === currentFilter);
+
+                totalFilteredRecords = filteredRecords.length;
+                const totalPages = Math.ceil(totalFilteredRecords / recordsPerPage);
+
+                // Adjust currentPage if it's out of bounds after filtering
+                if (currentPage > totalPages && totalPages > 0) {
+                    currentPage = totalPages;
+                } else if (currentPage === 0 && totalPages > 0) {
+                    currentPage = 1; // Reset to first page if somehow 0
+                } else if (totalPages === 0) {
+                    currentPage = 0; // No pages if no records
+                }
+
+                // Determine records to display for the current page
+                const startIndex = (currentPage - 1) * recordsPerPage;
+                const endIndex = startIndex + recordsPerPage;
+                const recordsToDisplay = filteredRecords.slice(startIndex, endIndex);
+
+                if (recordsToDisplay.length === 0) {
+                    recordsListDiv.innerHTML = '<p style="text-align: center; color: var(--text-color);">No records found for this category. Try adding one!</p>';
+                } else {
+                    // Generate HTML for each filtered record
+                    recordsListDiv.innerHTML = recordsToDisplay.map(record => {
+                        let additionalContent = '';
+                        if (record.category === 'AI') {
+                            // AI Card: Image Upload and AI Image Generation
+                            const imageUrl = record.imageUrl || 'https://placehold.co/300x200/4a4a6a/e0e0e0?text=No+Image';
+                            additionalContent = `
+                                <div class="ai-features">
+                                    <div class="ai-image-container">
+                                        <img src="${imageUrl}" class="ai-image-preview" alt="AI Generated Image" onerror="this.onerror=null;this.src='https://placehold.co/300x200/4a4a6a/e0e0e0?text=Image+Load+Error';" data-record-id="${record.id}">
+                                        <p>Image associated with this AI record.</p>
+                                    </div>
+                                    <div class="ai-image-actions">
+                                        <label for="image-upload-${record.id}" class="upload-btn" style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                            Upload Image
+                                            <input type="file" id="image-upload-${record.id}" class="image-upload-input" accept="image/*" style="display: none;" data-record-id="${record.id}">
+                                        </label>
+                                        <button class="generate-btn" data-record-id="${record.id}">Generate Image with AI</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (record.category === 'USER') {
+                            // USER Card: Chat Textbox with AI Aid
+                            const chatText = record.chatText || '';
+                            additionalContent = `
+                                <div class="user-chat">
+                                    <label for="user-chat-${record.id}" style="margin-bottom: 5px; display: block;">Chat / Notes:</label>
+                                    <textarea id="user-chat-${record.id}" class="user-chat-textarea" data-record-id="${record.id}" placeholder="Type your notes or chat here...">${chatText}</textarea>
+                                    <div class="chat-actions">
+                                        <button class="ai-aid-btn" data-record-id="${record.id}">AI Aid for Prompting</button>
+                                    </div>
+                                    <div class="ai-suggestion-output" id="ai-suggestion-output-${record.id}">
+                                        <h4>AI Suggestion:</h4>
+                                        <pre><code class="language-json" id="ai-suggestion-code-${record.id}">Click 'AI Aid for Prompting' to generate.</code></pre>
+                                        <div class="action-buttons">
+                                            <button class="copy-ai-suggestion-btn" data-record-id="${record.id}" style="display:none;">Copy AI Suggestion</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (record.category === 'SYSTEM') {
+                            // SYSTEM Card: API Key Textboxes
+                            const openAIApiKey = appSettings.openAIApiKey || '';
+                            const geminiApiKey = appSettings.geminiApiKey || '';
+                            additionalContent = `
+                                <div class="system-api-keys">
+                                    <h4>API Key Configuration</h4>
+                                    <div>
+                                        <label for="openai-api-key-${record.id}">OpenAI API Key:</label>
+                                        <input type="text" id="openai-api-key-${record.id}" value="${openAIApiKey}" placeholder="sk-..." data-record-id="${record.id}">
+                                    </div>
+                                    <div>
+                                        <label for="gemini-api-key-${record.id}">Gemini API Key:</label>
+                                        <input type="text" id="gemini-api-key-${record.id}" value="${geminiApiKey}" placeholder="AIza..." data-record-id="${record.id}">
+                                    </div>
+                                    <button class="save-api-keys-btn" data-record-id="${record.id}">Save API Keys</button>
+                                </div>
+                            `;
+                        }
+                        return `
+                            <div class="record-item" data-id="${record.id}">
+                                <div class="record-main-content">
+                                    <span class="category">${record.category}</span>
+                                    <h3>${record.name}</h3>
+                                    <pre><code class="language-plaintext">${record.description}</code></pre>
+                                    ${additionalContent}
+                                    <div class="api-payload-section">
+                                        <h4>API Payload Reference (POST)</h4>
+                                        <pre id="api-payload-code-${record.id}"><code>Click 'Export as API Payload' to generate.</code></pre>
+                                        <button class="export-payload-btn" data-record-id="${record.id}">Export as API Payload</button>
+                                        <button class="copy-payload-btn" data-record-id="${record.id}" style="display:none; margin-left:10px;">Copy to Clipboard</button>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="edit-btn">Edit</button>
+                                        <button class="delete-btn">Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''); // .join('') concatenates array elements into a single string
+
+                    attachRecordItemListeners(); // Attach listeners to the newly rendered record buttons
+                    attachCategorySpecificListeners(); // Attach new listeners for AI, USER, SYSTEM cards
+                }
+                // Update pagination controls
+                prevPageBtn.disabled = currentPage <= 1;
+                nextPageBtn.disabled = currentPage >= totalPages;
+                pageInfoSpan.textContent = `Page ${totalPages > 0 ? currentPage : 0} of ${totalPages}`;
+
+            } catch (error) {
+                console.error("Failed to display records:", error);
+                recordsListDiv.innerHTML = '<p style="text-align: center; color: var(--delete-color);">Failed to load records. Please try again.</p>';
+            } finally {
+                currentLoadingIndicator.classList.remove('show'); // Hide loading indicator
+            }
+            updateFilterButtonStates(); // Update active state of filter buttons
+        }
+
+        // Updates the visual "active" state of the filter buttons
+        function updateFilterButtonStates() {
+            document.querySelectorAll('.filter-buttons button').forEach(button => {
+                if (button.dataset.filter === currentFilter) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // Renders the application settings page
+        async function renderSettingsPage() {
+            // Get current primary color from the CSS variable
+            const computedStyle = getComputedStyle(document.documentElement);
+            const currentColor = computedStyle.getPropertyValue('--primary-color').trim();
+
+            // Load settings to get API keys for display
+            appSettings = await loadSettingsFromDB();
+            const openAIApiKey = appSettings.openAIApiKey || '';
+            const geminiApiKey = appSettings.geminiApiKey || '';
+            const lastExport = appSettings.lastApiExport || null;
+
+            let lastExportInfo = '<p style="font-style: italic; color: #999;">No API exports recorded yet.</p>';
+            if (lastExport) {
+                const timestamp = new Date(lastExport.timestamp).toLocaleString();
+                const payloadSnippet = lastExport.payloadSnippet ? JSON.stringify(JSON.parse(lastExport.payloadSnippet), null, 2) : 'N/A';
+                lastExportInfo = `
+                    <p><strong>Last Export Time (UTC):</strong> ${timestamp}</p>
+                    <p><strong>Record ID:</strong> ${lastExport.recordId}</p>
+                    <p><strong>Category:</strong> ${lastExport.category}</p>
+                    <p><strong>Payload Snippet:</strong></p>
+                    <pre style="background-color: #3a3a5a; padding: 10px; border-radius: 6px; border: 1px solid #4a4a6a; overflow-x: auto; font-size: 0.8em; max-height: 150px;"><code>${payloadSnippet}</code></pre>
+                `;
+            }
+
+            appDiv.innerHTML = `
+                <h2>Application Settings & Customization</h2>
+                <form id="settings-form">
+                    <div>
+                        <label for="primary-color-picker">Primary Theme Color:</label>
+                        <input type="color" id="primary-color-picker" value="${currentColor}">
+                    </div>
+                    <button type="submit">Save Settings</button>
+                </form>
+                <div class="system-api-keys" style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid var(--border-color); border-radius: 10px; background-color: #3a3a5a;">
+                    <h3>Global API Key Configuration</h3>
+                    <div>
+                        <label for="global-openai-api-key">OpenAI API Key:</label>
+                        <input type="text" id="global-openai-api-key" value="${openAIApiKey}" placeholder="sk-...">
+                    </div>
+                    <div>
+                        <label for="global-gemini-api-key">Gemini API Key:</label>
+                        <input type="text" id="global-gemini-api-key" value="${geminiApiKey}" placeholder="AIza...">
+                    </div>
+                    <button id="save-global-api-keys-btn">Save Global API Keys</button>
+                </div>
+
+                <div style="max-width: 500px; margin: 20px auto; padding: 20px; border: 1px solid var(--border-color); border-radius: 10px; background-color: #3a3a5a;">
+                    <h3>Last API Activity</h3>
+                    ${lastExportInfo}
+                </div>
+            `;
+            attachSettingsPageListeners(); // Attach event listeners specific to this page
+        }
+
+        // --- 8. Event Listener Attachment Functions ---
+
+        // Attaches listeners for the records page (add form, filter buttons)
+        function attachRecordsPageListeners() {
+            const recordForm = document.getElementById('record-form');
+            if (recordForm) {
+                recordForm.addEventListener('submit', handleAddOrUpdateRecord);
+            }
+
+            const loadJsonBtn = document.getElementById('load-json-btn');
+            if (loadJsonBtn) {
+                loadJsonBtn.addEventListener('click', handleLoadJsonIntoForm);
+            }
+
+            document.querySelectorAll('.filter-buttons button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    currentFilter = event.target.dataset.filter; // Update the filter state
+                    currentPage = 1; // Reset to first page when filter changes
+                    displayRecords(); // Re-render records with the new filter
+                });
+            });
+
+            // Pagination listeners
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            if (prevPageBtn) prevPageBtn.addEventListener('click', handlePrevPage);
+            if (nextPageBtn) nextPageBtn.addEventListener('click', handleNextPage);
+        }
+
+        // Attaches listeners for individual record items (edit, delete buttons)
+        // This must be called *after* records are displayed, as elements are dynamically added.
+        function attachRecordItemListeners() {
+            document.querySelectorAll('.record-item .delete-btn').forEach(button => {
+                button.addEventListener('click', handleDeleteRecord);
+            });
+            document.querySelectorAll('.record-item .edit-btn').forEach(button => {
+                button.addEventListener('click', handleEditRecord);
+            });
+            document.querySelectorAll('.record-item .export-payload-btn').forEach(button => {
+                button.addEventListener('click', handleExportApiPayload);
+            });
+            document.querySelectorAll('.record-item .copy-payload-btn').forEach(button => {
+                button.addEventListener('click', handleCopyApiPayload);
+            });
+        }
+
+        // Attaches listeners for the settings page form
+        function attachSettingsPageListeners() {
+            const settingsForm = document.getElementById('settings-form');
+            if (settingsForm) {
+                settingsForm.addEventListener('submit', handleSaveSettings);
+            }
+            const saveGlobalApiKeysBtn = document.getElementById('save-global-api-keys-btn');
+            if (saveGlobalApiKeysBtn) {
+                saveGlobalApiKeysBtn.addEventListener('click', handleSaveGlobalApiKeys);
+            }
+        }
+
+        // Attaches listeners for dynamically added category-specific elements
+        function attachCategorySpecificListeners() {
+            // AI Image Upload
+            document.querySelectorAll('.image-upload-input').forEach(input => {
+                input.addEventListener('change', handleImageUpload);
+            });
+
+            // AI Image Generation
+            document.querySelectorAll('.generate-btn').forEach(button => {
+                button.addEventListener('click', handleGenerateImage);
+            });
+
+            // USER Chat AI Aid
+            document.querySelectorAll('.user-chat-textarea').forEach(textarea => {
+                // Save chat text on input change (debounce for performance in real app)
+                textarea.addEventListener('input', async (event) => {
+                    const recordId = event.target.dataset.recordId;
+                    const record = await getRecordByIdFromDB(recordId);
+                    if (record) {
+                        record.chatText = event.target.value;
+                        await updateRecordInDB(record);
+                    }
+                });
+            });
+            document.querySelectorAll('.ai-aid-btn').forEach(button => {
+                button.addEventListener('click', handleAiAidChat);
+            });
+            // Copy AI Suggestion button
+            document.querySelectorAll('.copy-ai-suggestion-btn').forEach(button => {
+                button.addEventListener('click', handleCopyAiSuggestion);
+            });
+
+
+            // SYSTEM API Key Save (if rendered on a system card)
+            document.querySelectorAll('.save-api-keys-btn').forEach(button => {
+                button.addEventListener('click', handleSaveSystemApiKeys);
+            });
+            // Also save API keys on input change for SYSTEM cards (more responsive)
+            document.querySelectorAll('.system-api-keys input[type="text"]').forEach(input => {
+                input.addEventListener('input', async (event) => {
+                    const recordId = event.target.dataset.recordId; // This is the record ID, not needed for global settings
+                    const openaiInput = document.getElementById(`openai-api-key-${recordId}`);
+                    const geminiInput = document.getElementById(`gemini-api-key-${recordId}`);
+
+                    const newSettings = {
+                        openAIApiKey: openaiInput ? openaiInput.value : '',
+                        geminiApiKey: geminiInput ? geminiInput.value : ''
+                    };
+                    try {
+                        await saveSettingsToDB(newSettings);
+                        appSettings = newSettings; // Update global state
+                    } catch (error) {
+                        console.error('Error saving API key on input:', error);
+                    }
+                });
+            });
+        }
+
+        // --- 9. CRUD Operations Handlers ---
+
+        // Handles adding a new record or updating an existing one
+        async function handleAddOrUpdateRecord(event) {
+            event.preventDefault(); // Prevent default form submission behavior (page reload)
+
+            const nameInput = document.getElementById('record-name');
+            const descriptionInput = document.getElementById('record-description');
+            const categorySelect = document.getElementById('record-category');
+            const recordForm = event.target; // The form itself
+            const recordId = recordForm.dataset.editingId; // Check if we are currently editing a record
+
+            const newRecordData = {
+                name: nameInput.value,
+                description: descriptionInput.value,
+                category: categorySelect.value
+            };
+
+            try {
+                if (recordId) {
+                    // --- U (Update) ---
+                    const existingRecord = await getRecordByIdFromDB(recordId);
+                    if (existingRecord) {
+                        // Preserve existing image/chat data if not explicitly updated via form
+                        const updatedRecord = {
+                            ...existingRecord,
+                            ...newRecordData,
+                            imageUrl: existingRecord.imageUrl || '', // Keep existing image
+                            chatText: existingRecord.chatText || '', // Keep existing chat
+                        };
+                        await updateRecordInDB(updatedRecord);
+                        showMessageBox('Record updated successfully!', 'alert');
+                    } else {
+                        showMessageBox('Record not found for update.', 'alert');
+                    }
+                    // Reset the form's editing state
+                    recordForm.removeAttribute('data-editing-id');
+                    recordForm.querySelector('button[type="submit"]').textContent = 'Add Record';
+                } else {
+                    // --- C (Create) ---
+                    newRecordData.id = generateId(); // Assign a new unique ID
+                    // Initialize new fields based on category
+                    if (newRecordData.category === 'AI') {
+                        newRecordData.imageUrl = '';
+                    } else if (newRecordData.category === 'USER') {
+                        newRecordData.chatText = '';
+                    }
+                    // System cards don't have unique API keys per card, they use global settings
+                    await addRecordToDB(newRecordData);
+                    showMessageBox('Record added successfully!', 'alert');
+                }
+
+                // Clear the form fields
+                nameInput.value = '';
+                descriptionInput.value = '';
+                categorySelect.value = 'USER'; // Reset to default category
+                document.getElementById('json-input').value = ''; // Clear JSON input
+
+                currentPage = 1; // Go to first page after adding/updating
+                displayRecords(); // Re-render the list to show changes
+            } catch (error) {
+                console.error('Error in add/update record:', error);
+                showMessageBox('Failed to save record. Please try again.', 'alert');
+            }
+        }
+
+        // Handles deleting a record
+        function handleDeleteRecord(event) {
+            const recordItem = event.target.closest('.record-item'); // Get the parent record item
+            const recordId = recordItem.dataset.id; // Get the ID from its data attribute
+
+            showMessageBox('Are you sure you want to delete this record?', 'confirm', async (confirmed) => {
+                if (confirmed) {
+                    try {
+                        // --- D (Delete) ---
+                        await deleteRecordFromDB(recordId);
+                        currentPage = 1; // Go to first page after deleting
+                        displayRecords(); // Re-render the list
+                        showMessageBox('Record deleted successfully!', 'alert');
+                    } catch (error) {
+                        console.error('Error deleting record:', error);
+                        showMessageBox('Failed to delete record. Please try again.', 'alert');
+                    }
+                }
+            });
+        }
+
+        // Handles initiating an edit operation
+        async function handleEditRecord(event) {
+            const recordItem = event.target.closest('.record-item');
+            const recordId = recordItem.dataset.id;
+
+            try {
+                const recordToEdit = await getRecordByIdFromDB(recordId); // Find the record in our data store
+
+                if (recordToEdit) {
+                    const recordForm = document.getElementById('record-form');
+
+                    // Populate the form fields with existing data
+                    document.getElementById('record-name').value = recordToEdit.name;
+                    document.getElementById('record-description').value = recordToEdit.description;
+                    document.getElementById('record-category').value = recordToEdit.category;
+                    document.getElementById('json-input').value = ''; // Clear JSON input when editing via form
+
+                    // Set a data attribute on the form to indicate which record is being edited
+                    recordForm.dataset.editingId = recordToEdit.id;
+                    // Change the button text to "Update"
+                    recordForm.querySelector('button[type="submit"]').textContent = 'Update Record';
+
+                    // Scroll to the form for better user experience
+                    recordForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    showMessageBox('Record not found for editing.', 'alert');
+                }
+            } catch (error) {
+                console.error('Error fetching record for edit:', error);
+                showMessageBox('Failed to retrieve record for editing.', 'alert');
+            }
+        }
+
+        // --- New JSON Input Handler ---
+        function handleLoadJsonIntoForm() {
+            const jsonInput = document.getElementById('json-input');
+            const jsonString = jsonInput.value;
+
+            if (!jsonString.trim()) {
+                showMessageBox('Please paste valid JSON into the input area.', 'alert');
+                return;
+            }
+
+            try {
+                const data = JSON.parse(jsonString);
+
+                const nameInput = document.getElementById('record-name');
+                const descriptionInput = document.getElementById('record-description');
+                const categorySelect = document.getElementById('record-category');
+                const recordForm = document.getElementById('record-form');
+
+                if (data.record_name) {
+                    nameInput.value = data.record_name;
+                } else {
+                    showMessageBox('JSON is missing "record_name" field.', 'alert');
+                    return;
+                }
+
+                if (data.description) {
+                    descriptionInput.value = data.description;
+                } else {
+                    showMessageBox('JSON is missing "description" field.', 'alert');
+                    return;
+                }
+
+                if (data.category) {
+                    let categoryValue = '';
+                    if (Array.isArray(data.category) && data.category.length > 0) {
+                        categoryValue = data.category[0]; // Take the first category if it's an array
+                    } else if (typeof data.category === 'string') {
+                        categoryValue = data.category;
+                    }
+
+                    // Ensure the category value is one of the valid options
+                    const validCategories = ['USER', 'AI', 'SYSTEM'];
+                    if (validCategories.includes(categoryValue.toUpperCase())) {
+                        categorySelect.value = categoryValue.toUpperCase();
+                    } else {
+                        showMessageBox(`Invalid category "${categoryValue}". Using default "USER".`, 'alert');
+                        categorySelect.value = 'USER';
+                    }
+                } else {
+                    showMessageBox('JSON is missing "category" field. Using default "USER".', 'alert');
+                    categorySelect.value = 'USER';
+                }
+
+                showMessageBox('JSON loaded into form fields. Click "Add Record" to save.', 'alert');
+                recordForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+                showMessageBox('Invalid JSON format. Please ensure your input is valid JSON, like: {"record_name": "My Record", "description": "Details", "category": ["USER"]}', 'alert');
+            }
+        }
+
+
+        // --- 10. New Feature Handlers ---
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            const recordId = event.target.dataset.recordId;
+            if (!file || !recordId) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const imageUrl = e.target.result; // Base64 encoded image
+                const record = await getRecordByIdFromDB(recordId);
+                if (record) {
+                    record.imageUrl = imageUrl;
+                    await updateRecordInDB(record);
+                    showMessageBox('Image uploaded and saved to record!', 'alert');
+                    displayRecords(); // Re-render to show the new image
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function handleGenerateImage(event) {
+            const recordId = event.target.dataset.recordId;
+            const record = await getRecordByIdFromDB(recordId);
+            if (!record) {
+                showMessageBox('Record not found.', 'alert');
+                return;
+            }
+
+            showMessageBox('Enter a prompt for the AI image generation:', 'prompt', async (promptText) => {
+                if (promptText) {
+                    const loadingImage = document.querySelector(`.record-item[data-id="${recordId}"] .ai-image-preview`);
+                    if (loadingImage) {
+                        loadingImage.src = 'https://placehold.co/300x200/4a4a6a/e0e0e0?text=Generating+Image...';
+                        loadingImage.alt = 'Generating Image...';
+                    }
+
+                    try {
+                        const payload = { instances: { prompt: promptText }, parameters: { "sampleCount": 1} };
+                        const apiKey = ""; // Canvas will provide this
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                            const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                            record.imageUrl = imageUrl;
+                            await updateRecordInDB(record);
+                            showMessageBox('Image generated and saved!', 'alert');
+                        } else {
+                            showMessageBox('Failed to generate image. Please try a different prompt.', 'alert');
+                            record.imageUrl = 'https://placehold.co/300x200/4a4a6a/e0e0e0?text=Generation+Failed';
+                            await updateRecordInDB(record); // Save failure state
+                        }
+                    } catch (error) {
+                        console.error('Error generating image:', error);
+                        showMessageBox('An error occurred during image generation.', 'alert');
+                        record.imageUrl = 'https://placehold.co/300x200/4a4a6a/e0e0e0?text=Error';
+                        await updateRecordInDB(record); // Save error state
+                    } finally {
+                        displayRecords(); // Re-render to show the generated image or error state
+                    }
+                } else {
+                    showMessageBox('Image generation cancelled.', 'alert');
+                }
+            });
+        }
+
+        async function handleAiAidChat(event) {
+            const recordId = event.target.dataset.recordId;
+            const record = await getRecordByIdFromDB(recordId);
+            if (!record) {
+                showMessageBox('Record not found.', 'alert');
+                return;
+            }
+
+            const chatTextarea = document.getElementById(`user-chat-${recordId}`);
+            const currentChat = chatTextarea.value;
+            const aiSuggestionCodeElement = document.getElementById(`ai-suggestion-code-${record.id}`);
+            const copyAiSuggestionButton = document.querySelector(`.copy-ai-suggestion-btn[data-record-id="${record.id}"]`);
+
+            if (!currentChat.trim() && !record.description.trim() && !record.name.trim()) {
+                showMessageBox('Please provide some input in the chatbox, or ensure the record has a name/description, for AI assistance.', 'alert');
+                return;
+            }
+
+            // Show loading state
+            aiSuggestionCodeElement.textContent = 'Generating AI suggestion...';
+            if (copyAiSuggestionButton) copyAiSuggestionButton.style.display = 'none'; // Hide copy button during loading
+
+            try {
+                const prompt = `You are a data architect and API analyst assistant. Your goal is to provide structured JSON suggestions related to data refinement, API interaction (GET/POST), and data structure standards based on the provided record context.
+
+Consider the following record:
+Record Name: "${record.name}"
+Record Description: "${record.description}"
+Record Category: "${record.category}"
+User's Current Input/Question: "${currentChat}"
+
+Based on this context, generate a JSON object that offers one or more relevant suggestions. The JSON should follow this structure:
+
+\`\`\`json
+{
+  "ai_feedback_type": "string", // e.g., "API_Interaction_Proposal", "Data_Refinement_Suggestion", "Data_Structure_Improvement", "Application_Contingency_Insight"
+  "contextual_summary": "string", // A brief summary of the record's purpose based on context.
+  "suggestions": [
+    {
+      "type": "string", // e.g., "API_GET_Proposal", "API_POST_Proposal", "Data_Structure_Improvement", "System_Efficiency_Observation"
+      "description": "string", // Detailed explanation of the suggestion.
+      "api_endpoint_example": "string", // Optional: Example API endpoint.
+      "payload_example_md": "string", // Optional: Markdown code block for example JSON payload (for POST).
+      "structure_example_md": "string", // Optional: Markdown code block for example JSON data structure (for GET response or schema).
+      "rationale": "string", // Why this suggestion is relevant and beneficial.
+      "feedback_loop_point": "string" // How this specific point contributes to analyzing the application's contingency or streamlining processes.
+    }
+    // ... more suggestion objects
+  ]
+}
+\`\`\`
+
+Ensure all JSON examples within 'payload_example_md' or 'structure_example_md' are correctly escaped for inclusion in a JSON string and wrapped in Markdown triple backticks (\`\`\`json\\n...\\n\`\`\`). If no specific API or data structure examples are immediately relevant, focus on general data refinement or contingency insights. Provide at least one suggestion.`;
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = {
+                    contents: chatHistory,
+                    generationConfig: {
+                        responseMimeType: "application/json", // Enforce JSON output
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                ai_feedback_type: { type: "STRING" },
+                                contextual_summary: { type: "STRING" },
+                                suggestions: {
+                                    type: "ARRAY",
+                                    items: {
+                                        type: "OBJECT",
+                                        properties: {
+                                            type: { type: "STRING" },
+                                            description: { type: "STRING" },
+                                            api_endpoint_example: { type: "STRING" },
+                                            payload_example_md: { type: "STRING" },
+                                            structure_example_md: { type: "STRING" },
+                                            rationale: { type: "STRING" },
+                                            feedback_loop_point: { type: "STRING" }
+                                        },
+                                        required: ["type", "description", "rationale", "feedback_loop_point"] // Ensure these are always present
+                                    }
+                                }
+                            },
+                            required: ["ai_feedback_type", "contextual_summary", "suggestions"]
+                        }
+                    }
+                };
+                const apiKey = ""; // Canvas will provide this
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonString = result.candidates[0].content.parts[0].text;
+                    try {
+                        const aiSuggestion = JSON.parse(jsonString);
+                        // Display the formatted JSON in the code block
+                        aiSuggestionCodeElement.textContent = JSON.stringify(aiSuggestion, null, 2);
+                        if (copyAiSuggestionButton) copyAiSuggestionButton.style.display = 'inline-block';
+                        showMessageBox('AI assistance generated!', 'alert');
+                    } catch (parseError) {
+                        console.error('Error parsing AI JSON response:', parseError);
+                        aiSuggestionCodeElement.textContent = `Error: Could not parse AI response as JSON.\nRaw response:\n${jsonString}`;
+                        showMessageBox('Failed to parse AI assistance. Check console for raw response.', 'alert');
+                    }
+                } else {
+                    aiSuggestionCodeElement.textContent = 'Failed to get AI assistance. No valid candidates in response.';
+                    showMessageBox('Failed to get AI assistance. Please try again.', 'alert');
+                }
+            } catch (error) {
+                console.error('Error with AI aid API call:', error);
+                aiSuggestionCodeElement.textContent = `An error occurred while getting AI assistance: ${error.message}`;
+                showMessageBox('An error occurred while getting AI assistance. Check console for details.', 'alert');
+            }
+        }
+
+        function handleCopyAiSuggestion(event) {
+            const recordId = event.target.dataset.recordId;
+            const aiSuggestionCodeElement = document.getElementById(`ai-suggestion-code-${recordId}`);
+            if (aiSuggestionCodeElement) {
+                const textToCopy = aiSuggestionCodeElement.textContent;
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showMessageBox('AI suggestion copied to clipboard!', 'alert');
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showMessageBox('Failed to copy AI suggestion. Please try manually.', 'alert');
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        async function handleSaveSystemApiKeys(event) {
+            // This function is for the API keys displayed within SYSTEM cards
+            // However, API keys are global, so we'll save them to the appSettings object store.
+            const recordId = event.target.dataset.recordId; // Get the record ID to find the specific card
+            const recordItem = document.querySelector(`.record-item[data-id="${recordId}"]`);
+            if (!recordItem) {
+                showMessageBox('Could not find the system card.', 'alert');
+                return;
+            }
+
+            const openaiInput = recordItem.querySelector(`#openai-api-key-${recordId}`);
+            const geminiInput = recordItem.querySelector(`#gemini-api-key-${recordId}`);
+
+            const newSettings = {
+                openAIApiKey: openaiInput ? openaiInput.value : '',
+                geminiApiKey: geminiInput ? geminiInput.value : ''
+            };
+
+            try {
+                await saveSettingsToDB(newSettings);
+                appSettings = newSettings; // Update global settings state
+                showMessageBox('API Keys saved successfully!', 'alert');
+            } catch (error) {
+                console.error('Error saving API keys:', error);
+                showMessageBox('Failed to save API keys. Please try again.', 'alert');
+            }
+        }
+
+        /**
+         * Generates and displays an API-ready JSON payload for the current record.
+         */
+        async function handleExportApiPayload(event) {
+            const recordId = event.target.dataset.recordId;
+            const record = await getRecordByIdFromDB(recordId);
+            if (!record) {
+                showMessageBox('Record not found.', 'alert');
+                return;
+            }
+
+            let apiData = {};
+            if (record.category === 'AI') {
+                apiData = {
+                    image_url: record.imageUrl || null,
+                    // Additional AI-specific data could be added here
+                };
+            } else if (record.category === 'USER') {
+                apiData = {
+                    chat_content: record.chatText || null,
+                    // Additional user-specific data
+                };
+            } else if (record.category === 'SYSTEM') {
+                apiData = {
+                    openai_api_key: appSettings.openAIApiKey || null,
+                    gemini_api_key: appSettings.geminiApiKey || null,
+                    // Additional system-specific data
+                };
+            }
+
+            const apiPayload = {
+                record_id: record.id,
+                record_name: record.name,
+                record_description: record.description,
+                record_category: record.category,
+                data: apiData,
+                timestamp_utc: new Date().toISOString()
+            };
+
+            const payloadCodeElement = document.getElementById(`api-payload-code-${record.id}`);
+            const copyButton = document.querySelector(`.copy-payload-btn[data-record-id="${record.id}"]`);
+
+            if (payloadCodeElement) {
+                payloadCodeElement.querySelector('code').textContent = JSON.stringify(apiPayload, null, 2);
+                copyButton.style.display = 'inline-block'; // Show copy button
+            }
+
+            // Update last API export in settings
+            const payloadSnippet = JSON.stringify(apiPayload, null, 2); // Store full payload for snippet
+            appSettings.lastApiExport = {
+                timestamp: new Date().toISOString(),
+                recordId: record.id,
+                category: record.category,
+                payloadSnippet: payloadSnippet
+            };
+            await saveSettingsToDB(appSettings);
+
+            showMessageBox('API Payload generated. You can copy it now.', 'alert');
+        }
+
+        /**
+         * Copies the generated API payload to the clipboard.
+         */
+        function handleCopyApiPayload(event) {
+            const recordId = event.target.dataset.recordId;
+            const payloadCodeElement = document.getElementById(`api-payload-code-${recordId}`);
+            if (payloadCodeElement) {
+                const textToCopy = payloadCodeElement.querySelector('code').textContent;
+                // Use document.execCommand('copy') for better iframe compatibility
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showMessageBox('Payload copied to clipboard!', 'alert');
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showMessageBox('Failed to copy payload. Please try manually.', 'alert');
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+
+        // --- 11. Settings Handlers ---
+        // Applies user-selected customization settings
+        async function handleSaveSettings(event) {
+            event.preventDefault();
+            const primaryColorPicker = document.getElementById('primary-color-picker');
+            const newColor = primaryColorPicker.value;
+
+            // Apply the new color to the CSS variable `--primary-color`
+            document.documentElement.style.setProperty('--primary-color', newColor);
+
+            // Also update the RGB value for the shadow effect
+            const rgb = hexToRgb(newColor);
+            if (rgb) {
+                document.documentElement.style.setProperty('--primary-color-rgb-val', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+            }
+
+            // Save the color setting to IndexedDB
+            appSettings.primaryColor = newColor;
+            try {
+                await saveSettingsToDB(appSettings);
+                showMessageBox('Settings saved successfully! Theme updated.', 'alert');
+            } catch (error) {
+                console.error('Error saving theme setting:', error);
+                showMessageBox('Failed to save theme setting. Please try again.', 'alert');
+            }
+        }
+
+        async function handleSaveGlobalApiKeys() {
+            const openaiInput = document.getElementById('global-openai-api-key');
+            const geminiInput = document.getElementById('global-gemini-api-key');
+
+            const newSettings = {
+                openAIApiKey: openaiInput ? openaiInput.value : '',
+                geminiApiKey: geminiInput ? geminiInput.value : ''
+            };
+
+            try {
+                await saveSettingsToDB(newSettings);
+                appSettings = newSettings; // Update global settings state
+                showMessageBox('Global API Keys saved successfully!', 'alert');
+            } catch (error) {
+                console.error('Error saving global API keys:', error);
+                showMessageBox('Failed to save global API keys. Please try again.', 'alert');
+            }
+        }
+
+        // Helper function to convert HEX to RGB for CSS variable usage
+        function hexToRgb(hex) {
+            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+                return r + r + g + g + b + b;
+            });
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        // --- 12. Pagination Handlers ---
+        function handlePrevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                displayRecords();
+            }
+        }
+
+        function handleNextPage() {
+            const totalPages = Math.ceil(totalFilteredRecords / recordsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                displayRecords();
+            }
+        }
+
+        // --- 13. Layout Toggle Handler ---
+        function handleLayoutToggle() {
+            const recordsList = document.getElementById('records-list');
+            if (recordsList) {
+                recordsList.classList.toggle('single-column-layout');
+            }
+        }
+
+
+        // --- 14. Simple Client-side Routing / Page Navigation ---
+        // This function determines which "page" to show based on the `page` argument
+        function navigate(page) {
+            if (page === 'records') {
+                renderRecordsPage();
+            } else if (page === 'settings') {
+                renderSettingsPage();
+            }
+            // Update active state of navigation buttons
+            navRecordsBtn.classList.toggle('active', page === 'records');
+            navSettingsBtn.classList.toggle('active', page === 'settings');
+        }
+
+        // --- 15. Initial Application Setup ---
+        // Runs when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Attach main navigation listeners once
+            navRecordsBtn.addEventListener('click', () => navigate('records'));
+            navSettingsBtn.addEventListener('click', () => navigate('settings'));
+            layoutToggleBtn.addEventListener('click', handleLayoutToggle); // Attach layout toggle listener
+
+            try {
+                await openDatabase();
+                appSettings = await loadSettingsFromDB(); // Load settings on startup
+                // Apply saved theme color
+                if (appSettings.primaryColor) {
+                    document.documentElement.style.setProperty('--primary-color', appSettings.primaryColor);
+                    const rgb = hexToRgb(appSettings.primaryColor);
+                    if (rgb) {
+                        document.documentElement.style.setProperty('--primary-color-rgb-val', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+                    }
+                }
+
+                // Initialize with some default records if the database is empty
+                const existingRecords = await getRecordsFromDB();
+                if (existingRecords.length === 0) {
+                    const initialRecords = [
+                        { id: 'rec-1', name: 'User Profile Settings', description: 'This is a sample description for USER data.\nIt can contain multiple lines of text.\n\nExample:\n```json\n{\n  "user_id": "123",\n  "theme": "dark"\n}\n```', category: 'USER', chatText: '' },
+                        { id: 'rec-2', name: 'AI Model Version 3.1', description: 'This description details the AI model\'s capabilities and limitations.\n\nKey features:\n- Natural Language Processing\n- Image Recognition\n- Contextual understanding\n\nUsage:\n`model.predict("input")`', category: 'AI', imageUrl: '' },
+                        { id: 'rec-3', name: 'System Log Retention Policy', description: 'Policy for system logs:\n\n- Access logs: 90 days\n- Error logs: 30 days\n- Audit logs: 1 year\n\nConfiguration file:\n`/etc/logrotate.conf`', category: 'SYSTEM' },
+                        { id: 'rec-4', name: 'Dashboard Layout Preferences', description: 'User-specific dashboard layout configurations.\n\nExample JSON:\n```json\n{\n  "widgets": [\n    {"name": "analytics", "position": "top-left"},\n    {"name": "notifications", "position": "top-right"}\n  ]\n}\n```', category: 'USER', chatText: '' },
+                        { id: 'rec-5', name: 'AI Training Dataset Details', description: 'Information about the dataset used for training the AI model.\n\nDataset Name: "Customer Interactions 2024"\nSize: 1.2 TB\nFormat: CSV, JSON\nSource: Internal CRM', category: 'AI', imageUrl: '' },
+                        { id: 'rec-6', name: 'API Rate Limit Configuration', description: 'System-wide API request rate limits.\n\nDefault limits:\n- Authenticated: 1000 req/min\n- Unauthenticated: 100 req/min\n\nAdjustments require admin approval.', category: 'SYSTEM' },
+                    ];
+                    for (const record of initialRecords) {
+                        await addRecordToDB(record);
+                    }
+                    console.log('Initial records added to IndexedDB.');
+                }
+                navigate('records'); // Render the initial page after DB is ready
+            } catch (error) {
+                console.error("Failed to initialize IndexedDB:", error);
+                showMessageBox('Failed to initialize the application database. Data persistence will not work.', 'alert');
+                // Even if DB fails, try to render the page, but data won't persist
+                navigate('records');
+            }
+        });
+    </script>
+</body>
+</html>

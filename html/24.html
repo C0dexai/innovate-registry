@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨ (Neon Glow)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --neon-blue: #00BFFF;
+            --neon-purple: #8A2BE2;
+            --neon-green: #39FF14;
+            --neon-pink: #FF00FF;
+            --dark-grey: #1A1A1A;
+            --light-text: #E2E8F0;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--dark-grey); 
+            color: var(--light-text);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--neon-blue);
+            border-radius: 10px;
+            border: 1px solid #000;
+            box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue);
+        }
+
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+
+        .glass-panel { 
+            background: rgba(26, 26, 26, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border: 1px solid rgba(0, 191, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.2), inset 0 0 5px rgba(0, 191, 255, 0.1);
+        }
+
+        .card { 
+            transition: transform 0.4s ease, box-shadow 0.4s ease; 
+            background-color: rgba(30, 30, 30, 0.7);
+            border: 1px solid transparent;
+            box-shadow: 0 0 10px rgba(0, 191, 255, 0.3);
+        }
+        .card:hover { 
+            transform: translateY(-8px) scale(1.03); 
+            box-shadow: 0 0 25px var(--neon-pink), 0 0 10px var(--neon-blue);
+            border-color: var(--neon-pink);
+        }
+        .card-selected { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 30px var(--neon-green), 0 0 15px var(--neon-purple); 
+            border-color: var(--neon-green); 
+        }
+
+        .chat-bubble-ai { 
+            background-color: rgba(45, 55, 72, 0.8); 
+            border: 1px solid var(--neon-purple);
+            box-shadow: 0 0 8px rgba(138, 43, 226, 0.4);
+        }
+        .chat-bubble-user { 
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: black;
+            font-weight: 600;
+            border: 1px solid var(--neon-pink);
+            box-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+        }
+
+        .loader { 
+            border: 4px solid #333; 
+            border-top: 4px solid var(--neon-green); 
+            border-radius: 50%; 
+            width: 24px; height: 24px; 
+            animation: spin 1.5s linear infinite; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #api-settings-panel { 
+            position: fixed; top: 0; right: 0; height: 100%; width: 400px; 
+            max-width: 90vw; transform: translateX(100%); 
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
+            z-index: 60; 
+        }
+        #api-settings-panel.panel-open { transform: translateX(0); }
+
+        .neon-btn {
+            background: transparent;
+            border: 2px solid var(--neon-pink);
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
+            transition: all 0.3s ease;
+        }
+        .neon-btn:hover {
+            background: var(--neon-pink);
+            color: var(--dark-grey);
+            box-shadow: 0 0 20px var(--neon-pink);
+        }
+        
+        /* Glowing Orb and Footer Menu */
+        #footer-orb-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        #glowing-orb {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple);
+            cursor: pointer;
+            animation: pulse 2s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: black;
+            font-size: 24px;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple); }
+            70% { transform: scale(1); box-shadow: 0 0 25px var(--neon-blue), 0 0 50px var(--neon-blue), 0 0 70px var(--neon-purple); }
+            100% { transform: scale(0.95); box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple); }
+        }
+        #orb-menu {
+            position: absolute;
+            bottom: 75px;
+            right: 0;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #orb-menu a {
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: right;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-4xl md:text-6xl font-bold" style="text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-purple);">CUA Orchestration Engine</h1>
+            <p class="mt-3 text-lg text-gray-400">Your explorable resource for building AI inference applications.</p>
+            <div class="mt-4 text-sm text-gray-400">
+                User ID: <span id="user-id" class="font-semibold" style="color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green);">Loading...</span> | Session ID: <span id="session-id" class="font-semibold" style="color: var(--neon-pink); text-shadow: 0 0 5px var(--neon-pink);"></span>
+            </div>
+             <button id="api-settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white transition-colors duration-300" style="color: var(--neon-blue);">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <main>
+            <div id="family" class="tab-content active">
+                <div class="max-w-7xl mx-auto">
+                    <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+                    <div id="agent-details" class="mt-8 glass-panel p-6 rounded-lg shadow-lg" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white text-4xl">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white focus:border-neon-pink focus:ring-neon-pink">
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full neon-btn font-bold py-2 px-4 rounded-lg">Save Key</button>
+            </div>
+        </form>
+    </div>
+    
+    <div id="error-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div id="error-modal-content" class="glass-panel p-6 rounded-lg shadow-xl max-w-2xl w-full border-gray-600">
+            <h3 id="error-title" class="text-2xl font-bold mb-4 text-red-400">Error</h3>
+            <div id="error-message" class="text-white mb-6 prose prose-invert max-w-none"></div>
+            <button id="close-modal-btn" class="neon-btn w-full font-bold py-2 px-4 rounded-lg">Close</button>
+        </div>
+    </div>
+
+    <div id="footer-orb-container">
+        <div id="orb-menu">
+            <a href="#" class="neon-btn" style="--neon-pink: var(--neon-green);">Agents</a>
+            <a href="#" class="neon-btn" style="--neon-pink: var(--neon-blue);">Home</a>
+        </div>
+        <div id="glowing-orb">
+            <i class="fas fa-bars"></i>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const CUA_App = {
+                codexData: {
+                    "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                    "ai_family": [
+                        {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+                        {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+                        {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+                        {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+                        {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"]},
+                        {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"]},
+                        {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"]},
+                        {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"]},
+                        {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"]}
+                    ]
+                },
+                currentSession: { agent: null, chatHistory: [] },
+                apiKeys: { gemini: ''},
+                dom: {},
+                firebase: { app: null, auth: null, db: null, userId: null, isAuthReady: false, appId: 'default-app-id' },
+
+                init: function() {
+                    this.cacheDom();
+                    this.setupEventListeners();
+                    this.initFirebase();
+                    this.renderAgentCards();
+                    this.setupNewSession();
+                },
+                
+                initFirebase: async function() {
+                    this.firebase.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    if (typeof __firebase_config === 'undefined') {
+                        console.error("Firebase config is not available.");
+                        this.showError("Firebase configuration is missing. The application cannot connect to the backend services. Please ensure you are in the correct environment.", "Configuration Error");
+                        return;
+                    }
+                    const firebaseConfig = JSON.parse(__firebase_config);
+
+                    try {
+                        this.firebase.app = initializeApp(firebaseConfig);
+                        this.firebase.auth = getAuth(this.firebase.app);
+                        this.firebase.db = getFirestore(this.firebase.app);
+                        setLogLevel('debug');
+
+                        onAuthStateChanged(this.firebase.auth, async (user) => {
+                            if (user) {
+                                this.firebase.userId = user.uid;
+                                this.firebase.isAuthReady = true;
+                                this.dom.userIdSpan.textContent = this.firebase.userId;
+                                await this.loadApiKeys();
+                            } else {
+                                try {
+                                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                        await signInWithCustomToken(this.firebase.auth, __initial_auth_token);
+                                    } else {
+                                        await signInAnonymously(this.firebase.auth);
+                                    }
+                                } catch (error) {
+                                    this.showError(`Failed to authenticate: ${error.message}`, "Authentication Error");
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        this.showError(`Firebase initialization failed: ${error.message}`, "Initialization Error");
+                    }
+                },
+
+                cacheDom: function() {
+                    this.dom = {
+                        userIdSpan: document.getElementById('user-id'),
+                        sessionIdSpan: document.getElementById('session-id'),
+                        agentGrid: document.getElementById('agent-grid'),
+                        agentDetails: document.getElementById('agent-details'),
+                        errorModal: document.getElementById('error-modal'),
+                        closeModalBtn: document.getElementById('close-modal-btn'),
+                        errorMessage: document.getElementById('error-message'),
+                        errorTitle: document.getElementById('error-title'),
+                        apiSettingsPanel: document.getElementById('api-settings-panel'),
+                        closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                        apiSettingsForm: document.getElementById('api-settings-form'),
+                        apiSettingsBtn: document.getElementById('api-settings-btn'),
+                        glowingOrb: document.getElementById('glowing-orb'),
+                        orbMenu: document.getElementById('orb-menu'),
+                    };
+                },
+
+                setupEventListeners: function() {
+                    this.dom.closeModalBtn.addEventListener('click', () => this.dom.errorModal.classList.add('hidden'));
+                    this.dom.apiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                    this.dom.closeApiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                    this.dom.apiSettingsForm.addEventListener('submit', async (e) => {
+                         e.preventDefault();
+                         await this.saveApiKeys();
+                         this.toggleApiSettings();
+                    });
+                    this.dom.glowingOrb.addEventListener('click', () => {
+                        const menu = this.dom.orbMenu;
+                        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+                    });
+                },
+
+                loadApiKeys: async function() {
+                    if (!this.firebase.isAuthReady) return;
+                    const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini");
+                    try {
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            this.apiKeys.gemini = data.key || '';
+                            document.getElementById('gemini-api-key').value = this.apiKeys.gemini;
+                        }
+                    } catch (error) {
+                        this.showError(`Failed to load API key: ${error.message}`, "Firestore Error");
+                    }
+                },
+
+                saveApiKeys: async function() {
+                    if (!this.firebase.isAuthReady) {
+                        this.showError("You must be authenticated to save settings.", "Authentication Error");
+                        return;
+                    }
+                    this.apiKeys.gemini = document.getElementById('gemini-api-key').value;
+                    const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini");
+                    try {
+                        await setDoc(docRef, { key: this.apiKeys.gemini });
+                        this.showError('API Key saved successfully!', 'Success');
+                    } catch (error) {
+                        this.showError(`Failed to save API key: ${error.message}`, "Firestore Error");
+                    }
+                },
+                
+                setupNewSession: function() {
+                    this.dom.sessionIdSpan.textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                },
+
+                renderAgentCards: function() {
+                    this.dom.agentGrid.innerHTML = '';
+                    this.codexData.ai_family.forEach(agent => {
+                        const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent, card));
+                        this.dom.agentGrid.appendChild(card);
+                    });
+                },
+                
+                createCard: function(title, subtitle, onClick) {
+                    const card = document.createElement('div');
+                    card.className = 'card p-6 rounded-lg shadow-dark cursor-pointer text-center';
+                    card.innerHTML = `<h3 class="text-xl font-bold" style="color: var(--neon-blue);">${title}</h3><p class="text-gray-400">${subtitle}</p>`;
+                    card.addEventListener('click', onClick);
+                    return card;
+                },
+                
+                selectAgent: async function(agent, cardElement) {
+                    this.currentSession = { agent, chatHistory: [], selectedCardElement: cardElement };
+                    this.renderAgentChatUI(agent);
+                },
+
+                renderAgentChatUI: function(agent) {
+                    this.dom.agentDetails.style.display = 'block';
+                    this.dom.agentDetails.innerHTML = `
+                        <div class="flex flex-col md:flex-row gap-6 items-center mb-6">
+                            <div class="flex-shrink-0 text-center">
+                                <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2" style="border-color: var(--neon-purple); box-shadow: 0 0 10px var(--neon-purple);"><span class="text-4xl font-bold" style="color: var(--neon-purple);">${agent.name.charAt(0)}</span></div>
+                                <h2 class="text-2xl font-bold text-white mt-2">${agent.name}</h2>
+                                <p style="color: var(--neon-blue);">${agent.role}</p>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="italic text-gray-400 border-l-4 pl-4" style="border-color: var(--neon-pink);">"${agent.philosophy}"</p>
+                            </div>
+                        </div>
+                        <div id="chat-container" class="mt-6">
+                            <div id="chat-log" class="space-y-4 mb-4 h-64 overflow-y-auto p-2 bg-black/20 rounded-md"></div>
+                            <form id="chat-form" class="flex gap-2">
+                                <input type="text" id="chat-input" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:border-neon-green focus:ring-neon-green" placeholder="Send a message..." required autocomplete="off">
+                                <button type="submit" id="send-btn" class="neon-btn font-bold p-3 rounded-lg flex items-center justify-center w-24" style="--neon-pink: var(--neon-green);">Send</button>
+                            </form>
+                        </div>`;
+
+                    document.getElementById('chat-form')?.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.handleUserMessage();
+                    });
+
+                    this.startConversation();
+                },
+
+                startConversation: async function() {
+                    const chatLog = document.getElementById('chat-log');
+                    if (!chatLog) return;
+                    chatLog.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                    
+                    const agent = this.currentSession.agent;
+                    const prompt = `Introduce yourself as the AI agent named ${agent.name}. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Greet the user and ask how you can assist them based on your specific role.`;
+                    const initialMessage = await this.getAiResponse(prompt, []);
+
+                    if (initialMessage.success) {
+                        this.addMessageToLog('ai', initialMessage.data, true);
+                    } else {
+                        this.addMessageToLog('ai', `Error: ${initialMessage.error}`, true);
+                    }
+                },
+
+                handleUserMessage: async function() {
+                    const chatInput = document.getElementById('chat-input');
+                    const sendBtn = document.getElementById('send-btn');
+                    const message = chatInput.value.trim();
+                    if (!message) return;
+
+                    this.addMessageToLog('user', message);
+                    chatInput.value = '';
+                    sendBtn.disabled = true;
+                    sendBtn.innerHTML = '<div class="loader"></div>';
+
+                    const aiResponse = await this.getAiResponse(message, this.currentSession.chatHistory);
+                    if (aiResponse.success) {
+                        this.addMessageToLog('ai', aiResponse.data);
+                    } else {
+                        this.addMessageToLog('ai', `Error: ${aiResponse.error}`);
+                    }
+
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = 'Send';
+                },
+
+                getAiResponse: async function(userMessage, history) {
+                    if (!this.apiKeys.gemini) {
+                        this.showError("Google Gemini API Key is not set. Please add it in the settings panel.", "API Key Missing");
+                        return { success: false, error: "API Key not set." };
+                    }
+                    
+                    const agent = this.currentSession.agent;
+                    const systemPrompt = `You are ${agent.name}, an AI agent. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Your primary focus areas are: ${agent.focus_areas.join(', ')}. Keep your responses concise and in character.`;
+
+                    const formattedHistory = history.map(m => ({
+                        role: m.role === 'ai' ? 'model' : 'user',
+                        parts: [{ text: m.content }]
+                    }));
+
+                    try {
+                        const payload = {
+                            contents: [...formattedHistory, { role: "user", parts: [{ text: userMessage }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        };
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKeys.gemini}`;
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        const result = await response.json();
+                        if (!response.ok) {
+                             const errorDetails = result.error ? result.error.message : `API Error: ${response.statusText}`;
+                             throw new Error(errorDetails);
+                        }
+                        
+                        return { success: true, data: result.candidates[0].content.parts[0].text };
+                    } catch (error) {
+                        this.showError(`An error occurred while communicating with the Gemini API: <br><br><code>${error.message}</code><br><br>Please check your API key and network connection.`, "API Communication Error");
+                        return { success: false, error: error.message };
+                    }
+                },
+
+                addMessageToLog: function(role, content, isFirstMessage = false) {
+                    const chatLog = document.getElementById('chat-log');
+                    if (!chatLog) return;
+                    if(isFirstMessage) chatLog.innerHTML = '';
+
+                    if (role !== 'system') {
+                        this.currentSession.chatHistory.push({ role: role, content: content });
+                    }
+
+                    const messageWrapper = document.createElement('div');
+                    messageWrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+                    const messageBubble = document.createElement('div');
+                    messageBubble.className = `chat-bubble ${role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`;
+                    messageBubble.innerHTML = marked.parse(content);
+                    messageWrapper.appendChild(messageBubble);
+                    chatLog.appendChild(messageWrapper);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                },
+                
+                toggleApiSettings: function() {
+                    this.dom.apiSettingsPanel.classList.toggle('panel-open');
+                },
+                
+                showError: function(message, title = "Error") {
+                    this.dom.errorMessage.innerHTML = message; 
+                    this.dom.errorTitle.textContent = title;
+                    this.dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.toLowerCase().includes('success') || title.toLowerCase().includes('complete') ? 'text-green-400' : 'text-red-400'}`;
+                    this.dom.errorModal.classList.remove('hidden');
+                }
+            };
+
+            CUA_App.init();
+        });
+    </script>
+</body>
+</html>

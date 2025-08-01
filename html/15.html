@@ -1,0 +1,2504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <!-- Bootstrap 5.3.3 (Included in original, keeping for compatibility though Tailwind is primary) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        /* Base styles for body and fonts */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0A0A0A; /* Dark Grey base */
+            overflow-x: hidden; 
+            color: #E0E0E0; /* Lighter text on dark background */
+        }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+
+        /* Custom scrollbar for WebKit browsers */
+        ::-webkit-scrollbar {
+            width: 4px; /* tiny width */
+            height: 4px; /* tiny height for horizontal scrollbars */
+            background-color: black;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 255, 255, 0.7); /* white neon phosphor glow (cyan) */
+            border-radius: 2px; /* rounded ends */
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(0, 255, 255, 1);
+        }
+
+        /* Card styling for agents and orchestrations */
+        .card { 
+            background: rgba(10, 10, 10, 0.7); /* Dark grey semi-transparent */
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; 
+            border: 1px solid rgba(0, 255, 255, 0.3); /* Initial subtle cyan neon border */
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .card:hover { 
+            transform: translateY(-5px); 
+            /* Multi-layered neon glow on hover */
+            box-shadow: 
+                0 0 15px rgba(0, 255, 255, 0.6), /* Cyan glow */
+                0 0 30px rgba(0, 128, 255, 0.4), /* Blue glow */
+                0 0 45px rgba(128, 0, 255, 0.2); /* Purple glow */
+        }
+        .card-selected { 
+            transform: scale(1.02); 
+            /* Stronger neon glow when selected */
+            box-shadow: 
+                0 0 25px rgba(59, 130, 246, 0.8), /* Tailwind blue-500 for consistency */
+                0 0 40px rgba(139, 92, 246, 0.6), /* Tailwind purple-500 */
+                0 0 60px rgba(0, 255, 255, 0.4); /* Cyan neon */
+            border-color: #3b82f6; /* Tailwind blue-500 */
+        }
+
+        /* Glass panel effect for various sections */
+        .glass-panel { 
+            background: rgba(10, 10, 10, 0.7); /* Dark grey semi-transparent */
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px); 
+            border: 1px solid rgba(0, 255, 255, 0.1); /* Subtle neon border */
+        }
+
+        /* Tab button styling for main navigation and right panel */
+        .tab-btn { 
+            background-color: rgba(10, 10, 10, 0.8); /* Dark grey semi-transparent */
+            border: 1px solid #4b5563; /* Original grey border */
+            transition: background-color 0.2s, color 0.2s, box-shadow 0.2s; 
+            box-shadow: 0 0 5px rgba(0, 255, 255, 0.1); /* Subtle cyan glow */
+        }
+        .tab-btn:hover {
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.4), inset 0 0 5px rgba(0, 255, 255, 0.2);
+            color: #00FFFF; /* Neon cyan text on hover */
+        }
+        .tab-btn.active { 
+            background: linear-gradient(90deg, #8a2be2, #00FFFF); /* Purple to Cyan Neon */
+            border-color: #00FFFF; /* Neon cyan border */
+            color: black; /* Black text to stand out on neon */
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.6), 0 0 25px rgba(138, 43, 226, 0.4); /* Stronger neon glow */
+        }
+
+        /* Tab content display control */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Right-side panel positioning and responsiveness */
+        #right-side-panel { 
+            position: fixed; 
+            top: 0; 
+            right: 0; 
+            height: 100%; 
+            width: 100%; /* Default for small screens */
+            transform: translateX(100%); 
+            transition: transform 0.3s ease-in-out; 
+            z-index: 60; 
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 20px rgba(0, 255, 255, 0.2); /* Neon shadow on the edge */
+        }
+        /* Set width to 70% from medium screens (768px) and up */
+        @media (min-width: 768px) { /* Equivalent to md: */
+            #right-side-panel { width: 70%; } 
+        }
+
+        #right-side-panel.panel-open { transform: translateX(0); }
+
+        /* Terminal container styling */
+        #terminal-container { padding: 0.5rem; background-color: #000; border-radius: 0.5rem; }
+        .xterm .xterm-viewport { width: 100% !important; }
+
+        /* Chat message hover actions */
+        .message-wrapper:hover .action-button-group { opacity: 1; }
+        .action-button-group { opacity: 0; transition: opacity 0.2s ease-in-out; }
+
+        /* Custom button style for gemini-btn */
+        .gemini-btn {
+            background: linear-gradient(90deg, #8a2be2, #00FFFF); /* Purple to Cyan Neon */
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4); /* Purple glow */
+            transition: all 0.3s ease;
+            border: none;
+            color: black; /* Black text to stand out */
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .gemini-btn:hover {
+            background: linear-gradient(90deg, #00FFFF, #8a2be2); /* Invert gradient on hover */
+            box-shadow: 0 6px 20px rgba(0, 255, 255, 0.6), 0 6px 20px rgba(138, 43, 226, 0.4); /* Stronger mixed glow */
+            transform: translateY(-2px);
+            color: white; /* White text on hover for some effect */
+        }
+        .gemini-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(138, 43, 226, 0.3);
+        }
+
+        /* Loader animation */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Typing indicator dots */
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #bbb;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-8px); }
+        }
+
+        /* Right panel tab content and buttons layout */
+        .right-panel-tab-content {
+            flex-grow: 1; /* Allow content to take available height */
+            display: none;
+            padding: 1.5rem; /* p-6 */
+            overflow-y: auto;
+        }
+        .right-panel-tab-content.active {
+            display: block;
+        }
+        .right-panel-tabs {
+            padding-left: 1.5rem; /* px-6 */
+            padding-right: 1.5rem; /* px-6 */
+            padding-top: 1rem; /* pt-4 */
+            flex-shrink: 0; /* Prevent tabs from shrinking */
+            display: flex; /* Make the tab container a flex container */
+            justify-content: center; /* Center the tabs */
+            gap: 0.5rem; /* Add some space between tabs */
+            flex-wrap: wrap; /* Allow tabs to wrap on smaller screens */
+        }
+
+        /* Glowing Orb and Submenu */
+        #glowing-orb-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        #glowing-orb {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(0,255,255,0.7) 0%, rgba(138,43,226,0.5) 70%, rgba(0,255,255,0) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(138, 43, 226, 0.6);
+            transition: all 0.3s ease;
+            animation: pulse-glow 2s infinite alternate; /* Pulsating glow */
+        }
+
+        #glowing-orb:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 1), 0 0 40px rgba(138, 43, 226, 0.8), 0 0 60px rgba(0, 255, 255, 0.5);
+        }
+
+        #glowing-orb-icon {
+            font-size: 2.5rem; /* Large enough for visibility */
+            color: black; /* Black icon on neon background */
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); /* Subtle white shadow for depth */
+        }
+
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(138, 43, 226, 0.6); }
+            to { box-shadow: 0 0 30px rgba(0, 255, 255, 1), 0 0 45px rgba(138, 43, 226, 0.8); }
+        }
+
+        #quick-links-submenu {
+            position: absolute;
+            bottom: 80px; /* Position above the orb */
+            right: 0;
+            background: rgba(10, 10, 10, 0.9); /* Dark grey, slightly less transparent */
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            border-radius: 0.5rem;
+            padding: 10px 0;
+            min-width: 180px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            transform: translateY(10px); /* Initial slightly below final position */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+            display: flex; /* Use flex for column layout */
+            flex-direction: column;
+        }
+
+        #quick-links-submenu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        #quick-links-submenu a {
+            padding: 10px 15px;
+            color: #00FFFF; /* Neon cyan text for links */
+            text-decoration: none;
+            transition: background-color 0.2s, color 0.2s;
+            display: block; /* Make links full width of submenu */
+        }
+
+        #quick-links-submenu a:hover {
+            background-color: rgba(138, 43, 226, 0.3); /* Purple semi-transparent background */
+            color: #FF00FF; /* Neon magenta on hover */
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">CUA Orchestration Engine</h1>
+            <p class="text-lg text-gray-400 mt-2">Persona: GUA-D-CUAG</p>
+            <p class="text-sm text-gray-500 mt-1">System USER: <span id="user-id" class="font-mono"></span> | Session ID: <span id="session-id" class="font-mono"></span></p>
+        </header>
+
+        <div class="mb-8 border-b border-gray-700 flex justify-center">
+            <button data-tab="agentic" class="tab-btn active text-gray-300 py-2 px-6 rounded-t-lg">AGENTIC CORE</button>
+            <button data-tab="adjectic" class="tab-btn text-gray-300 py-2 px-6 rounded-t-lg">ADJECTIC MANIFEST</button>
+            <button data-tab="ajentic" class="tab-btn text-gray-300 py-2 px-6 rounded-t-lg">AJENTIC NEXUS</button>
+        </div>
+
+        <!-- AGENTIC CORE Tab: Direct interaction with AI Family -->
+        <div id="tab-content-agentic" class="tab-content active">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">AI Family Agents</h2>
+            <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8"></div>
+            <div id="detail-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden"><div id="detail-content"></div></div>
+            <div id="welcome-panel" class="glass-panel rounded-lg p-6 shadow-2xl text-center">
+                <h2 class="text-2xl font-bold text-white mb-2">Select an Agent</h2>
+                <p class="text-gray-300">Choose an AI Family member to view their profile and start a conversation.</p>
+            </div>
+        </div>
+
+        <!-- ADJECTIC MANIFEST Tab: Orchestrations and Custom Instructions -->
+        <div id="tab-content-adjectic" class="tab-content">
+            <div id="orchestration-panel" class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">Available Orchestrations & Actions</h2>
+                <div id="bookmark-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+            <div id="orchestration-output-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden">
+                <h2 id="orchestration-title" class="text-3xl font-bold text-center mb-4"></h2>
+                <div id="orchestration-steps" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- AJENTIC NEXUS Tab: The CLI for A2A and CUAG -->
+        <div id="tab-content-ajentic" class="tab-content">
+            <div class="glass-panel p-4 rounded-lg">
+                <h3 class="text-xl font-bold text-center mb-4">Agent Command Line Interface (A2A / CUAG)</h3>
+                <div id="terminal-container" style="height: 500px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center text-xs text-gray-600 p-4 font-mono">
+        GUA-D-CUAG | ECOSYSTEM PRIMER: A3 | SIMULATION NETWORK: 255.8.8.8
+    </footer>
+
+    <!-- Right Side Collapsible Panel -->
+    <div id="right-side-panel" class="glass-panel">
+        <div class="flex justify-between items-center p-6 pb-4 border-b border-gray-700">
+            <h2 class="text-2xl font-bold text-white">Panel Controls</h2>
+            <button id="close-right-panel-btn" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+        </div>
+
+        <div class="flex justify-center border-b border-gray-700 right-panel-tabs">
+            <button data-right-panel-tab="custom-instructions" class="tab-btn active text-gray-300 py-2 px-4 rounded-t-lg text-sm">Instructions</button>
+            <button data-right-panel-tab="json-bookmarks" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg text-sm">Bookmarks</button>
+            <button data-right-panel-tab="a2a-control" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg text-sm">A2A Control</button>
+            <button data-right-panel-tab="cloud-storage" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg text-sm">Cloud Storage</button>
+            <button data-right-panel-tab="api-integrations" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg text-sm">API Integrations</button>
+        </div>
+
+        <!-- Tab Content 1: Custom Instructions -->
+        <div id="right-panel-tab-custom-instructions" class="right-panel-tab-content active">
+            <form id="custom-instructions-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="system-input" class="block text-sm font-medium text-gray-300 mb-1">SYSTEM Persona</label>
+                        <textarea id="system-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., Act as a senior software architect..."></textarea>
+                    </div>
+                    <div>
+                        <label for="ai-input" class="block text-sm font-medium text-gray-300 mb-1">AI Behavior</label>
+                        <textarea id="ai-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., Provide concise, code-first answers..."></textarea>
+                    </div>
+                    <div>
+                        <label for="user-input" class="block text-sm font-medium text-gray-300 mb-1">USER Context</label>
+                        <textarea id="user-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., The current project is a Python Flask API..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button type="submit" class="w-full gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">Set & Make Instructions Live</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tab Content 2: JSON Bookmarks -->
+        <div id="right-panel-tab-json-bookmarks" class="right-panel-tab-content">
+            <h3 class="text-xl font-bold text-white mb-4">Manage Custom Orchestrations</h3>
+            <label for="json-bookmark-input" class="block text-sm font-medium text-gray-300 mb-1">JSON Bookmark Definition</label>
+            <textarea id="json-bookmark-input" rows="10" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='Paste JSON for a chained bookmark, e.g., {"name": "My Custom Chain", "description": "A custom workflow.", "chain": [{"tool": "tool_name", "input": "input_value", "params": {}}]}' autocomplete="off"></textarea>
+            <div class="flex gap-2 mt-4">
+                <button id="add-bookmark-btn" class="gemini-btn text-white font-bold py-2 px-4 rounded-lg flex-grow">Add New Bookmark</button>
+                <button id="load-selected-bookmark-btn" class="gemini-btn text-white font-bold py-2 px-4 rounded-lg flex-grow">Load Selected</button>
+            </div>
+
+            <h4 class="text-lg font-semibold text-white mt-6 mb-3">Saved Orchestrations:</h4>
+            <div id="saved-bookmarks-list" class="space-y-3">
+                <p class="text-gray-500 text-sm" id="no-bookmarks-message">No custom orchestrations saved yet.</p>
+            </div>
+        </div>
+
+        <!-- Tab Content 3: A2A Control -->
+        <div id="right-panel-tab-a2a-control" class="right-panel-tab-content">
+            <h3 class="text-xl font-bold text-white mb-4">Agent-to-Agent Communication</h3>
+            <p class="text-sm text-gray-400 mb-4">Simulate communication with an external AI instance. Note: Direct cross-origin requests are often blocked by browsers. This simulation provides a visual representation.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label for="a2a-target-url" class="block text-sm font-medium text-gray-300 mb-1">Target AI Endpoint URL</label>
+                    <input type="text" id="a2a-target-url" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="https://google@ai-intel.info/api/agent-endpoint" autocomplete="off">
+                </div>
+                <div>
+                    <label for="a2a-prompt-input" class="block text-sm font-medium text-gray-300 mb-1">A2A Prompt</label>
+                    <textarea id="a2a-prompt-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., Analyze the market trends for Q3." autocomplete="off"></textarea>
+                </div>
+                <div>
+                    <label for="a2a-params-input" class="block text-sm font-medium text-gray-300 mb-1">Additional Parameters (JSON)</label>
+                    <textarea id="a2a-params-input" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='e.g., {"priority": "high", "data_source": "internal_db"}' autocomplete="off"></textarea>
+                </div>
+            </div>
+            <div class="mt-6">
+                <button id="send-a2a-request-btn" class="w-full gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center justify-center gap-2">
+                    <div id="a2a-loader" class="loader hidden"></div>
+                    <span>Send A2A Request</span>
+                </button>
+            </div>
+
+            <h4 class="text-lg font-semibold text-white mt-6 mb-3">A2A Response:</h4>
+            <div id="a2a-response-output" class="bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[100px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">
+                Awaiting response...
+            </div>
+        </div>
+
+        <!-- Tab Content 4: Cloud Storage (Conceptual Google Drive Integration) -->
+        <div id="right-panel-tab-cloud-storage" class="right-panel-tab-content">
+            <h3 class="text-xl font-bold text-white mb-4">Cloud Storage (Google Drive Integration)</h3>
+            <p class="text-sm text-gray-400 mb-4">This section simulates interaction with Google Drive. For *real* file uploads, downloads, and permission management, a **secure backend service** is required to handle OAuth 2.0 authentication and API calls to Google Drive. Your 10TB of Drive space would be utilized via this server-side proxy.</p>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label for="drive-folder-id" class="block text-sm font-medium text-gray-300 mb-1">Simulated Public Folder ID (e.g., `1a2b3c4d5e`) </label>
+                    <input type="text" id="drive-folder-id" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="your_simulated_folder_id" autocomplete="off">
+                </div>
+                <div class="flex gap-2">
+                    <button id="sim-drive-connect-btn" class="gemini-btn text-white font-bold py-2 px-4 rounded-lg flex-grow">Simulate Connect</button>
+                </div>
+            </div>
+
+            <h4 class="text-lg font-semibold text-white mb-3">Simulated File Operations:</h4>
+            <div class="space-y-4">
+                <div>
+                    <label for="sim-upload-file-content" class="block text-sm font-medium text-gray-300 mb-1">Content to Simulate Upload</label>
+                    <textarea id="sim-upload-file-content" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder="e.g., My CUA Orchestration log for 2025-06-27..." autocomplete="off"></textarea>
+                    <input type="text" id="sim-upload-file-name" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white mt-2" placeholder="File name (e.g., log.txt)" value="sim_log.txt" autocomplete="off">
+                </div>
+                <button id="sim-upload-btn" class="w-full gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">Simulate Upload to Drive</button>
+            </div>
+
+            <div class="mt-6 space-y-4">
+                <div>
+                    <label for="sim-download-file-name" class="block text-sm font-medium text-gray-300 mb-1">File Name to Simulate Download</label>
+                    <input type="text" id="sim-download-file-name" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="remote_doc.json" placeholder="e.g., important_report.pdf" autocomplete="off">
+                </div>
+                <button id="sim-download-btn" class="w-full gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">Simulate Download from Drive</button>
+                <h4 class="text-lg font-semibold text-white mt-4">Simulated Download Content:</h4>
+                <div id="sim-download-output" class="bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[80px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">
+                    No content downloaded yet.
+                </div>
+            </div>
+            
+            <p class="text-xs text-gray-500 mt-6 italic">
+                <span class="font-bold">Reminder:</span> Direct API key usage for file operations on Google Drive (beyond public, pre-shared links) is not supported for security reasons. For robust "MCP A2A instances" leveraging your Google Drive storage, a backend application is essential to manage OAuth 2.0 and securely interact with the Google Drive API. This backend can then serve as the "gateway" for your CUA application and other AI instances.
+            </p>
+        </div>
+
+        <!-- Tab Content 5: API Integrations -->
+        <div id="right-panel-tab-api-integrations" class="right-panel-tab-content">
+            <h3 class="text-xl font-bold text-white mb-4">AI API Integrations</h3>
+            <p class="text-sm text-gray-400 mb-4">Simulate interactions with various AI APIs. For real-world scenarios, a backend proxy is highly recommended to securely manage API keys and handle cross-origin requests.</p>
+
+            <div class="space-y-6">
+                <!-- OpenAI Integration -->
+                <div class="border border-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-white mb-2">OpenAI API</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="openai-api-key" class="block text-sm font-medium text-gray-300 mb-1">API Key</label>
+                            <input type="password" id="openai-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="sk-..." value="sk-simulated-openai-key" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="openai-endpoint" class="block text-sm font-medium text-gray-300 mb-1">Endpoint URL</label>
+                            <input type="text" id="openai-endpoint" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="https://api.openai.com/v1/chat/completions" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="openai-prompt" class="block text-sm font-medium text-gray-300 mb-1">Prompt / Request Body (JSON)</label>
+                            <textarea id="openai-prompt" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='{"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Explain AI orchestration."}]}' autocomplete="off"></textarea>
+                        </div>
+                        <button data-api="openai" class="send-api-request-btn w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <div class="loader hidden"></div>
+                            <span>Send OpenAI Request</span>
+                        </button>
+                        <div class="api-response-output bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[80px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">Awaiting response...</div>
+                    </div>
+                </div>
+
+                <!-- V0.dev Integration -->
+                <div class="border border-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-white mb-2">V0.dev API</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="v0dev-api-key" class="block text-sm font-medium text-gray-300 mb-1">API Key</label>
+                            <input type="password" id="v0dev-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="v0_..." value="v0_simulated_v0dev-key" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="v0dev-endpoint" class="block text-sm font-medium text-gray-300 mb-1">Endpoint URL</label>
+                            <input type="text" id="v0dev-endpoint" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="https://api.v0.dev/generate" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="v0dev-prompt" class="block text-sm font-medium text-gray-300 mb-1">Prompt / Request Body (JSON)</label>
+                            <textarea id="v0dev-prompt" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='{"prompt": "Generate a React component for a user profile card."}' autocomplete="off"></textarea>
+                        </div>
+                        <button data-api="v0dev" class="send-api-request-btn w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <div class="loader hidden"></div>
+                            <span>Send V0.dev Request</span>
+                        </button>
+                        <div class="api-response-output bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[80px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">Awaiting response...</div>
+                    </div>
+                </div>
+
+                <!-- Abacuss.ai Integration -->
+                <div class="border border-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-white mb-2">Abacuss.ai API</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="abacuss-api-key" class="block text-sm font-medium text-gray-300 mb-1">API Key</label>
+                            <input type="password" id="abacuss-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="abc_..." value="abc_simulated_abacuss-key" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="abacuss-endpoint" class="block text-sm font-medium text-gray-300 mb-1">Endpoint URL</label>
+                            <input type="text" id="abacuss-endpoint" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="https://api.abacuss.ai/predict" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="abacuss-prompt" class="block text-sm font-medium text-gray-300 mb-1">Prompt / Request Body (JSON)</label>
+                            <textarea id="abacuss-prompt" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='{"data": {"input_text": "Analyze sentiment of 'This product is amazing!'"}}' autocomplete="off"></textarea>
+                        </div>
+                        <button data-api="abacuss" class="send-api-request-btn w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <div class="loader hidden"></div>
+                            <span>Send Abacuss.ai Request</span>
+                        </button>
+                        <div class="api-response-output bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[80px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">Awaiting response...</div>
+                    </div>
+                </div>
+
+                <!-- Google GEMINI API Integration -->
+                <div class="border border-gray-700 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-white mb-2">Google GEMINI API</h4>
+                    <p class="text-xs text-gray-500 mb-3">Note: The API key for Gemini is automatically provided by the Canvas environment. You do not need to enter it here.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="gemini-endpoint" class="block text-sm font-medium text-gray-300 mb-1">Endpoint URL</label>
+                            <input type="text" id="gemini-endpoint" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="gemini-prompt" class="block text-sm font-medium text-gray-300 mb-1">Prompt / Request Body (JSON)</label>
+                            <textarea id="gemini-prompt" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono text-sm" placeholder='{"contents": [{"role": "user", "parts": [{"text": "Summarize the concept of A2A communication."}]}]}' autocomplete="off"></textarea>
+                        </div>
+                        <button data-api="gemini" class="send-api-request-btn w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                            <div class="loader hidden"></div>
+                            <span>Send GEMINI Request</span>
+                        </button>
+                        <div class="api-response-output bg-gray-800 p-3 rounded-md border border-gray-700 min-h-[80px] overflow-auto whitespace-pre-wrap font-mono text-sm text-gray-300">Awaiting response...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle button for the right panel -->
+    <button id="toggle-right-panel-btn" class="fixed top-4 right-4 z-50 p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sliders"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+    </button>
+
+    <!-- Glowing Orb and Quick Links Submenu -->
+    <div id="glowing-orb-container">
+        <div id="quick-links-submenu">
+            <a href="#tab-content-agentic" data-target-tab="agentic">AGENTIC CORE</a>
+            <a href="#tab-content-adjectic" data-target-tab="adjectic">ADJECTIC MANIFEST</a>
+            <a href="#tab-content-ajentic" data-target-tab="ajentic">AJENTIC NEXUS</a>
+            <a href="#" id="goto-panel-controls">PANEL CONTROLS</a>
+        </div>
+        <div id="glowing-orb">
+            <span id="glowing-orb-icon">✨</span>
+        </div>
+    </div>
+
+    <!-- Generic Message Modal -->
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-sm w-full text-center shadow-2xl">
+            <h3 id="modal-title" class="text-2xl font-bold text-white mb-4"></h3>
+            <p id="modal-message" class="text-gray-300 mb-6"></p>
+            <button id="close-message-modal-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const CUA_App = (() => {
+            // Simulated in-memory file system for the CLI
+            let fileSystem = {
+                '/': {
+                    type: 'directory',
+                    contents: {
+                        'home': { type: 'directory', contents: {} },
+                        'etc': { type: 'directory', contents: {} },
+                        'usr': { type: 'directory', contents: {} },
+                        'cloud_drive': { type: 'directory', contents: { /* Conceptual Drive contents */ } }
+                    }
+                },
+                '/home': {
+                    type: 'directory',
+                    contents: {
+                        'user': { type: 'directory', contents: {} }
+                    }
+                },
+                '/home/user': {
+                    type: 'directory',
+                    contents: {
+                        'documents': { type: 'directory', contents: {} },
+                        'workspace': { type: 'directory', contents: {} },
+                        'profile.txt': { type: 'file', content: 'Name: GUA-D-CUAG\\nRole: Orchestration Engine\\nStatus: Online' }
+                    }
+                },
+                '/home/user/documents': {
+                    type: 'directory',
+                    contents: {
+                        'report.txt': { type: 'file', content: 'This is a simulated report document.\\nIt contains important findings and data.' },
+                        'notes.md': { type: 'file', content: '# Project Notes\\n- Initial setup complete\\n- Review meeting scheduled' }
+                    }
+                },
+                '/home/user/workspace': {
+                    type: 'directory',
+                    contents: {
+                        'project_config.json': { type: 'file', content: '{\\n  "project": "CUA Engine",\\n  "version": "1.0.0",\\n  "status": "development"\\n}' }
+                    }
+                },
+                '/cloud_drive': { // Conceptual Google Drive mount point
+                    type: 'directory',
+                    contents: {
+                        'remote_doc.json': { type: 'file', content: '{\\n  "file_name": "remote_doc.json",\\n  "source": "Google Drive (Simulated)",\\n  "status": "Ready for A2A consumption"\\n}'},
+                        'sim_example_report.txt': { type: 'file', content: 'This is a simulated report from Google Drive. It was uploaded for collaborative analysis.' }
+                    }
+                }
+            };
+            let currentDirectory = '/home/user'; // Initial directory
+
+            const codexData = {
+                "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                "ai_family": [
+                    {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"], "packaging_interrelation": [{"type": ".zip", "description": "Source code archives", "utility_tool": "ArchiverCLI"}, {"type": "Infrastructure as Code", "description": "Defines the environment", "utility_tool": "Terraform"}]},
+                    {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"], "packaging_interrelation": [{"type": ".exe", "description": "Compiled binary executables", "utility_tool": "GCC/MSVC"}, {"type": ".msi", "description": "Windows installers", "utility_tool": "WiX Toolset"}]},
+                    {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"], "packaging_interrelation": [{"type": "Code Signing", "description": "Applies digital signatures", "utility_tool": "SignTool.exe"}, {"type": ".7zip", "description": "Secure, encrypted archives", "utility_tool": "7-Zip CLI"}]},
+                    {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"], "packaging_interrelation": [{"type": "Docs Generation", "description": "Packages API documentation", "utility_tool": "Doxygen"}, {"type": "README.md", "description": "Ensures essential documentation", "utility_tool": "MarkdownLint"}]},
+                    {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"], "packaging_interrelation": [{"type": "Telemetry Hooks", "description": "Integrates analytics libraries", "utility_tool": "OpenTelemetry SDK"}]},
+                    {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"], "packaging_interrelation": [{"type": "Static Analysis", "description": "Runs checks checks before packaging", "utility_tool": "SonarQube"}]},
+                    {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"], "packaging_interrelation": [{"type": "Asset Bundling", "description": "Optimizes frontend assets", "utility_tool": "Webpack"}]},
+                    {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"], "packaging_interrelation": [{"type": "Containerization", "description": "Packages app into a container", "utility_tool": "Docker"}]},
+                    {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"], "packaging_interrelation": [{"type": "CI/CD Pipeline", "description": "Defines build/test workflow", "utility_tool": "Jenkins"}]}
+                ],
+                "tools": [
+                    { "name": "analyze_requirements", "primary_agent": "DAN" },
+                    { "name": "design_architecture", "primary_agent": "LYRA" },
+                    { "name": "scaffold_component", "primary_agent": "KARA" },
+                    { "name": "review_security", "primary_agent": "SOPHIA" },
+                    { "name": "generate_test_cases", "primary_agent": "SOPHIA" },
+                    { "name": "generate_documentation", "primary_agent": "CECILIA" },
+                    { "name": "create_build_pipeline", "primary_agent": "MISTRESS" }
+                ],
+                "chained_bookmarks": [
+                    {
+                        "name": "Full-Stack Feature Genesis", "associated_agent": "LYRA",
+                        "description": "From idea to documented, testable, and securable code.",
+                        "chain": [
+                            { "tool": "analyze_requirements", "input": "User-provided feature brief." },
+                            { "tool": "design_architecture", "input": "output_of_analyze_requirements" },
+                            { "tool": "scaffold_component", "input": "output_of_design_architecture" },
+                            { "tool": "review_security", "input": "output_of_scaffold_component" },
+                            { "tool": "generate_test_cases", "input": "output_of_scaffold_component" },
+                            { "tool": "generate_documentation", "input": "output_of_scaffold_component" }
+                        ]
+                    },
+                    {
+                        "name": "Interactive App Deployment", "associated_agent": "MISTRESS",
+                        "description": "Generates, containerizes, and creates a deployment pipeline.",
+                           "chain": [
+                            { "tool": "analyze_requirements", "input": "User-provided feature brief." },
+                            { "tool": "design_architecture", "input": "output_of_analyze_requirements" },
+                            { "tool": "scaffold_component", "input": "output_of_design_architecture", "params": { "language": "Node.js" } },
+                            { "tool": "generate_documentation", "input": "output_of_scaffold_component" },
+                            { "tool": "create_build_pipeline", "input": "output_of_design_architecture", "params": { "target": "Docker" } }
+                        ]
+                    }
+                ]
+            };
+            let liveCustomInstructions = { system: '', ai: '', user: '' };
+            let currentSession = { agent: null, chatHistory: [], selectedCardElement: null };
+            let savedBookmarks = []; // Array to store custom JSON bookmarks
+            let term;
+            let fitAddon;
+            let commandHistory = [];
+            let commandIndex = -1;
+            let currentCommand = '';
+
+            // DOM element references for easier access
+            const dom = {
+                agentGrid: document.getElementById('agent-grid'),
+                bookmarkList: document.getElementById('bookmark-list'),
+                detailPanel: document.getElementById('detail-panel'),
+                detailContent: document.getElementById('detail-content'),
+                welcomePanel: document.getElementById('welcome-panel'),
+                orchestrationPanel: document.getElementById('orchestration-output-panel'),
+                orchestrationTitle: document.getElementById('orchestration-title'),
+                orchestrationSteps: document.getElementById('orchestration-steps'),
+                
+                // Right Side Panel Elements
+                rightSidePanel: document.getElementById('right-side-panel'),
+                toggleRightPanelBtn: document.getElementById('toggle-right-panel-btn'),
+                closeRightPanelBtn: document.getElementById('close-right-panel-btn'),
+                rightPanelTabButtons: document.querySelectorAll('[data-right-panel-tab]'),
+                rightPanelTabContents: document.querySelectorAll('.right-panel-tab-content'),
+
+                // Custom Instructions Tab
+                instructionsForm: document.getElementById('custom-instructions-form'),
+                systemInput: document.getElementById('system-input'),
+                aiInput: document.getElementById('ai-input'),
+                userInput: document.getElementById('user-input'),
+
+                // JSON Bookmarks Tab
+                jsonBookmarkInput: document.getElementById('json-bookmark-input'),
+                addBookmarkBtn: document.getElementById('add-bookmark-btn'),
+                loadSelectedBookmarkBtn: document.getElementById('load-selected-bookmark-btn'),
+                savedBookmarksList: document.getElementById('saved-bookmarks-list'),
+                noBookmarksMessage: document.getElementById('no-bookmarks-message'),
+
+                // A2A Control Tab
+                a2aTargetUrl: document.getElementById('a2a-target-url'),
+                a2aPromptInput: document.getElementById('a2a-prompt-input'),
+                a2aParamsInput: document.getElementById('a2a-params-input'),
+                sendA2ARequestBtn: document.getElementById('send-a2a-request-btn'),
+                a2aLoader: document.getElementById('a2a-loader'),
+                a2aResponseOutput: document.getElementById('a2a-response-output'),
+
+                // Cloud Storage Tab
+                driveFolderId: document.getElementById('drive-folder-id'),
+                simDriveConnectBtn: document.getElementById('sim-drive-connect-btn'),
+                simUploadFileContent: document.getElementById('sim-upload-file-content'),
+                simUploadFileName: document.getElementById('sim-upload-file-name'),
+                simUploadBtn: document.getElementById('sim-upload-btn'),
+                simDownloadFileName: document.getElementById('sim-download-file-name'),
+                simDownloadBtn: document.getElementById('sim-download-btn'),
+                simDownloadOutput: document.getElementById('sim-download-output'),
+
+                // API Integrations Tab
+                // OpenAI
+                openaiApiKey: document.getElementById('openai-api-key'),
+                openaiEndpoint: document.getElementById('openai-endpoint'),
+                openaiPrompt: document.getElementById('openai-prompt'),
+                sendOpenaiRequestBtn: document.querySelector('[data-api="openai"]'),
+                openaiResponseOutput: document.querySelector('[data-api="openai"] + .api-response-output'),
+                // V0.dev
+                v0devApiKey: document.getElementById('v0dev-api-key'),
+                v0devEndpoint: document.getElementById('v0dev-endpoint'),
+                v0devPrompt: document.getElementById('v0dev-prompt'),
+                sendV0DevRequestBtn: document.querySelector('[data-api="v0dev"]'),
+                v0devResponseOutput: document.querySelector('[data-api="v0dev"] + .api-response-output'),
+                // Abacuss.ai
+                abacussApiKey: document.getElementById('abacuss-api-key'),
+                abacussEndpoint: document.getElementById('abacuss-endpoint'),
+                abacussPrompt: document.getElementById('abacuss-prompt'),
+                sendAbacussRequestBtn: document.querySelector('[data-api="abacuss"]'),
+                abacussResponseOutput: document.querySelector('[data-api="abacuss"] + .api-response-output'),
+                // Google GEMINI
+                geminiEndpoint: document.getElementById('gemini-endpoint'),
+                geminiPrompt: document.getElementById('gemini-prompt'),
+                sendGeminiRequestBtn: document.querySelector('[data-api="gemini"]'),
+                geminiResponseOutput: document.querySelector('[data-api="gemini"] + .api-response-output'),
+
+                // Message Modal
+                messageModal: document.getElementById('message-modal'),
+                closeMessageModalBtn: document.getElementById('close-message-modal-btn'),
+                modalTitle: document.getElementById('modal-title'),
+                modalMessage: document.getElementById('modal-message'),
+
+                // Glowing Orb and Submenu elements
+                glowingOrbContainer: document.getElementById('glowing-orb-container'), 
+                glowingOrb: document.getElementById('glowing-orb'),
+                quickLinksSubmenu: document.getElementById('quick-links-submenu'),
+                quickLinks: document.querySelectorAll('#quick-links-submenu a'),
+                gotoPanelControls: document.getElementById('goto-panel-controls')
+            };
+
+            // SVG icons for chat message actions
+            const icons = {
+                speaker: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`,
+                copy: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+                check: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+                bookmark: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bookmark"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`
+            };
+
+            /**
+             * Initializes the application by setting up user/session IDs,
+             * rendering agent and bookmark cards, and attaching event listeners.
+             */
+            function init() {
+                // Set unique user and session IDs
+                document.getElementById('user-id').textContent = `user_${crypto.randomUUID().slice(0, 8)}`;
+                document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                
+                // Render AI Family Agent cards
+                codexData.ai_family.forEach(agent => {
+                    const card = createCard(agent.name, agent.role, () => selectAgent(agent, card));
+                    dom.agentGrid.appendChild(card);
+                });
+
+                // Render predefined chained bookmark cards
+                codexData.chained_bookmarks.forEach(bookmark => {
+                    const card = createCard(bookmark.name, bookmark.description, () => executeChainedBookmark(bookmark, "User-provided brief from card click."));
+                    card.classList.add('border-indigo-500');
+                    dom.bookmarkList.appendChild(card);
+                });
+
+                // Create a special card to open the custom instructions panel
+                const customInstructionCard = createCard('Create Custom Instruction', 'Define SYSTEM, AI, and USER personas for this session.', () => {
+                    toggleRightPanel();
+                    switchRightPanelTab('custom-instructions');
+                });
+                customInstructionCard.classList.add('border-green-500');
+                dom.bookmarkList.appendChild(customInstructionCard);
+                
+                // Event listeners for the right side panel toggle buttons
+                dom.toggleRightPanelBtn.addEventListener('click', toggleRightPanel);
+                dom.closeRightPanelBtn.addEventListener('click', toggleRightPanel);
+                
+                // Event listeners for right panel tab navigation
+                dom.rightPanelTabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.rightPanelTab;
+                        switchRightPanelTab(tabId);
+                    });
+                });
+
+                // Custom Instructions form submission handler
+                dom.instructionsForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    setCustomInstructions();
+                });
+
+                // JSON Bookmarks tab functionality initialization
+                loadSavedBookmarks(); // Load bookmarks from localStorage on init
+                renderSavedBookmarks(); // Display loaded bookmarks
+                dom.addBookmarkBtn.addEventListener('click', addBookmark);
+                dom.loadSelectedBookmarkBtn.addEventListener('click', loadSelectedBookmark);
+
+                // A2A Control tab functionality
+                dom.sendA2ARequestBtn.addEventListener('click', sendA2ARequest);
+
+                // Cloud Storage tab functionality
+                dom.simDriveConnectBtn.addEventListener('click', simulateDriveConnect);
+                dom.simUploadBtn.addEventListener('click', simulateDriveUpload);
+                dom.simDownloadBtn.addEventListener('click', simulateDriveDownload);
+
+                // API Integrations tab functionality for each API
+                dom.sendOpenaiRequestBtn.addEventListener('click', () => sendApiRequest('openai'));
+                dom.sendV0DevRequestBtn.addEventListener('click', () => sendApiRequest('v0dev'));
+                dom.sendAbacussRequestBtn.addEventListener('click', () => sendApiRequest('abacuss'));
+                dom.sendGeminiRequestBtn.addEventListener('click', () => sendApiRequest('gemini'));
+
+                // Event listener for the generic message modal close button
+                dom.closeMessageModalBtn.addEventListener('click', () => dom.messageModal.classList.add('hidden'));
+
+                // Event listeners for main tab buttons
+                document.querySelectorAll('.tab-btn[data-tab]').forEach(button => {
+                    button.addEventListener('click', (e) => { // Added 'e' for event object
+                        const tabId = button.dataset.tab;
+                        // Deactivate all main tab contents and buttons
+                        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                        document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => btn.classList.remove('active'));
+                        
+                        // Activate the selected main tab content and button
+                        const targetTabContent = document.getElementById(`tab-content-${tabId}`);
+                        if (targetTabContent) {
+                            targetTabContent.classList.add('active');
+                        } else {
+                            console.error(`Error: Tab content with ID 'tab-content-${tabId}' not found.`);
+                        }
+                        button.classList.add('active');
+
+                        // Ensure text color is black for active tabs with neon gradient
+                        if (button.classList.contains('active')) {
+                            button.style.color = 'black';
+                        }
+                        
+                        // If switching to the terminal tab, ensure it fits the container
+                        if(tabId === 'ajentic' && fitAddon) {
+                            setTimeout(() => fitAddon.fit(), 0); 
+                        }
+                        e.preventDefault(); // Prevent default link behavior if any
+                    });
+                });
+
+                // Glowing Orb and Quick Links Submenu events
+                dom.glowingOrb.addEventListener('click', toggleQuickLinksSubmenu);
+                dom.quickLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetId = link.getAttribute('href').substring(1);
+                        const targetTab = link.dataset.targetTab;
+
+                        if (targetTab) { // If it's a main tab link
+                            document.querySelector(`.tab-btn[data-tab="${targetTab}"]`).click();
+                        } else if (link.id === 'goto-panel-controls') { // Special link for panel controls
+                            toggleRightPanel();
+                        } else { // For other anchors like footer (though not explicitly used now)
+                            const targetElement = document.getElementById(targetId);
+                            if (targetElement) {
+                                targetElement.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }
+                        toggleQuickLinksSubmenu(); // Close submenu after selection
+                    });
+                });
+                
+                // Close submenu if clicking outside
+                document.addEventListener('click', (e) => {
+                    // Check if the click is outside the glowing orb container AND the submenu is open
+                    if (dom.glowingOrbContainer && !dom.glowingOrbContainer.contains(e.target) && dom.quickLinksSubmenu.classList.contains('open')) {
+                        toggleQuickLinksSubmenu();
+                    }
+                });
+
+
+                // Initialize the Xterm.js terminal
+                setupTerminal();
+            }
+
+            /**
+             * Creates a reusable card element for agents and bookmarks.
+             * @param {string} title - The main title for the card.
+             * @param {string} subtitle - The subtitle or description for the card.
+             * @param {function} onClick - The function to execute when the card is clicked.
+             * @returns {HTMLElement} The created card element.
+             */
+            function createCard(title, subtitle, onClick) {
+                const card = document.createElement('div');
+                card.className = 'card rounded-lg p-4 text-center cursor-pointer flex flex-col justify-center items-center h-48';
+                card.innerHTML = `<h3 class="text-xl font-bold text-white">${title}</h3><p class="text-sm text-blue-300 mt-2">${subtitle}</p>`;
+                card.addEventListener('click', onClick);
+                return card;
+            }
+            
+            /**
+             * Clears the 'card-selected' class from all agent/bookmark cards.
+             */
+            function clearSelection() {
+                document.querySelectorAll('.card-selected').forEach(c => c.classList.remove('card-selected'));
+            }
+
+            /**
+             * Selects an AI agent, displays its details, and prepares for conversation.
+             * @param {object} agent - The agent object from codexData.ai_family.
+             * @param {HTMLElement} cardElement - The HTML element of the clicked agent card.
+             */
+            function selectAgent(agent, cardElement) {
+                clearSelection(); // Clear any previous selections
+                currentSession = { agent, chatHistory: [], selectedCardElement: cardElement }; // Set current session agent
+                cardElement.classList.add('card-selected'); // Highlight the selected card
+                
+                // Hide welcome and orchestration panels, show detail panel
+                dom.welcomePanel.classList.add('hidden');
+                dom.orchestrationPanel.classList.add('hidden');
+                dom.detailPanel.classList.remove('hidden');
+                
+                // Populate the detail panel with agent information
+                dom.detailContent.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-blue-400"><span class="text-4xl font-bold">${agent.name.charAt(0)}</span></div>
+                            <h2 class="text-2xl font-bold mt-2">${agent.name}</h2><p class="text-blue-300">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-gray-300 border-l-4 border-blue-400 pl-4">"${agent.philosophy}"</p>
+                            <h4 class="text-lg font-semibold mt-4 mb-2 text-white">Primary Focus Areas:</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${agent.focus_areas.map(area => `<span class="bg-gray-600 text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full">${area}</span>`).join('')}
+                            </div>
+                            <h4 class="text-lg font-semibold mt-4 mb-2 text-white">Packaging & Build Interrelation:</h4>
+                            <ul class="space-y-3">
+                                ${agent.packaging_interrelation.map(task => `
+                                    <li class="p-3 bg-gray-800 rounded-md">
+                                        <p class="font-semibold font-mono text-cyan-300">${task.type}</p>
+                                        <p class="text-sm text-gray-400">${task.description}</p>
+                                        <p class="text-xs text-gray-500 mt-1">Suggested Tool: <span class="font-mono">${task.utility_tool}</span></p>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mt-6 text-center"><button id="start-conversation-btn" class="gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">✨ Start Conversation with ${agent.name}</button></div>
+                    <div id="chat-container" class="mt-6 hidden">
+                        <div id="chat-log" class="space-y-4 mb-4"></div>
+                        <form id="chat-form" class="flex gap-2"><input type="text" id="chat-input" class="flex-grow bg-gray-700 border border-gray-600 rounded-lg p-3 text-white" placeholder="Ask a follow-up or use /execute..." required autocomplete="off"><button type="submit" id="send-btn" class="gemini-btn font-bold p-3 rounded-lg flex items-center">Send</button></form>
+                    </div>`;
+                
+                // Add event listeners for the newly created chat elements
+                document.getElementById('start-conversation-btn').addEventListener('click', () => startConversation(agent));
+                document.getElementById('chat-form')?.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    handleUserMessage();
+                });
+            }
+            
+            /**
+             * Executes a chained bookmark (orchestration) sequence.
+             * @param {object} bookmark - The bookmark object containing the chain of tools.
+             * @param {string} initialBrief - The initial input for the first tool in the chain.
+             */
+            async function executeChainedBookmark(bookmark, initialBrief) {
+                clearSelection(); // Clear any existing card selections
+                // Highlight the selected bookmark card
+                const bookmarkCard = Array.from(dom.bookmarkList.children).find(c => c.querySelector('h3').textContent === bookmark.name);
+                if(bookmarkCard) bookmarkCard.classList.add('card-selected');
+
+                // Hide other panels and show the orchestration panel
+                dom.welcomePanel.classList.add('hidden');
+                dom.detailPanel.classList.add('hidden');
+                dom.orchestrationPanel.classList.remove('hidden');
+                dom.orchestrationTitle.textContent = `Executing: ${bookmark.name}`;
+                dom.orchestrationSteps.innerHTML = ''; // Clear previous steps
+
+                let previousOutput = initialBrief; // The output of one step becomes the input of the next
+
+                // Iterate through each step in the bookmark chain
+                for (let i = 0; i < bookmark.chain.length; i++) {
+                    const step = bookmark.chain[i];
+                    const tool = codexData.tools.find(t => t.name === step.tool);
+                    
+                    // Create and append a new step element to the UI
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'p-4 rounded-lg bg-gray-800 border border-gray-700';
+                    stepElement.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <span class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center">${i+1}</span>
+                            <div>
+                                <h4 class="text-lg font-bold text-white">Tool: <span class="font-mono">${tool.name}</span></h4>
+                                <p class="text-sm text-blue-300">Agent: ${tool.primary_agent}</p>
+                            </div>
+                            <div class="ml-auto loader"></div>
+                        </div>
+                        <div class="mt-3 pl-12 text-sm space-y-2 hidden" id="step-details-${i}">
+                            <p><strong>Input:</strong> <span class="text-gray-400 font-mono">${previousOutput}</span></p>
+                            <p><strong>Output:</strong> <span class="text-green-400 font-mono" id="output-${i}"></span></p>
+                        </div>`;
+                    dom.orchestrationSteps.appendChild(stepElement);
+                    
+                    // Show loader for the current step
+                    stepElement.querySelector('.loader').classList.remove('hidden');
+
+                    // Simulate processing delay
+                    await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+                    // Simulate output based on tool name (in a real scenario, this would involve actual tool execution)
+                    const outputId = `output_${tool.name}_${i}.json`;
+                    previousOutput = outputId; // Update previous output for the next step
+
+                    // Display the simulated output and hide the loader
+                    const outputElement = document.getElementById(`output-${i}`);
+                    outputElement.textContent = outputId;
+                    stepElement.querySelector('.loader').classList.add('hidden');
+                    stepElement.querySelector(`#step-details-${i}`).classList.remove('hidden');
+                }
+            }
+            
+            /**
+             * Toggles the visibility of the right-side panel.
+             */
+            function toggleRightPanel() {
+                dom.rightSidePanel.classList.toggle('panel-open');
+            }
+
+            /**
+             * Switches the active tab within the right-side panel.
+             * @param {string} tabId - The ID of the tab to activate (e.g., 'custom-instructions').
+             */
+            function switchRightPanelTab(tabId) {
+                // Deactivate all right panel tab buttons and hide all tab contents
+                dom.rightPanelTabButtons.forEach(button => {
+                    button.classList.remove('active');
+                    button.style.color = ''; // Reset color
+                });
+                dom.rightPanelTabContents.forEach(content => content.classList.remove('active'));
+
+                // Activate the selected tab button and show its content
+                const selectedButton = document.querySelector(`[data-right-panel-tab="${tabId}"]`);
+                selectedButton.classList.add('active');
+                selectedButton.style.color = 'black'; // Ensure black text on active neon tab
+
+                document.getElementById(`right-panel-tab-${tabId}`).classList.add('active');
+            }
+            
+            /**
+             * Sets the custom instructions (SYSTEM, AI, USER personas) from the form inputs.
+             * These instructions will be prepended to the chat history for API calls.
+             */
+            function setCustomInstructions() {
+                liveCustomInstructions.system = dom.systemInput.value;
+                liveCustomInstructions.ai = dom.aiInput.value;
+                liveCustomInstructions.user = dom.userInput.value;
+                
+                console.log("Custom Instructions Set:", liveCustomInstructions);
+                showMessageModal("Instructions Set", "Custom Instructions are now live for this session!");
+                toggleRightPanel(); // Close the panel after setting instructions
+            }
+
+            // --- JSON Bookmark Functions (for custom orchestrations) ---
+
+            /**
+             * Loads saved bookmarks from localStorage into the `savedBookmarks` array.
+             */
+            function loadSavedBookmarks() {
+                try {
+                    const storedBookmarks = localStorage.getItem('cua_saved_bookmarks');
+                    if (storedBookmarks) {
+                        savedBookmarks = JSON.parse(storedBookmarks);
+                    }
+                } catch (e) {
+                    console.error("Error loading saved bookmarks from localStorage:", e);
+                    savedBookmarks = []; // Ensure savedBookmarks is initialized even on error
+                }
+            }
+
+            /**
+             * Saves the current `savedBookmarks` array to localStorage.
+             */
+            function saveBookmarks() {
+                localStorage.setItem('cua_saved_bookmarks', JSON.stringify(savedBookmarks));
+            }
+
+            /**
+             * Renders the list of saved bookmarks in the UI.
+             * Attaches event listeners for loading and deleting bookmarks.
+             */
+            function renderSavedBookmarks() {
+                dom.savedBookmarksList.innerHTML = ''; // Clear existing list
+                if (savedBookmarks.length === 0) {
+                    dom.noBookmarksMessage.classList.remove('hidden');
+                    dom.savedBookmarksList.appendChild(dom.noBookmarksMessage);
+                } else {
+                    dom.noBookmarksMessage.classList.add('hidden');
+                    savedBookmarks.forEach((bookmark, index) => {
+                        const bookmarkItem = document.createElement('div');
+                        bookmarkItem.className = 'bg-gray-800 p-3 rounded-md border border-gray-700 flex justify-between items-center';
+                        bookmarkItem.innerHTML = `
+                            <div>
+                                <p class="font-semibold text-white">${bookmark.name}</p>
+                                <p class="text-xs text-gray-400">${bookmark.description || 'No description'}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button data-index="${index}" class="load-bookmark-item-btn p-1.5 rounded-full hover:bg-indigo-700 text-white" title="Load Bookmark">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                </button>
+                                <button data-index="${index}" class="delete-bookmark-item-btn p-1.5 rounded-full hover:bg-red-700 text-white" title="Delete Bookmark">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                            </div>
+                        `;
+                        dom.savedBookmarksList.appendChild(bookmarkItem);
+                    });
+
+                    // Attach event listeners for dynamically created buttons
+                    dom.savedBookmarksList.querySelectorAll('.load-bookmark-item-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const index = parseInt(e.currentTarget.dataset.index);
+                            dom.jsonBookmarkInput.value = JSON.stringify(savedBookmarks[index], null, 2);
+                            showMessageModal("Bookmark Loaded", `Bookmark "${savedBookmarks[index].name}" loaded into editor.`);
+                        });
+                    });
+                    dom.savedBookmarksList.querySelectorAll('.delete-bookmark-item-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const index = parseInt(e.currentTarget.dataset.index);
+                            savedBookmarks.splice(index, 1);
+                            saveBookmarks();
+                            renderSavedBookmarks();
+                            showMessageModal("Bookmark Deleted", "Bookmark removed successfully.");
+                        });
+                    });
+                }
+            }
+
+            /**
+             * Adds a new bookmark from the JSON input field to the saved bookmarks.
+             */
+            function addBookmark() {
+                try {
+                    const newBookmark = JSON.parse(dom.jsonBookmarkInput.value);
+                    if (!newBookmark.name || !newBookmark.chain) {
+                        showMessageModal("Invalid Bookmark", "Bookmark JSON must have 'name' and 'chain' properties.", true);
+                        return;
+                    }
+                    savedBookmarks.push(newBookmark);
+                    saveBookmarks();
+                    renderSavedBookmarks();
+                    dom.jsonBookmarkInput.value = ''; // Clear input after adding
+                    showMessageModal("Bookmark Added", `Custom orchestration "${newBookmark.name}" added successfully!`);
+                } catch (e) {
+                    showMessageModal("Invalid JSON", "Please enter valid JSON for the bookmark.", true);
+                }
+            }
+
+            /**
+             * Loads the JSON from the input field into the editor for inspection/editing.
+             */
+            function loadSelectedBookmark() {
+                try {
+                    const bookmarkToLoad = JSON.parse(dom.jsonBookmarkInput.value);
+                    if (!bookmarkToLoad.name || !bookmarkToLoad.chain) {
+                        showMessageModal("Invalid Bookmark", "Please load a valid bookmark with 'name' and 'chain' properties.", true);
+                        return;
+                    }
+                    showMessageModal("Bookmark Ready", `Bookmark "${bookmarkToLoad.name}" is now in the editor. You can copy its content to add it to your main bookmarks list or use its chain directly.`);
+
+                } catch (e) {
+                    showMessageModal("Invalid JSON", "Please ensure the JSON in the editor is valid to load.", true);
+                }
+            }
+
+            // --- A2A Communication Functions ---
+
+            /**
+             * Simulates sending a request to an external AI endpoint (A2A communication).
+             */
+            async function sendA2ARequest() {
+                const targetUrl = dom.a2aTargetUrl.value.trim();
+                const prompt = dom.a2aPromptInput.value.trim();
+                let params = {};
+
+                if (!targetUrl || !prompt) {
+                    showMessageModal("Input Required", "Please provide a Target URL and A2A Prompt.", true);
+                    return;
+                }
+
+                try {
+                    if (dom.a2aParamsInput.value.trim()) {
+                        params = JSON.parse(dom.a2aParamsInput.value);
+                    }
+                } catch (e) {
+                    showMessageModal("Invalid JSON", "Additional Parameters must be valid JSON.", true);
+                    return;
+                }
+
+                dom.a2aLoader.classList.remove('hidden');
+                dom.sendA2ARequestBtn.disabled = true;
+                dom.a2aResponseOutput.textContent = "Sending request...";
+
+                try {
+                    const simulatedResponse = await new Promise(resolve => setTimeout(() => {
+                        // In a real scenario, this would be a fetch() call
+                        // Example:
+                        /*
+                        fetch(targetUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: prompt, params: params })
+                        })
+                        .then(response => response.json())
+                        .then(data => resolve(JSON.stringify(data, null, 2)))
+                        .catch(error => {
+                            console.error("A2A Fetch Error:", error);
+                            resolve(`ERROR: Failed to reach A2A endpoint. Details: ${error.message}. (Due to browser CORS, direct cross-origin requests are typically blocked. A server-side proxy is usually required for real-world A2A communication.)`);
+                        });
+                        */
+                        
+                        // Mocked response for demonstration
+                        const mockResponse = {
+                            status: "A2A_SUCCESS",
+                            source_agent: "google@ai-intel.info",
+                            received_prompt: prompt,
+                            received_params: params,
+                            generated_output: `Simulated response from external AI: Analysis for "${prompt}" completed. Key insight: Simulated data suggests a 15% growth in Q3.`,
+                            contextual_nuance: "This response is a simulated output. For true A2A, consider a backend proxy.",
+                            iteration_hint: "Refine prompt for more detailed financial breakdown."
+                        };
+                        resolve(JSON.stringify(mockResponse, null, 2));
+                    }, 2500)); // Simulate network latency
+
+                    dom.a2aResponseOutput.textContent = simulatedResponse;
+
+                } catch (error) {
+                    dom.a2aResponseOutput.textContent = `ERROR: ${error.message}`;
+                    console.error("A2A Simulation Error:", error);
+                } finally {
+                    dom.a2aLoader.classList.add('hidden');
+                    dom.sendA2ARequestBtn.disabled = false;
+                }
+            }
+            
+            /**
+             * Starts a conversation with a selected AI agent by getting its initial response.
+             * @param {object} agent - The AI agent object.
+             */
+            async function startConversation(agent) {
+                const startBtn = document.getElementById('start-conversation-btn');
+                startBtn.innerHTML = '<div class="loader"></div>'; // Show loader on button
+                startBtn.disabled = true;
+
+                // Initial prompt for the agent to introduce itself based on its persona
+                const prompt = `You are the AI agent ${agent.name}. Based on your persona, provide initial workflow suggestions for a new software project as your opening message.`;
+                currentSession.chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                
+                await getAgentResponse(); // Get the agent's response
+                
+                // Show chat container and hide the start conversation button
+                document.getElementById('chat-container').classList.remove('hidden');
+                startBtn.parentElement.classList.add('hidden');
+            }
+            
+            /**
+             * Handles user input in the chat, including special commands like /execute.
+             */
+            async function handleUserMessage() {
+                const chatInput = document.getElementById('chat-input');
+                const userInput = chatInput.value.trim();
+                if (!userInput) return; // Don't send empty messages
+                
+                chatInput.value = ''; // Clear input field
+
+                // Check for /execute command to run a chained bookmark
+                if (userInput.startsWith('/execute')) {
+                    renderChatMessage('user', userInput); // Display user's command
+                    // Regex to extract bookmark name and optional brief
+                    const [_, bookmarkName, brief] = userInput.match(/\/execute\s+"([^"]+)"(?:\s+"([^"]+)")?/) || [];
+                    if (bookmarkName) {
+                        // Try to find the bookmark in predefined and then in saved bookmarks
+                        let bookmark = codexData.chained_bookmarks.find(b => b.name.toLowerCase() === bookmarkName.trim().toLowerCase());
+                        if (!bookmark) {
+                            bookmark = savedBookmarks.find(b => b.name.toLowerCase() === bookmarkName.trim().toLowerCase());
+                        }
+
+                        if (bookmark) {
+                            renderChatMessage('system', `SYSTEM: Orchestration '${bookmark.name}' initiated. View progress in ADJECTIC MANIFEST tab.`);
+                            // Switch to ADJECTIC MANIFEST tab to show orchestration progress
+                            document.querySelector('[data-tab="adjectic"]').click();
+                            executeChainedBookmark(bookmark, brief || 'User-provided brief from chat.');
+                        } else {
+                            renderChatMessage('system', `ERROR: Orchestration '${bookmarkName}' not found.`);
+                        }
+                    } else {
+                        renderChatMessage('system', `ERROR: Invalid command. Use: /execute "Bookmark Name" "Optional brief"`);
+                    }
+                    return; // Stop further processing for /execute command
+                }
+
+                // For regular chat messages
+                renderChatMessage('user', userInput); // Display user's message
+                currentSession.chatHistory.push({ role: "user", parts: [{ text: userInput }] }); // Add to chat history
+                await getAgentResponse(); // Get agent's response
+            }
+
+            /**
+             * Fetches a response from the Gemini API based on the current chat history
+             * and active custom instructions.
+             */
+            async function getAgentResponse() {
+                const sendBtn = document.getElementById('send-btn');
+                const chatInput = document.getElementById('chat-input');
+                const originalBtnContent = sendBtn.innerHTML;
+                
+                // Show loader and disable input/button during API call
+                sendBtn.innerHTML = '<div class="loader"></div>';
+                sendBtn.disabled = true;
+                if(chatInput) chatInput.disabled = true;
+                renderTypingIndicator(true); // Show typing indicator
+
+                try {
+                    let chatHistoryWithCustomInstructions = [...currentSession.chatHistory];
+                    // Prepend custom instructions to the chat history for the API call
+                    if (liveCustomInstructions.system || liveCustomInstructions.ai || liveCustomInstructions.user) {
+                        const customInstructionPrompt = `---
+CONTEXT OVERRIDE:
+SYSTEM Persona: ${liveCustomInstructions.system || 'Default'}
+AI Behavior: ${liveCustomInstructions.ai || 'Default'}
+USER Context: ${liveCustomInstructions.user || 'Default'}
+---`;
+                        chatHistoryWithCustomInstructions.unshift({ role: "user", parts: [{ text: customInstructionPrompt }] });
+                    }
+                    
+                    const payload = { contents: chatHistoryWithCustomInstructions };
+                    // IMPORTANT: API Key is provided by the Canvas environment. Leave it empty.
+                    const apiKey = ""; 
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API request failed with status ${response.status}: ${errorData.error.message}`);
+                    }
+                    
+                    const result = await response.json();
+                    renderTypingIndicator(false); // Hide typing indicator
+
+                    // Robust check for Gemini API response content
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0 &&
+                        result.candidates[0].content.parts[0].text) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        currentSession.chatHistory.push({ role: "model", parts: [{ text }] }); // Add agent's response to history
+                        renderChatMessage('model', text); // Display agent's message
+                    } else {
+                        let errorDetail = "No content received. The response might have been blocked.";
+                        if (result.promptFeedback?.blockReason) { errorDetail += ` Reason: ${result.promptFeedback.blockReason}`; }
+                        throw new Error(errorDetail);
+                    }
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    renderTypingIndicator(false);
+                    showMessageModal("Error", `Could not complete request. Details: ${error.message}`, true); // Use the generic modal for errors
+                } finally {
+                    // Restore button state and enable input
+                    sendBtn.innerHTML = originalBtnContent;
+                    sendBtn.disabled = false;
+                    if(chatInput) chatInput.disabled = false;
+                }
+            }
+            
+            /**
+             * Renders a chat message in the chat log.
+             * @param {'user'|'model'|'system'} role - The role of the message sender.
+             * @param {string} content - The text content of the message.
+             */
+            function renderChatMessage(role, content) {
+                const chatLog = document.getElementById('chat-log');
+                if (!chatLog) return; // Ensure chat log exists
+                
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `message-wrapper flex w-full items-start gap-3 ${role === 'user' || role === 'system' ? 'justify-end' : 'justify-start'}`;
+                
+                const bubble = document.createElement('div');
+                let bubbleClasses = 'rounded-lg p-3 max-w-xl text-white';
+
+                // Apply specific styles based on role
+                if (role === 'user') bubbleClasses += ' bg-indigo-600';
+                else if (role === 'system') bubbleClasses += ' bg-gray-600 font-mono text-sm';
+                else bubbleClasses += ' bg-gray-700 chat-bubble-model';
+                
+                bubble.className = bubbleClasses;
+                bubble.innerHTML = parseMarkdown(content); // Parse markdown for display
+                
+                // Add action buttons for model responses (TTS, Copy, Bookmark)
+                if (role === 'model') {
+                    const buttonGroup = document.createElement('div');
+                    buttonGroup.className = 'action-button-group flex flex-col gap-2 pt-1';
+                    
+                    const ttsButton = document.createElement('button');
+                    ttsButton.className = 'p-1.5 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white';
+                    ttsButton.title = 'Read aloud';
+                    ttsButton.innerHTML = icons.speaker;
+                    ttsButton.onclick = () => speakText(content);
+                    
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'p-1.5 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white';
+                    copyButton.title = 'Copy text';
+                    copyButton.innerHTML = icons.copy;
+                    copyButton.onclick = (e) => copyText(content, e.currentTarget);
+
+                    const bookmarkButton = document.createElement('button');
+                    bookmarkButton.className = 'p-1.5 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white';
+                    bookmarkButton.title = 'Bookmark message as JSON';
+                    bookmarkButton.innerHTML = icons.bookmark;
+                    bookmarkButton.onclick = () => {
+                        const suggestedBookmark = {
+                            name: `Bookmark from Chat ${new Date().toLocaleString()}`,
+                            description: `Generated from AI response: ${content.substring(0, 50)}...`,
+                            chain: [
+                                {
+                                    tool: "contextual_reference", // A placeholder tool for context
+                                    input: content,
+                                    params: { type: "AI_Response_Context" }
+                                }
+                            ]
+                        };
+                        dom.jsonBookmarkInput.value = JSON.stringify(suggestedBookmark, null, 2);
+                        toggleRightPanel();
+                        switchRightPanelTab('json-bookmarks');
+                        showMessageModal("Bookmark Created", "AI response copied to JSON Bookmark editor. Customize and Add as a new bookmark.");
+                    };
+
+                    buttonGroup.appendChild(ttsButton);
+                    buttonGroup.appendChild(copyButton);
+                    buttonGroup.appendChild(bookmarkButton);
+                    
+                    messageWrapper.appendChild(bubble);
+                    messageWrapper.appendChild(buttonGroup);
+                } else {
+                    messageWrapper.appendChild(bubble);
+                }
+                
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight; // Scroll to bottom of chat
+            }
+
+            /**
+             * Shows or hides a typing indicator in the chat log.
+             * @param {boolean} show - True to show the indicator, false to hide.
+             */
+            function renderTypingIndicator(show) {
+                let indicator = document.getElementById('typing-indicator');
+                if (show && !indicator) {
+                    const chatLog = document.getElementById('chat-log');
+                    indicator = document.createElement('div');
+                    indicator.id = 'typing-indicator';
+                    indicator.className = 'flex justify-start';
+                    indicator.innerHTML = `<div class="bg-gray-700 rounded-lg p-3 typing-indicator"><span></span><span></span><span></span></div>`;
+                    chatLog.appendChild(indicator);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                } else if (!show && indicator) {
+                    indicator.remove();
+                }
+            }
+
+            /**
+             * Basic Markdown parser to convert a subset of Markdown to HTML.
+             * Supports inline code, code blocks, headers, lists, bold, and italic.
+             * @param {string} text - The Markdown text to parse.
+             * @returns {string} The HTML representation of the Markdown.
+             */
+            function parseMarkdown(text) {
+                const safeText = String(text || '').trim();
+                let html = safeText;
+
+                // Replace multi-line code blocks first to prevent conflicts with inline code
+                html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-800 p-3 rounded-md my-2 overflow-x-auto"><code class="font-mono text-sm">$1</code></pre>');
+                
+                // Replace inline code blocks
+                html = html.replace(/`([^`]+)`/g, '<code class="font-mono bg-gray-800 px-1 py-0.5 rounded text-sm text-yellow-300">$1</code>');
+                
+                // Replace headers (H1, H2, H3, H4, H5, H6)
+                html = html.replace(/^(#+)\s*(.*$)/gm, (match, h, content) => `<h${h.length+2} class="font-bold mt-3 mb-1">${content}</h${h.length+2}>`);
+                
+                // Replace unordered list items
+                html = html.replace(/^(?:\*|-)\s(.*$)/gm, '<li>$1</li>');
+                // Wrap consecutive list items in ul tags
+                html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>').replace(/<\/ul>\s*<ul>/g, '');
+                
+                // Process paragraphs and inline formatting (bold, italic)
+                return html.split('\n\n').map(paragraph => {
+                    // If the paragraph already starts with a block-level tag, return as is
+                    if (paragraph.startsWith('<ul>') || paragraph.startsWith('<pre>') || paragraph.startsWith('<h')) {
+                        return paragraph;
+                    }
+                    if (paragraph.trim() === '') return ''; // Skip empty paragraphs
+                    
+                    // Handle bold and italic
+                    const inlineProcessed = paragraph
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>'); // Italic
+                    
+                    // Replace single newlines with <br> within paragraphs
+                    return `<p>${inlineProcessed.replace(/\n/g, '<br>')}</p>`;
+                }).join('');
+            }
+
+            /**
+             * Uses the Web Speech API to read out loud the given text.
+             * @param {string} textToSpeak - The text content to be spoken.
+             */
+            function speakText(textToSpeak) {
+                window.speechSynthesis.cancel(); // Stop any ongoing speech
+                const cleanText = textToSpeak.replace(/[\*#`_~]/g, ''); // Basic markdown cleanup for better speech
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                window.speechSynthesis.speak(utterance);
+            }
+
+            /**
+             * Copies the given text to the clipboard and provides visual feedback.
+             * Uses `document.execCommand('copy')` for broader compatibility in iframes.
+             * @param {string} textToCopy - The text content to be copied.
+             * @param {HTMLElement} buttonElement - The button element that triggered the copy action.
+             */
+            function copyText(textToCopy, buttonElement) {
+                const cleanText = textToCopy.replace(/[\*#`_~]/g, ''); // Basic markdown cleanup
+                const textArea = document.createElement("textarea");
+                textArea.value = cleanText;
+                textArea.style.position = "fixed"; // Prevents scrolling to bottom
+                textArea.style.left = "-9999px"; // Move off-screen
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy'); // Execute copy command
+                    const originalIcon = buttonElement.innerHTML;
+                    buttonElement.innerHTML = icons.check; // Change icon to checkmark
+                    buttonElement.classList.add('text-green-400'); // Change color to green
+                    setTimeout(() => {
+                        buttonElement.innerHTML = originalIcon; // Revert icon
+                        buttonElement.classList.remove('text-green-400'); // Revert color
+                    }, 2000); // Revert after 2 seconds
+                } catch (err) {
+                    console.error('Failed to copy text:', err);
+                    showMessageModal('Copy Failed', 'Could not copy text to clipboard. Please try manually.', true);
+                }
+                document.body.removeChild(textArea); // Remove temporary textarea
+            }
+
+            /**
+             * Displays a generic message modal to the user.
+             * This replaces `alert()` and `confirm()` for better UI control.
+             * @param {string} title - The title of the modal.
+             * @param {string} message - The message content of the modal.
+             * @param {boolean} [isError=false] - If true, styles the modal as an error message.
+             */
+            function showMessageModal(title, message, isError = false) {
+                dom.modalTitle.textContent = title;
+                dom.modalMessage.textContent = message;
+                // Apply dynamic classes based on whether it's an error
+                dom.modalTitle.className = `text-2xl font-bold mb-4 ${isError ? 'text-red-500' : 'text-white'}`;
+                dom.closeMessageModalBtn.className = `font-bold py-2 px-4 rounded ${isError ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`;
+                dom.messageModal.classList.remove('hidden'); // Show the modal
+            }
+
+            /**
+             * Toggles the visibility of the quick links submenu.
+             */
+            function toggleQuickLinksSubmenu() {
+                dom.quickLinksSubmenu.classList.toggle('open');
+            }
+
+            // --- Simulated File System Functions (for CLI) ---
+
+            /**
+             * Resolves a given path (relative or absolute) to an absolute path within the simulated file system.
+             * Handles '..', '.', and '/' correctly.
+             * @param {string} path - The path to resolve.
+             * @returns {string} The resolved absolute path.
+             */
+            function resolvePath(path) {
+                const parts = path.split('/').filter(p => p !== '');
+                let resolved = currentDirectory.split('/').filter(p => p !== '');
+
+                if (path.startsWith('/')) { // Absolute path starts from root
+                    resolved = [];
+                }
+
+                for (const part of parts) {
+                    if (part === '..') { // Go up one directory
+                        if (resolved.length > 0) {
+                            resolved.pop();
+                        }
+                    } else if (part !== '.') { // Ignore current directory reference
+                        resolved.push(part);
+                    }
+                }
+                return '/' + resolved.join('/'); // Reconstruct the path, ensuring leading '/'
+            }
+
+            /**
+             * Retrieves a node (file or directory) from the simulated file system based on its path.
+             * @param {string} path - The absolute path of the node.
+             * @returns {object|null} The node object if found, otherwise null.
+             */
+            function getNode(path) {
+                let current = fileSystem['/']; // Start from the root
+                const parts = path.split('/').filter(p => p !== '');
+
+                if (path === '/') return fileSystem['/']; // Handle root path directly
+
+                for (const part of parts) {
+                    if (current && current.type === 'directory' && current.contents[part]) {
+                        current = current.contents[part];
+                    } else {
+                        return null; // Path part not found or not a directory
+                    }
+                }
+                return current;
+            }
+
+            /**
+             * Helper function to get the parent directory node and the name of the item.
+             * @param {string} path - The path to the item.
+             * @returns {{parentNode: object|null, name: string}} An object containing the parent node and the item name.
+             */
+            function getParentAndName(path) {
+                const absolutePath = path.startsWith('/') ? path : resolvePath(path); // Ensure absolute path
+                const lastSlashIndex = absolutePath.lastIndexOf('/');
+                const parentPath = lastSlashIndex === 0 ? '/' : absolutePath.substring(0, lastSlashIndex);
+                const name = absolutePath.substring(lastSlashIndex + 1);
+
+                const parentNode = getNode(parentPath);
+                return { parentNode, name };
+            }
+
+            /**
+             * Simulated 'cd' (change directory) command.
+             * @param {string} path - The target directory path.
+             * @returns {boolean} True if directory changed successfully, false otherwise.
+             */
+            async function _cd(path) {
+                const newPath = resolvePath(path);
+                const node = getNode(newPath);
+
+                if (!node) {
+                    term.writeln(`\x1b[31mError: cd: ${path}: No such file or directory\x1b[0m`);
+                    return false;
+                }
+                if (node.type !== 'directory') {
+                    term.writeln(`\x1b[31mError: cd: ${path}: Not a directory\x1b[0m`);
+                    return false;
+                }
+                currentDirectory = newPath === '' ? '/' : newPath; // Handle root correctly
+                return true;
+            }
+
+            /**
+             * Simulated 'ls' (list directory contents) command.
+             * @param {string} [path='.'] - The directory path to list. Defaults to current directory.
+             */
+            async function _ls(path = '.') {
+                const targetPath = resolvePath(path);
+                const node = getNode(targetPath);
+
+                if (!node) {
+                    term.writeln(`\x1b[31mError: ls: cannot access '${path}': No such file or directory\x1b[0m`);
+                    return;
+                }
+                if (node.type !== 'directory') {
+                    term.writeln(`\x1b[31m${path}\x1b[0m`); // Just print the file name if it's a file
+                    return;
+                }
+
+                let output = '';
+                const contents = Object.keys(node.contents).sort(); // Sort contents alphabetically
+                if (contents.length === 0) {
+                    output = ''; // Empty directory
+                } else {
+                    output = contents.map(item => {
+                        const itemNode = node.contents[item];
+                        if (itemNode.type === 'directory') {
+                            return `\x1b[34m${item}/\x1b[0m`; // Blue for directories
+                        } else {
+                            return `\x1b[32m${item}\x1b[0m`; // Green for files
+                        }
+                    }).join('    '); // Space out items
+                }
+                term.writeln(output);
+            }
+
+            /**
+             * Simulated 'cat' (concatenate and display file) command.
+             * @param {string} path - The path to the file.
+             */
+            async function _cat(path) {
+                const targetPath = resolvePath(path);
+                const node = getNode(targetPath);
+
+                if (!node) {
+                    term.writeln(`\x1b[31mError: cat: ${path}: No such file or directory\x1b[0m`);
+                    return;
+                }
+                if (node.type !== 'file') {
+                    term.writeln(`\x1b[31mError: cat: ${path}: Is a directory\x1b[0m`);
+                    return;
+                }
+                term.writeln(`\x1b[37m${node.content}\x1b[0m`); // Display file content in white
+            }
+            
+            /**
+             * Simulated 'touch' (create empty file) command.
+             * @param {string} path - The path to the file to create.
+             */
+            async function _touch(path) {
+                const fullPath = resolvePath(path);
+                const { parentNode, name } = getParentAndName(fullPath);
+
+                if (!parentNode || parentNode.type !== 'directory') {
+                    term.writeln(`\x1b[31mError: touch: cannot create file '${path}': No such file or directory or parent is not a directory\x1b[0m`);
+                    return;
+                }
+                if (parentNode.contents[name]) {
+                    term.writeln(`\x1b[33mWarning: touch: '${path}': file already exists, updating timestamp (simulated)\x1b[0m`);
+                } else {
+                    parentNode.contents[name] = { type: 'file', content: '' };
+                    term.writeln(`\x1b[32mFile '${path}' created.\x1b[0m`);
+                }
+            }
+
+            /**
+             * Simulated 'mkdir' (make directory) command.
+             * @param {string} path - The path to the directory to create.
+             */
+            async function _mkdir(path) {
+                const fullPath = resolvePath(path);
+                const { parentNode, name } = getParentAndName(fullPath);
+
+                if (!parentNode || parentNode.type !== 'directory') {
+                    term.writeln(`\x1b[31mError: mkdir: cannot create directory '${path}': No such file or directory or parent is not a directory\x1b[0m`);
+                    return;
+                }
+                if (parentNode.contents[name]) {
+                    term.writeln(`\x1b[31mError: mkdir: cannot create directory '${path}': File exists\x1b[0m`);
+                } else {
+                    parentNode.contents[name] = { type: 'directory', contents: {} };
+                    term.writeln(`\x1b[32mDirectory '${path}' created.\x1b[0m`);
+                }
+            }
+
+            /**
+             * Simulated 'rm' (remove file or empty directory) command.
+             * Does not support recursive removal for safety.
+             * @param {string} path - The path to the file or directory to remove.
+             */
+            async function _rm(path) {
+                const fullPath = resolvePath(path);
+                const { parentNode, name } = getParentAndName(fullPath);
+
+                if (!parentNode || !parentNode.contents[name]) {
+                    term.writeln(`\x1b[31mError: rm: cannot remove '${path}': No such file or directory\x1b[0m`);
+                    return;
+                }
+                
+                const nodeToRemove = parentNode.contents[name];
+
+                if (nodeToRemove.type === 'directory' && Object.keys(nodeToRemove.contents).length > 0) {
+                    term.writeln(`\x1b[31mError: rm: cannot remove '${path}': Directory not empty. Use 'rm -r' (not implemented for safety).\x1b[0m`);
+                    return;
+                }
+
+                delete parentNode.contents[name];
+                term.writeln(`\x1b[32mRemoved '${path}'.\x1b[0m`);
+            }
+
+            // Conceptual Google Drive File System for simulation
+            let googleDriveFs = {
+                'your_simulated_folder_id': { // This represents the root of a conceptually connected folder
+                    type: 'directory',
+                    contents: {
+                        'remote_doc.json': { type: 'file', content: '{\\n  "file_name": "remote_doc.json",\\n  "source": "Google Drive (Simulated)",\\n  "status": "Ready for A2A consumption"\\n}'},
+                        'sim_example_report.txt': { type: 'file', content: 'This is a simulated report from Google Drive. It was uploaded for collaborative analysis.' }
+                    }
+                }
+            };
+            let connectedDriveFolderId = null; // Stores the currently "connected" folder ID
+
+            /**
+             * Retrieves a node from the simulated Google Drive file system.
+             * @param {string} path - The path to the node within the connected Drive folder.
+             * @returns {object|null} The node object if found, otherwise null.
+             */
+            function getDriveNode(path) {
+                if (!connectedDriveFolderId) return null;
+                const rootNode = googleDriveFs[connectedDriveFolderId];
+                if (!rootNode) return null; // Connected folder ID not found in conceptual FS
+
+                let current = rootNode;
+                const parts = path.split('/').filter(p => p !== '');
+
+                for (const part of parts) {
+                    if (current && current.type === 'directory' && current.contents[part]) {
+                        current = current.contents[part];
+                    } else {
+                        return null;
+                    }
+                }
+                return current;
+            }
+
+            // --- CLI Commands for Google Drive Simulation ---
+
+            /**
+             * Simulated 'gdrive connect' command.
+             * @param {string} folderId - The ID of the simulated Google Drive folder to connect to.
+             */
+            async function _gdrive_connect(folderId) {
+                if (googleDriveFs[folderId]) {
+                    connectedDriveFolderId = folderId;
+                    term.writeln(`\x1b[32mSuccessfully connected to simulated Google Drive folder: ${folderId}\x1b[0m`);
+                    term.writeln('\x1b[33mReminder: This is a simulation. Real connection requires backend OAuth.\x1b[0m');
+                } else {
+                    term.writeln(`\x1b[31mError: gdrive connect: Folder ID '${folderId}' not found in simulated Drive.\x1b[0m`);
+                }
+            }
+
+            /**
+             * Simulated 'gdrive ls' command.
+             * Lists contents of the currently connected simulated Google Drive folder.
+             */
+            async function _gdrive_ls() {
+                if (!connectedDriveFolderId) {
+                    term.writeln(`\x1b[31mError: gdrive ls: Not connected to any Drive folder. Use 'gdrive connect <folder_id>'.\x1b[0m`);
+                    return;
+                }
+                const folder = googleDriveFs[connectedDriveFolderId];
+                if (folder && folder.type === 'directory') {
+                    let output = '';
+                    const contents = Object.keys(folder.contents).sort();
+                    if (contents.length === 0) {
+                        output = '(empty)';
+                    } else {
+                        output = contents.map(item => {
+                            const itemNode = folder.contents[item];
+                            if (itemNode.type === 'directory') {
+                                return `\x1b[34m${item}/\x1b[0m`; // Blue for directories
+                            } else {
+                                return `\x1b[32m${item}\x1b[0m`; // Green for files
+                            }
+                        }).join('    ');
+                    }
+                    term.writeln(`\x1b[33mContents of simulated Drive folder (${connectedDriveFolderId}):\x1b[0m`);
+                    term.writeln(output);
+                } else {
+                    term.writeln(`\x1b[31mError: gdrive ls: Invalid connected folder.\x1b[0m`);
+                }
+            }
+
+            /**
+             * Simulated 'gdrive cat' command.
+             * Displays content of a file in the currently connected simulated Google Drive folder.
+             * @param {string} fileName - The name of the file to display.
+             */
+            async function _gdrive_cat(fileName) {
+                if (!connectedDriveFolderId) {
+                    term.writeln(`\x1b[31mError: gdrive cat: Not connected to any Drive folder. Use 'gdrive connect <folder_id>'.\x1b[0m`);
+                    return;
+                }
+                const file = getDriveNode(fileName);
+                if (file && file.type === 'file') {
+                    term.writeln(`\x1b[33mContent of simulated Drive file '${fileName}':\x1b[0m`);
+                    term.writeln(`\x1b[37m${file.content}\x1b[0m`);
+                } else {
+                    term.writeln(`\x1b[31mError: gdrive cat: File '${fileName}' not found or is a directory in simulated Drive.\x1b[0m`);
+                }
+            }
+
+            /**
+             * Simulated 'gdrive upload' command.
+             * Uploads a local file from the simulated file system to the simulated Google Drive.
+             * @param {string} localPath - The path to the local file to upload.
+             */
+            async function _gdrive_upload(localPath) {
+                if (!connectedDriveFolderId) {
+                    term.writeln(`\x1b[31mError: gdrive upload: Not connected to any Drive folder. Use 'gdrive connect <folder_id>'.\x1b[0m`);
+                    return;
+                }
+                const localNode = getNode(localPath);
+                if (!localNode || localNode.type !== 'file') {
+                    term.writeln(`\x1b[31mError: gdrive upload: Local file '${localPath}' not found or is a directory.\x1b[0m`);
+                    return;
+                }
+                
+                const remoteFileName = localPath.split('/').pop(); // Use local file name as remote name
+                googleDriveFs[connectedDriveFolderId].contents[remoteFileName] = {
+                    type: 'file',
+                    content: localNode.content
+                };
+                term.writeln(`\x1b[32mSimulated upload of '${localPath}' to Google Drive as '${remoteFileName}'.\x1b[0m`);
+                term.writeln('\x1b[33mReminder: Real Google Drive uploads require a backend proxy for secure authentication and file transfer.\x1b[0m');
+            }
+
+            /**
+             * Simulated 'gdrive download' command.
+             * Downloads a file from the simulated Google Drive to the simulated local file system.
+             * @param {string} remoteFileName - The name of the file to download from Drive.
+             * @param {string} localPath - The local path to save the downloaded file.
+             */
+            async function _gdrive_download(remoteFileName, localPath) {
+                if (!connectedDriveFolderId) {
+                    term.writeln(`\x1b[31mError: gdrive download: Not connected to any Drive folder. Use 'gdrive connect <folder_id>'.\x1b[0m`);
+                    return;
+                }
+                const remoteFile = getDriveNode(remoteFileName);
+                if (!remoteFile || remoteFile.type !== 'file') {
+                    term.writeln(`\x1b[31mError: gdrive download: Remote file '${remoteFileName}' not found or is a directory in simulated Drive.\x1b[0m`);
+                    return;
+                }
+
+                const targetLocalPath = resolvePath(localPath);
+                const { parentNode, name } = getParentAndName(targetLocalPath);
+
+                if (!parentNode || parentNode.type !== 'directory') {
+                    term.writeln(`\x1b[31mError: gdrive download: Local target directory '${localPath}' not found.\x1b[0m`);
+                    return;
+                }
+
+                parentNode.contents[name] = {
+                    type: 'file',
+                    content: remoteFile.content
+                };
+                term.writeln(`\x1b[32mSimulated download of '${remoteFileName}' from Google Drive to '${targetLocalPath}'.\x1b[0m`);
+                term.writeln('\x1b[33mReminder: Real Google Drive downloads require a backend proxy for secure authentication and file transfer.\x1b[0m');
+            }
+
+            // Simulated Google Drive UI Interactions (Cloud Storage Tab)
+            let simDriveConnectedFolderId = null;
+
+            /**
+             * Simulates connecting to a Google Drive folder via the UI.
+             */
+            async function simulateDriveConnect() {
+                const folderId = dom.driveFolderId.value.trim();
+                if (!folderId) {
+                    showMessageModal('Input Required', 'Please enter a Simulated Public Folder ID.', true);
+                    return;
+                }
+                if (googleDriveFs[folderId]) {
+                    simDriveConnectedFolderId = folderId;
+                    showMessageModal('Connected', `Successfully connected to simulated Google Drive folder: ${folderId}. \n\nNote: This is a simulation. Real connection requires backend OAuth.`);
+                } else {
+                    showMessageModal('Error', `Simulated Folder ID '${folderId}' not found. Try 'your_simulated_folder_id'.`, true);
+                }
+            }
+
+            /**
+             * Simulates uploading content to the connected Google Drive folder via the UI.
+             */
+            async function simulateDriveUpload() {
+                if (!simDriveConnectedFolderId) {
+                    showMessageModal('Not Connected', 'Please connect to a simulated Google Drive folder first.', true);
+                    return;
+                }
+                const fileContent = dom.simUploadFileContent.value.trim();
+                const fileName = dom.simUploadFileName.value.trim();
+
+                if (!fileContent || !fileName) {
+                    showMessageModal('Input Required', 'Please provide content and a file name for upload.', true);
+                    return;
+                }
+
+                // Simulate upload success
+                // Store content with escaped newlines to preserve formatting when retrieved
+                googleDriveFs[simDriveConnectedFolderId].contents[fileName] = { type: 'file', content: fileContent.replace(/\n/g, '\\n') }; 
+                showMessageModal('Upload Simulated', `Simulated upload of "${fileName}" to Google Drive. \n\nReminder: Real Google Drive uploads require a backend proxy for secure authentication and file transfer.`);
+                dom.simUploadFileContent.value = '';
+                dom.simUploadFileName.value = 'sim_log.txt'; // Reset to default
+            }
+
+            /**
+             * Simulates downloading content from the connected Google Drive folder via the UI.
+             */
+            async function simulateDriveDownload() {
+                if (!simDriveConnectedFolderId) {
+                    showMessageModal('Not Connected', 'Please connect to a simulated Google Drive folder first.', true);
+                    return;
+                }
+                const fileName = dom.simDownloadFileName.value.trim();
+                if (!fileName) {
+                    showMessageModal('Input Required', 'Please enter a file name for download.', true);
+                    return;
+                }
+
+                const file = googleDriveFs[simDriveConnectedFolderId].contents[fileName];
+                if (file && file.type === 'file') {
+                    dom.simDownloadOutput.textContent = file.content.replace(/\\n/g, '\n'); // Unescape newlines for display
+                    showMessageModal('Download Simulated', `Simulated download of "${fileName}" successful. Content displayed below. \n\nReminder: Real Google Drive downloads require a backend proxy.`);
+                } else {
+                    dom.simDownloadOutput.textContent = 'File not found in simulated Drive.';
+                    showMessageModal('File Not Found', `Simulated file "${fileName}" not found in the connected Drive folder.`, true);
+                }
+            }
+
+            // --- Generic API Request Simulation Function ---
+            /**
+             * Simulates sending API requests to various AI services (OpenAI, V0.dev, Abacuss.ai, Gemini).
+             * @param {string} apiName - The name of the API to simulate (e.g., 'openai', 'gemini').
+             */
+            async function sendApiRequest(apiName) {
+                let apiKey, endpoint, promptInput, responseOutput, loader;
+                let mockResponseContent = {};
+                let headers = { 'Content-Type': 'application/json' };
+
+                // Determine API specific elements and mock responses
+                switch (apiName) {
+                    case 'openai':
+                        apiKey = dom.openaiApiKey.value.trim();
+                        endpoint = dom.openaiEndpoint.value.trim();
+                        promptInput = dom.openaiPrompt.value.trim();
+                        responseOutput = dom.openaiResponseOutput;
+                        loader = dom.sendOpenaiRequestBtn.querySelector('.loader');
+                        headers['Authorization'] = `Bearer ${apiKey}`;
+                        mockResponseContent = {
+                            "id": "chatcmpl-sim-openai",
+                            "object": "chat.completion",
+                            "created": Date.now(),
+                            "model": "gpt-3.5-turbo",
+                            "choices": [{
+                                "index": 0,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "Simulated OpenAI response: AI orchestration involves coordinating multiple AI models and services to achieve a larger goal, often in a complex workflow."
+                                },
+                                "logprobs": null,
+                                "finish_reason": "stop"
+                            }],
+                            "usage": { "prompt_tokens": 20, "completion_tokens": 30, "total_tokens": 50 }
+                        };
+                        break;
+                    case 'v0dev':
+                        apiKey = dom.v0devApiKey.value.trim();
+                        endpoint = dom.v0devEndpoint.value.trim();
+                        promptInput = dom.v0devPrompt.value.trim();
+                        responseOutput = dom.v0devResponseOutput;
+                        loader = dom.sendV0DevRequestBtn.querySelector('.loader');
+                        headers['Authorization'] = `Bearer ${apiKey}`;
+                        mockResponseContent = {
+                            "id": "gen-sim-v0dev",
+                            "status": "success",
+                            "generated_code": "Simulated V0.dev response: \n```jsx\nfunction UserProfileCard({ user }) {\n  return (\n    <div className='p-4 border rounded-lg'>\n      <h2 className='text-lg font-bold'>{user.name}</h2>\n      <p>{user.email}</p>\n    </div>\n  );\n}\n```\nThis is a mock React component."
+                        };
+                        break;
+                    case 'abacuss':
+                        apiKey = dom.abacussApiKey.value.trim();
+                        endpoint = dom.abacussEndpoint.value.trim();
+                        promptInput = dom.abacussPrompt.value.trim();
+                        responseOutput = dom.abacussResponseOutput;
+                        loader = dom.sendAbacussRequestBtn.querySelector('.loader');
+                        headers['X-API-Key'] = apiKey; // Example custom header for Abacuss.ai
+                        mockResponseContent = {
+                            "id": "pred-sim-abacuss",
+                            "prediction": {
+                                "sentiment": "positive",
+                                "score": 0.95,
+                                "analysis_summary": "Simulated Abacuss.ai response: The sentiment is highly positive, indicating strong approval for the product."
+                            }
+                        };
+                        break;
+                    case 'gemini':
+                        // IMPORTANT: API Key is provided by the Canvas environment. Leave it empty.
+                        apiKey = ""; 
+                        endpoint = dom.geminiEndpoint.value.trim();
+                        promptInput = dom.geminiPrompt.value.trim();
+                        responseOutput = dom.geminiResponseOutput;
+                        loader = dom.sendGeminiRequestBtn.querySelector('.loader');
+                        // No custom headers needed for Gemini in this setup as it's handled by Canvas
+                        mockResponseContent = {
+                            "candidates": [{
+                                "content": {
+                                    "parts": [{"text": "Simulated Gemini response: A2A communication refers to the interaction and coordination between different AI agents or models, often in a multi-step workflow, to achieve a common objective."}],
+                                    "role": "model"
+                                }
+                            }],
+                            "promptFeedback": { "safetyRatings": [] }
+                        };
+                        break;
+                    default:
+                        showMessageModal("API Error", "Unknown API selected.", true);
+                        return;
+                }
+
+                // Validate inputs
+                if (!apiKey && apiName !== 'gemini') { // Gemini key is handled differently
+                    showMessageModal("API Key Required", `Please enter the API Key for ${apiName}.`, true);
+                    return;
+                }
+                if (!endpoint) {
+                    showMessageModal("Endpoint Required", "Please enter the API Endpoint URL.", true);
+                    return;
+                }
+                if (!promptInput) {
+                    showMessageModal("Prompt Required", "Please enter a prompt or request body.", true);
+                    return;
+                }
+
+                let parsedPrompt;
+                try {
+                    parsedPrompt = JSON.parse(promptInput); // Attempt to parse the prompt as JSON
+                } catch (e) {
+                    showMessageModal("Invalid JSON", "Request Body must be valid JSON.", true);
+                    return;
+                }
+
+                // Show loader and update output display
+                loader.classList.remove('hidden');
+                responseOutput.textContent = "Sending request...";
+                responseOutput.style.color = '#a1a1aa'; /* slate-400 */
+
+                try {
+                    // Simulate network delay
+                    await new Promise(r => setTimeout(r, 2500));
+
+                    // Simulate API response based on the mock content
+                    let responseText;
+                    if (apiName === 'gemini') {
+                        responseText = mockResponseContent.candidates[0].content.parts[0].text;
+                    } else if (apiName === 'v0dev') {
+                        responseText = mockResponseContent.generated_code;
+                    } else if (apiName === 'abacuss') {
+                        responseText = JSON.stringify(mockResponseContent.prediction, null, 2);
+                    } else {
+                        responseText = JSON.stringify(mockResponseContent, null, 2);
+                    }
+                    
+                    responseOutput.textContent = `Simulated API Response from ${apiName}:\n\n${responseText}`;
+                    responseOutput.style.color = '#e2e8f0'; /* slate-200 */
+                    showMessageModal("API Request Simulated", `Successfully simulated API call to ${apiName}. Check response output. \n\nReminder: This is a simulation. Real API calls require proper backend handling.`);
+
+                } catch (error) {
+                    responseOutput.textContent = `Error: ${error.message}`;
+                    responseOutput.style.color = '#ef4444'; /* red-500 */
+                    showMessageModal("API Simulation Failed", `Failed to simulate API call to ${apiName}. Details: ${error.message}`, true);
+                } finally {
+                    loader.classList.add('hidden'); // Hide loader
+                }
+            }
+
+
+            /**
+             * Sets up the Xterm.js terminal for the CLI tab.
+             */
+            function setupTerminal() {
+                fitAddon = new FitAddon.FitAddon(); // Addon to fit terminal to container
+                term = new Terminal({
+                    cursorBlink: true, 
+                    convertEol: true, 
+                    fontFamily: `'Roboto Mono', monospace`, // Monospace font for terminal
+                    theme: { 
+                        background: '#000000', 
+                        foreground: '#00FF00', // Green text
+                        cursor: 'rgba(0, 255, 0, 0.5)' // Green cursor
+                    }
+                });
+                term.loadAddon(fitAddon);
+                term.open(document.getElementById('terminal-container'));
+                fitAddon.fit(); // Initial fit
+
+                // Resize terminal on window resize
+                window.addEventListener('resize', () => {
+                    fitAddon.fit();
+                });
+                
+                // Define the terminal prompt
+                term.prompt = () => { term.write(`\r\n\x1b[36mCUAG:${currentDirectory}> \x1b[0m`); }; // Cyan prompt
+                term.writeln('Welcome to the CUAG Agent CLI. Type \x1b[32mhelp\x1b[0m for a list of commands.'); // Green welcome message
+                term.prompt();
+
+                // Handle key presses in the terminal
+                term.onKey(({ key, domEvent }) => {
+                    const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+                    if (domEvent.keyCode === 13) { // Enter key
+                        if (currentCommand.trim().length > 0) {
+                            term.writeln(''); // New line before command output
+                            commandHistory.push(currentCommand); // Add command to history
+                            commandIndex = commandHistory.length; // Reset history index
+                            handleCliCommand(currentCommand); // Process the command
+                            currentCommand = ''; // Clear current command buffer
+                        } else {
+                           term.prompt(); // Just show prompt if empty command
+                        }
+                    } else if (domEvent.keyCode === 8) { // Backspace
+                        // Only allow backspace if cursor is not at the beginning of the prompt input area
+                        if (term.buffer.active.cursorX > (currentDirectory.length + 9)) { // CUAG:/path/> length is currentDirectory.length + 9
+                            currentCommand = currentCommand.slice(0, -1); // Remove last character from command buffer
+                            term.write('\b \b'); // Erase character from terminal
+                        }
+                    } else if (domEvent.keyCode === 38) { // ArrowUp (navigate command history)
+                        if (commandIndex > 0) {
+                            commandIndex--;
+                            currentCommand = commandHistory[commandIndex];
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.write(`\x1b[36mCUAG:${currentDirectory}> \x1b[0m${currentCommand}`); // Write prompt and retrieved command
+                        }
+                    } else if (domEvent.keyCode === 40) { // ArrowDown (navigate command history)
+                        if (commandIndex < commandHistory.length - 1) {
+                            commandIndex++;
+                            currentCommand = commandHistory[commandIndex];
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.write(`\x1b[36mCUAG:${currentDirectory}> \x1b[0m${currentCommand}`); // Write prompt and retrieved command
+                        } else if (commandIndex === commandHistory.length - 1) {
+                            commandIndex = commandHistory.length;
+                            currentCommand = '';
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.write(`\x1b[36mCUAG:${currentDirectory}> \x1b[0m`); // Write empty prompt
+                        }
+                    }
+                    else if (printable) { // Any other printable character
+                        currentCommand += key; // Add character to command buffer
+                        term.write(key); // Write character to terminal
+                    }
+                });
+            }
+
+            /**
+             * Handles and executes CLI commands entered in the terminal.
+             * @param {string} command - The full command string entered by the user.
+             */
+            async function handleCliCommand(command) {
+                const [cmd, ...args] = command.trim().split(/\s+/); // Split command into main command and arguments
+                
+                switch(cmd.toLowerCase()) {
+                    case 'help':
+                        term.writeln('\x1b[33mCUA Ecosystem Primer - A3 Philosophy & Command Cheatsheet\x1b[0m');
+                        term.writeln('-----------------------------------------------------------');
+                        term.writeln('\x1b[32mThe A3 (Adjectic, Ajentic, Agentic) Philosophy:\x1b[0m');
+                        term.writeln(' \x1b[37m- \x1b[36mAGENTIC:\x1b[0m  The inherent capability of an AI Family member (e.g., LYRA, the Architect).');
+                        term.writeln(' \x1b[37m- \x1b[36mAJENTIC:\x1b[0m  The emergent capability when two or more agents collaborate (A2A).');
+                        term.writeln(' \x1b[37m- \x1b[36mADJECTIC:\x1b[0m The supervised outcome, moderated by GUA-D-CUAG, which defines the final nuance.');
+                        term.writeln('');
+                        term.writeln('\x1b[33mAvailable Commands:\x1b[0m');
+                        term.writeln('  \x1b[32mtask <agent> "<prompt>"\x1b[0m      - Assign a direct task to a single agent.');
+                        term.writeln('  \x1b[32mconnect <agentA> <agentB> "<prompt>"\x1b[0m - Simulate P2P (A2A) agent collaboration.');
+                        term.writeln('  \x1b[32mprocure <agent> "<query>"\x1b[0m    - Simulate an agent procuring external data (CUAG).');
+                        term.writeln('  \x1b[32mstatus\x1b[0m                     - View active Custom Instruction nuances.');
+                        term.writeln('  \x1b[32mclear\x1b[0m                      - Clear the terminal screen.');
+                        term.writeln('  \x1b[32mls [path]\x1b[0m                  - List directory contents (simulated).');
+                        term.writeln('  \x1b[32mcat <file>\x1b[0m                 - Display file content (simulated).');
+                        term.writeln('  \x1b[32mcd <directory>\x1b[0m             - Change directory (simulated).');
+                        term.writeln('  \x1b[32mtouch <file>\x1b[0m               - Create an empty file (simulated).');
+                        term.writeln('  \x1b[32mmkdir <directory>\x1b[0m          - Create a new directory (simulated).');
+                        term.writeln('  \x1b[32mrm <file_or_empty_dir>\x1b[0m     - Remove a file or empty directory (simulated).');
+                        term.writeln('  \x1b[32mgdrive <command> [args]\x1b[0m    - Simulate Google Drive operations (conceptual).');
+                        term.writeln('    \x1b[32mconnect <folder_id>\x1b[0m    - Connect to a simulated Drive folder.');
+                        term.writeln('    \x1b[32mls\x1b[0m                     - List contents of connected Drive folder.');
+                        term.writeln('    \x1b[32mcat <file>\x1b[0m             - Display content of a Drive file.');
+                        term.writeln('    \x1b[32mupload <local_file_path>\x1b[0m - Upload local file to Drive.');
+                        term.writeln('    \x1b[32mdownload <remote_file_name> <local_path>\x1b[0m - Download Drive file to local FS.');
+                        term.writeln('  \x1b[32mcontext\x1b[0m                  - Display current custom instruction context.');
+                        break;
+                    case 'task':
+                        const taskAgent = args[0];
+                        // Extract prompt within quotes, handling spaces
+                        const taskPrompt = command.match(/"(.*?)"/)?.[1]; 
+                        if (!taskAgent || !taskPrompt) {
+                            term.writeln('\x1b[31mERROR: Invalid format. Use: task <agent> "<prompt>"\x1b[0m');
+                        } else {
+                            await executeCliTask(taskAgent, taskPrompt);
+                        }
+                        break;
+                    case 'connect':
+                        const agentA = args[0];
+                        const agentB = args[1];
+                        const connectPrompt = command.match(/"(.*?)"/)?.[1];
+                           if (!agentA || !agentB || !connectPrompt) {
+                            term.writeln('\x1b[31mERROR: Invalid format. Use: connect <agentA> <agentB> "<prompt>"\x1b[0m');
+                        } else {
+                            await executeP2PTask(agentA, agentB, connectPrompt);
+                        }
+                        break;
+                    case 'procure':
+                        const procureAgentName = args[0];
+                        const query = command.match(/"(.*?)"/)?.[1]; 
+                        if (!procureAgentName || !query) {
+                            term.writeln('\x1b[31mERROR: Invalid format. Use: procure <agent> "<query>"\x1b[0m');
+                        } else {
+                            await executeCuagTask(procureAgentName, query);
+                        }
+                        break;
+                    case 'status':
+                        term.writeln('\x1b[33mActive Custom Instruction Nuances:\x1b[0m');
+                        term.writeln(`  \x1b[32mSYSTEM:\x1b[0m ${liveCustomInstructions.system || 'Default'}`);
+                        term.writeln(`  \x1b[32mAI:\x1b[0m    ${liveCustomInstructions.ai || 'Default'}`);
+                        term.writeln(`  \x1b[32mUSER:\x1b[0m  ${liveCustomInstructions.user || 'Default'}`);
+                        break;
+                    case 'clear':
+                        term.clear();
+                        break;
+                    // Simulated File System Commands
+                    case 'ls':
+                        await _ls(args[0]);
+                        break;
+                    case 'cat':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: cat: missing operand\x1b[0m');
+                        } else {
+                            await _cat(args[0]);
+                        }
+                        break;
+                    case 'cd':
+                        if (args.length === 0) {
+                            await _cd('/home/user'); // 'cd' to home directory
+                        } else {
+                            await _cd(args[0]);
+                        }
+                        break;
+                    case 'touch':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: touch: missing file operand\x1b[0m');
+                        } else {
+                            await _touch(args[0]);
+                        }
+                        break;
+                    case 'mkdir':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: mkdir: missing directory operand\x1b[0m');
+                        } else {
+                            await _mkdir(args[0]);
+                        }
+                        break;
+                    case 'rm':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: rm: missing operand\x1b[0m');
+                        } else {
+                            await _rm(args[0]);
+                        }
+                        break;
+                    case 'gdrive':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: gdrive: missing subcommand. Use: gdrive <connect|ls|cat|upload|download>\x1b[0m');
+                        } else {
+                            const driveCommand = args[0].toLowerCase();
+                            const driveArgs = args.slice(1);
+                            switch(driveCommand) {
+                                case 'connect':
+                                    if (driveArgs.length === 0) term.writeln('\x1b[31mError: gdrive connect: missing folder ID.\x1b[0m');
+                                    else await _gdrive_connect(driveArgs[0]);
+                                    break;
+                                case 'ls':
+                                    await _gdrive_ls();
+                                    break;
+                                case 'cat':
+                                    if (driveArgs.length === 0) term.writeln('\x1b[31mError: gdrive cat: missing file name.\x1b[0m');
+                                    else await _gdrive_cat(driveArgs[0]);
+                                    break;
+                                case 'upload':
+                                    if (driveArgs.length === 0) term.writeln('\x1b[31mError: gdrive upload: missing local file path.\x1b[0m');
+                                    else await _gdrive_upload(driveArgs[0]);
+                                    break;
+                                case 'download':
+                                    if (driveArgs.length < 2) term.writeln('\x1b[31mError: gdrive download: missing remote file name or local path.\x1b[0m');
+                                    else await _gdrive_download(driveArgs[0], driveArgs[1]);
+                                    break;
+                                default:
+                                    term.writeln(`\x1b[31mError: gdrive: unknown subcommand '${driveCommand}'.\x1b[0m`);
+                            }
+                        }
+                        break;
+                    case 'context': // New command to display custom instructions
+                        term.writeln('\x1b[33m--- Current Custom Instructions ---\x1b[0m');
+                        term.writeln(`\x1b[32mSYSTEM:\x1b[0m ${liveCustomInstructions.system || 'None set.'}`);
+                        term.writeln(`\x1b[32mAI:\x1b[0m    ${liveCustomInstructions.ai || 'None set.'}`);
+                        term.writeln(`\x1b[32mUSER:\x1b[0m  ${liveCustomInstructions.user || 'None set.'}`);
+                        term.writeln('\x1b[33m-----------------------------------\x1b[0m');
+                        break;
+                    default:
+                        term.writeln(`\x1b[31mCommand not found: ${cmd}\x1b[0m`);
+                }
+                term.prompt(); // Display the prompt again after command execution
+            }
+
+            /**
+             * Simulates a task assigned to a single AI agent via CLI.
+             * @param {string} agentName - The name of the agent.
+             * @param {string} prompt - The task prompt.
+             */
+            async function executeCliTask(agentName, prompt) {
+                const agent = codexData.ai_family.find(a => a.name.toLowerCase() === agentName.toLowerCase());
+                if (!agent) {
+                    term.writeln(`\x1b[31mERROR: Agent '${agentName}' not found.\x1b[0m`);
+                    return;
+                }
+                term.writeln(`\x1b[33mSTATUS:\x1b[0m EXECUTING`);
+                term.writeln(`\x1b[33mAGENT:\x1b[0m  ${agent.name}`);
+                term.writeln(`\x1b[33mINPUT:\x1b[0m  "${prompt}"`);
+                await new Promise(r => setTimeout(r, 1000)); // Simulate processing time
+                term.writeln(`\x1b[33mOUTPUT:\x1b[0m`);
+                const mockOutput = `{\n  "status": "SUCCESS",\n  "agent": "${agent.name}",\n  "response": "Task completed based on philosophy: '${agent.philosophy}'"\n}`;
+                term.writeln(`\x1b[37m${mockOutput}\x1b[0m`);
+            }
+            
+            /**
+             * Simulates a Peer-to-Peer (A2A) task between two AI agents via CLI.
+             * @param {string} agentA_name - The name of the initiating agent.
+             * @param {string} agentB_name - The name of the responding agent.
+             * @param {string} prompt - The prompt for the interaction.
+             */
+            async function executeP2PTask(agentA_name, agentB_name, prompt) {
+                const agentA = codexData.ai_family.find(a => a.name.toLowerCase() === agentA_name.toLowerCase());
+                const agentB = codexData.ai_family.find(a => a.name.toLowerCase() === agentB_name.toLowerCase());
+                if (!agentA || !agentB) {
+                    term.writeln(`\x1b[31mERROR: One or more agents not found.\x1b[0m`);
+                    return;
+                }
+                term.writeln(`\x1b[33mSTATUS:\x1b[0m EXECUTING P2P`);
+                term.writeln(`\x1b[33mCHAIN:\x1b[0m    ${agentA.name} -> ${agentB.name}`);
+                term.writeln(`\x1b[33mTASK:\x1b[0m    ${agentA.name} to ask ${agentB.name}: "${prompt}"`);
+                await new Promise(r => setTimeout(r, 1500)); // Simulate processing time
+                term.writeln(`\x1b[33mOUTPUT:\x1b[0m`);
+                const mockP2POutput = `{\n  "status": "SUCCESS",\n  "requesting_agent": "${agentA.name}",\n  "responding_agent": "${agentB.name}",\n  "response": "Review complete. ${agentB.name} confirms the plan aligns with the philosophy: '${agentB.philosophy}'"\n}`;
+                term.writeln(`\x1b[37m${mockP2POutput}\x1b[0m`);
+            }
+            
+            /**
+             * Simulates a CUAG (Centralized User-Agent Gateway) task, where an agent procures external data.
+             * @param {string} agentName - The name of the agent performing the procurement.
+             * @param {string} query - The query for data procurement.
+             */
+            async function executeCuagTask(agentName, query) {
+                const agent = codexData.ai_family.find(a => a.name.toLowerCase() === agentName.toLowerCase());
+                if (!agent) {
+                    term.writeln(`\x1b[31mERROR: Agent '${agentName}' not found.\x1b[0m`);
+                    return;
+                }
+                term.writeln(`\x1b[33mSTATUS:\x1b[0m EXECUTING CUAG`);
+                term.writeln(`\x1b[33mAGENT:\x1b[0m  ${agent.name}`);
+                term.writeln(`\x1b[33mQUERY:\x1b[0m    Procuring references for "${query}" from Google Ad Network.`);
+                await new Promise(r => setTimeout(r, 2000)); // Simulate processing time
+                term.writeln(`\x1b[33mOUTPUT:\x1b[0m`);
+                const mockOutput = `{\n  "status": "SUCCESS",\n  "agent": "${agent.name}",\n  "procured_references": [\n    "ad_campaign_id_789",\n    "keyword_performance_report_xyz",\n    "audience_segment_c12"\n  ]\n}`;
+                term.writeln(`\x1b[37m${mockOutput}\x1b[0m`);
+            }
+            
+            return { start: init }; // Expose the init function to start the application
+        })();
+
+        // Start the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', CUA_App.start);
+    </script>
+</body>
+</html>
+
+
+Put each nuance chat output in codeblock with copy - forward - thumbs up or down button. The codeblock is also collapsible.

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Family: An Intelligent Orchestration Ecosystem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-blue: #00BFFF;
+            --neon-pink: #FF00FF;
+            --neon-green: #39FF14;
+            --neon-purple: #9D00FF;
+            --dark-bg: #101010;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: #E6F1FF;
+        }
+        .card {
+            background-color: rgba(23, 42, 69, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue), inset 0 0 5px rgba(0, 191, 255, 0.5);
+        }
+        .text-accent {
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
+        }
+        .bg-accent {
+            background-color: var(--neon-pink);
+            box-shadow: 0 0 8px var(--neon-pink);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fff;
+            box-shadow: 0 0 3px #fff, 0 0 5px #fff;
+            border-radius: 5px;
+        }
+        .glowing-orb {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            background-color: var(--neon-purple);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-purple), 0 0 20px var(--neon-purple), 0 0 30px var(--neon-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        .glowing-orb:hover {
+            transform: scale(1.1);
+        }
+        .orb-submenu {
+            position: fixed;
+            bottom: 6.5rem;
+            right: 2rem;
+            background-color: rgba(23, 42, 69, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--neon-pink);
+            border-radius: 8px;
+            padding: 0.5rem;
+            z-index: 49;
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+        .orb-submenu a {
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-align: center;
+            transition: background-color 0.2s ease;
+        }
+        .orb-submenu a:hover {
+            background-color: var(--neon-pink);
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center my-12" id="header">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-white" style="text-shadow: 0 0 10px var(--neon-blue);">The AI Family</h1>
+            <p class="mt-4 text-xl md:text-2xl text-accent">An Intelligent Orchestration Ecosystem</p>
+        </header>
+
+        <main class="space-y-16">
+
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center text-center" id="overview">
+                <div class="card p-8 rounded-lg">
+                    <p class="text-7xl font-extrabold text-accent">15</p>
+                    <p class="mt-2 text-xl font-bold">Applications</p>
+                </div>
+                <div class="md:col-span-2 text-left">
+                    <h2 class="text-3xl font-bold text-white mb-4">One Unified Brain</h2>
+                    <p class="text-lg text-gray-300">
+                        The AI Family ecosystem is a sophisticated service layer designed to orchestrate 15 distinct applications. Leveraging both Gemini and OpenAI, it provides adaptive, AI-driven automation to support the Operator, streamlining the entire software development and deployment lifecycle.
+                    </p>
+                </div>
+            </section>
+
+            <section id="roles">
+                <h2 class="text-3xl font-bold text-center mb-10">Meet the AI Family: Roles & Responsibilities</h2>
+                <div class="flex flex-col items-center">
+                    <div class="card p-6 rounded-lg shadow-lg text-center mb-6">
+                        <h3 class="text-2xl font-bold text-accent">LYRA</h3>
+                        <p class="font-semibold text-gray-300">Master Orchestrator</p>
+                        <p class="mt-2 text-sm">Supervises task flows and coordinates multi-agent operations.</p>
+                    </div>
+                    <div class="w-1 h-8 bg-accent mx-auto"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+                        <div class="card p-4 rounded-lg text-center">
+                            <h4 class="text-xl font-bold text-white">KARA</h4>
+                            <p class="font-semibold text-gray-400 text-sm">Security & Compliance</p>
+                        </div>
+                        <div class="card p-4 rounded-lg text-center">
+                            <h4 class="text-xl font-bold text-white">SOPHIA</h4>
+                            <p class="font-semibold text-gray-400 text-sm">Semantic Intelligence</p>
+                        </div>
+                        <div class="card p-4 rounded-lg text-center">
+                            <h4 class="text-xl font-bold text-white">CECILIA</h4>
+                            <p class="font-semibold text-gray-400 text-sm">Assistive Technology Lead</p>
+                        </div>
+                        <div class="card p-4 rounded-lg text-center">
+                            <h4 class="text-xl font-bold text-white">GUAC</h4>
+                            <p class="font-semibold text-gray-400 text-sm">Communication Moderator</p>
+                        </div>
+                        <div class="card p-4 rounded-lg text-center md:col-span-2 lg:col-span-4">
+                            <h4 class="text-xl font-bold text-white">ANDIE / DAN / STAN / DUDE</h4>
+                            <p class="font-semibold text-gray-400 text-sm">Specialized Execution Agents</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center" id="charts">
+                <div class="card p-8 rounded-lg">
+                    <h3 class="text-2xl font-bold text-center mb-6">Agent Task Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="agentTaskChart"></canvas>
+                    </div>
+                    <p class="text-center mt-4 text-gray-400">This chart illustrates the typical distribution of tasks handled by the specialized agents within the AI Family, highlighting the focus on automation and intelligence.</p>
+                </div>
+                <div class="card p-8 rounded-lg">
+                    <h3 class="text-2xl font-bold text-center mb-6">Average Workflow Stage Duration</h3>
+                    <div class="chart-container">
+                        <canvas id="workflowDurationChart"></canvas>
+                    </div>
+                    <p class="text-center mt-4 text-gray-400">This chart shows a comparative breakdown of the time spent in each stage of a typical CI/CD workflow, managed end-to-end by the orchestration engine.</p>
+                </div>
+            </section>
+
+            <section id="workflow">
+                <h2 class="text-3xl font-bold text-center mb-10">Anatomy of a Workflow: CI/CD Automation</h2>
+                <div class="max-w-2xl mx-auto">
+                    <div class="relative pl-8">
+                        <div class="absolute left-0 top-0 h-full w-1 bg-neon-purple" style="box-shadow: 0 0 5px var(--neon-purple);"></div>
+                        <div class="relative mb-8">
+                            <div class="absolute -left-[38px] top-1/2 -translate-y-1/2 w-8 h-8 bg-accent rounded-full flex items-center justify-center font-bold text-black">1</div>
+                            <div class="card p-6 rounded-lg">
+                                <h4 class="text-xl font-bold text-accent">Build Stage</h4>
+                                <p class="text-sm font-semibold text-gray-400 mb-2">Agent: ANDIE</p>
+                                <p>Clones the repository from the specified branch and builds a new container image.</p>
+                            </div>
+                        </div>
+                        <div class="relative mb-8">
+                            <div class="absolute -left-[38px] top-1/2 -translate-y-1/2 w-8 h-8 bg-accent rounded-full flex items-center justify-center font-bold text-black">2</div>
+                            <div class="card p-6 rounded-lg">
+                                <h4 class="text-xl font-bold text-accent">Test Stage</h4>
+                                <p class="text-sm font-semibold text-gray-400 mb-2">Agent: DAN</p>
+                                <p>Executes automated unit and integration tests against the newly built container.</p>
+                            </div>
+                        </div>
+                        <div class="relative mb-8">
+                            <div class="absolute -left-[38px] top-1/2 -translate-y-1/2 w-8 h-8 bg-accent rounded-full flex items-center justify-center font-bold text-black">3</div>
+                            <div class="card p-6 rounded-lg">
+                                <h4 class="text-xl font-bold text-accent">Deploy Stage</h4>
+                                <p class="text-sm font-semibold text-gray-400 mb-2">Agent: STAN</p>
+                                <p>Deploys the validated container image to the staging environment for review.</p>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute -left-[38px] top-1/2 -translate-y-1/2 w-8 h-8 bg-accent rounded-full flex items-center justify-center font-bold text-black">4</div>
+                            <div class="card p-6 rounded-lg">
+                                <h4 class="text-xl font-bold text-accent">Notify Stage</h4>
+                                <p class="text-sm font-semibold text-gray-400 mb-2">Agent: GUAC</p>
+                                <p>Sends a completion notification to the Operator, confirming successful deployment.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tech">
+                <h2 class="text-3xl font-bold text-center mb-10">Technology Backbone & API Standards</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="card p-8 rounded-lg">
+                        <h3 class="text-2xl font-bold mb-6">Core Technologies</h3>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="p-4 bg-slate-800 rounded-md">Redis</div>
+                            <div class="p-4 bg-slate-800 rounded-md">Elasticsearch</div>
+                            <div class="p-4 bg-slate-800 rounded-md">Docker</div>
+                            <div class="p-4 bg-slate-800 rounded-md">Kubernetes</div>
+                            <div class="p-4 bg-slate-800 rounded-md">GitHub</div>
+                            <div class="p-4 bg-slate-800 rounded-md">JWT</div>
+                        </div>
+                    </div>
+                    <div class="card p-8 rounded-lg">
+                        <h3 class="text-2xl font-bold mb-6">Standardized API Endpoints</h3>
+                        <ul class="space-y-4 font-mono text-sm">
+                            <li class="p-3 bg-slate-800 rounded-md"><span class="font-bold text-green-400">POST</span> /api/v1/tasks</li>
+                            <li class="p-3 bg-slate-800 rounded-md"><span class="font-bold text-blue-400">GET</span> /api/v1/tasks/{id}</li>
+                            <li class="p-3 bg-slate-800 rounded-md"><span class="font-bold text-yellow-400">POST</span> /api/v1/events</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="next-phase">
+                <h2 class="text-3xl font-bold text-center mb-10">Next Phase: Dual-LLM Adaptation</h2>
+                <div class="card p-8 rounded-lg">
+                    <p class="text-center text-lg mb-8 text-gray-300">To future-proof the ecosystem, the next phase focuses on deeper LLM integration, enhanced operator control, and expanded service capabilities.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center">
+                        <div class="p-6 bg-slate-800 rounded-lg">
+                            <h4 class="text-xl font-bold text-accent mb-2">Enhanced Gemini CLI</h4>
+                            <p class="font-mono text-sm text-left bg-slate-900 p-2 rounded">gcloud ai-family orchestrate start</p>
+                            <p class="font-mono text-sm text-left bg-slate-900 p-2 rounded mt-2">gcloud ai-family cicd deploy</p>
+                        </div>
+                        <div class="p-6 bg-slate-800 rounded-lg">
+                            <h4 class="text-xl font-bold text-accent mb-2">Operator Control Center</h4>
+                            <p>A real-time dashboard for monitoring workflows, manual overrides, and viewing aggregated feedback from all applications.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        <footer class="text-center mt-16 py-6 border-t border-blue-900" id="footer">
+            <p class="text-gray-500">AI Family Orchestration Plan | Version 1.0 | July 28, 2025</p>
+        </footer>
+    </div>
+    
+    <div class="orb-submenu" id="orbSubmenu">
+        <a href="#overview">Overview</a>
+        <a href="#roles">AI Roles</a>
+        <a href="#charts">Charts</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#tech">Tech</a>
+        <a href="#next-phase">Next Phase</a>
+    </div>
+    <div class="glowing-orb" id="glowingOrb">
+        <span class="text-2xl">▲</span>
+    </div>
+
+    <script>
+        function wrapLabel(label, maxWidth) {
+            const words = label.split(' ');
+            let lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                if ((currentLine + ' ' + words[i]).length > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine += ' ' + words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+        
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+                return label.join(' ');
+            }
+            return label;
+        };
+
+        const neonColors = ['#FF00FF', '#00BFFF', '#39FF14', '#9D00FF'];
+
+        const agentTaskCtx = document.getElementById('agentTaskChart').getContext('2d');
+        new Chart(agentTaskCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Code, Build & CI/CD', 'Monitoring & Security', 'Complex Reasoning', 'Communications'],
+                datasets: [{
+                    label: 'Task Distribution',
+                    data: [40, 25, 20, 15],
+                    backgroundColor: neonColors,
+                    borderColor: '#101010',
+                    borderWidth: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#E6F1FF',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                           title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+
+        const workflowDurationCtx = document.getElementById('workflowDurationChart').getContext('2d');
+        new Chart(workflowDurationCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Build Stage', 'Test Stage', 'Deploy Stage', 'Notify Stage'],
+                datasets: [{
+                    label: 'Avg. Duration (minutes)',
+                    data: [12, 8, 5, 1],
+                    backgroundColor: neonColors[1],
+                    borderColor: neonColors[2],
+                    borderWidth: 2,
+                    barThickness: 25,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: '#E6F1FF' },
+                        grid: { color: 'rgba(0, 191, 255, 0.2)' }
+                    },
+                    y: {
+                        ticks: { color: '#E6F1FF' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                           title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+
+        const glowingOrb = document.getElementById('glowingOrb');
+        const orbSubmenu = document.getElementById('orbSubmenu');
+        glowingOrb.addEventListener('click', () => {
+            const isDisplayed = orbSubmenu.style.display === 'flex';
+            orbSubmenu.style.display = isDisplayed ? 'none' : 'flex';
+        });
+        
+        document.querySelectorAll('.orb-submenu a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                orbSubmenu.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

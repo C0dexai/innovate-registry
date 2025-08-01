@@ -1,0 +1,1291 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+// IndexedDB Utility Functions
+const DB_NAME = 'UEFConsoleDB';
+const DB_VERSION = 1;
+const CLASSIFICATION_STORE = 'classificationRules';
+const PICTOGRAPHY_STORE = 'pictographyData'; // Stores all images/motion scenarios and their classifications
+
+const openDb = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(CLASSIFICATION_STORE)) {
+        db.createObjectStore(CLASSIFICATION_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(PICTOGRAPHY_STORE)) {
+        db.createObjectStore(PICTOGRAPHY_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      console.error("IndexedDB error:", event.target.error);
+      reject(event.target.error);
+    };
+  });
+};
+
+const addData = async (storeName, data) => {
+  const db = await openDb();
+  const transaction = db.transaction([storeName], 'readwrite');
+  const store = transaction.objectStore(storeName);
+  return new Promise((resolve, reject) => {
+    const request = store.add(data);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const getAllData = async (storeName) => {
+  const db = await openDb();
+  const transaction = db.transaction([storeName], 'readonly');
+  const store = transaction.objectStore(storeName);
+  return new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const updateData = async (storeName, data) => {
+  const db = await openDb();
+  const transaction = db.transaction([storeName], 'readwrite');
+  const store = transaction.objectStore(storeName);
+  return new Promise((resolve, reject) => {
+    const request = store.put(data);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+
+// Main App component for the Advanced AI Console
+const App = () => {
+  // State for the right panel's visibility and width
+  const [isPanelOpen, setIsPanelOpen] = useState(false); // Start closed by default for overlay effect
+  const panelWidth = 400; // Fixed width as requested
+
+  // State for active tab in the right panel
+  const [activeTab, setActiveTab] = useState('inference'); // 'inference', 'instructions', 'chat', 'motion'
+
+  // States for API Keys
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+
+  // States for Custom Instructions
+  const [systemInstructions, setSystemInstructions] = useState('');
+  const [aiInstructions, setAiInstructions] = useState('');
+  const [userInstructions, setUserInstructions] = useState('');
+  const [roeGuidelines, setRoeGuidelines] = useState(''); // New state for ROE Guidelines
+
+  // New states for Custom Instructions hints
+  const [systemInstructionsHint, setSystemInstructionsHint] = useState('');
+  const [aiInstructionsHint, setAiInstructionsHint] = useState('');
+  const [userInstructionsHint, setUserInstructionsHint] = useState('');
+
+
+  // State for Chat
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatMessagesEndRef = useRef(null); // Ref for auto-scrolling chat
+  const [chatHint, setChatHint] = useState(''); // New state for chat input hint
+
+  // State for Card Modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalContent, setModalContent] = useState('');
+  const [modalCommentary, setModalCommentary] = useState('');
+  const [modalImageUrl, setModalImageUrl] = useState(''); // New state for image URL in modal
+  const [modalImageDescription, setModalImageDescription] = useState(''); // New state for image description in modal
+  const [modalTitleHint, setModalTitleHint] = useState(''); // New state for modal title hint
+  const [modalContentHint, setModalContentHint] = useState(''); // New state for modal content hint
+  const [modalCommentaryHint, setModalCommentaryHint] = useState(''); // New state for modal commentary hint
+  const [roeGuidelinesHint, setRoeGuidelinesHint] = useState(''); // New state for ROE hint
+  const [generatedImages, setGeneratedImages] = useState([]); // State for AI-generated images
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false); // Loading state for image generation
+  const [imageGenerationError, setImageGenerationError] = useState(''); // Error state for image generation
+  const [classificationHints, setClassificationHints] = useState({}); // State for classification hints for generated images
+
+  // New states for Motion Pictography
+  const [modalMotionUrl, setModalMotionUrl] = useState('');
+  const [modalMotionAnalysis, setModalMotionAnalysis] = useState('');
+  const [isGeneratingMotion, setIsGeneratingMotion] = useState(false);
+  const [motionGenerationError, setMotionGenerationError] = useState('');
+  const [motionAnalysisHint, setMotionAnalysisHint] = useState('');
+  const [motionClassificationHint, setMotionClassificationHint] = useState('');
+
+  // State for Nuance Collective on main page
+  const [nuanceCollective, setNuanceCollective] = useState({ title: 'No Motion Analysis Yet', summary: 'Generate motion analysis in a card modal to see a summary here.' });
+
+
+  // Function to toggle panel open/close
+  const togglePanel = () => {
+    setIsPanelOpen(!isPanelOpen);
+  };
+
+  // Scroll to the latest message in chat
+  const scrollToBottom = () => {
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
+
+  // --- API Interaction (Simulated) ---
+  const handleChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage = { role: 'user', text: chatInput };
+    setChatMessages((prevMessages) => [...prevMessages, userMessage]);
+    setChatInput('');
+    setChatHint(''); // Clear hint after sending message
+
+    // Simulate AI response
+    const aiResponsePlaceholder = { role: 'ai', text: 'Thinking...' };
+    setChatMessages((prevMessages) => [...prevMessages, aiResponsePlaceholder]);
+
+    try {
+      // Simulate API call to Gemini (as per instructions)
+      let chatHistory = [];
+      chatHistory.push({ role: "user", parts: [{ text: chatInput }] });
+      const payload = { contents: chatHistory };
+      const apiKey = geminiApiKey || ""; // Use provided key or empty string for Canvas runtime
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      let aiGeneratedText = "Error: Could not get response.";
+      if (result.candidates && result.candidates.length > 0 &&
+          result.candidates[0].content && result.candidates[0].content.parts &&
+          result.candidates[0].content.parts.length > 0) {
+        aiGeneratedText = result.candidates[0].content.parts[0].text;
+      }
+
+      setChatMessages((prevMessages) => {
+        // Replace the 'Thinking...' placeholder with the actual response
+        const newMessages = [...prevMessages];
+        newMessages[newMessages.length - 1] = { role: 'ai', text: aiGeneratedText };
+        return newMessages;
+      });
+
+    } catch (error) {
+      console.error("Error calling Gemini API:", error);
+      setChatMessages((prevMessages) => {
+        const newMessages = [...prevMessages];
+        newMessages[newMessages.length - 1] = { role: 'ai', text: `Error: Failed to get response. ${error.message}` };
+        return newMessages;
+      });
+    }
+  };
+
+  // Function to generate AI hints for various inputs
+  const generateHint = async (field, currentText = '', imageToAnalyze = null, generatedImageIndex = null) => {
+    let prompt = '';
+    let hintSetter;
+    let contents = [];
+
+    // Base context for UEF Pilots and Flight Engineering
+    const uefContext = `United Earth Federation cadet pilot studies, flight engineering, and fighter pilot Rules of Engagement (ROE).`;
+    const initialCardTitles = initialCards.map(card => card.title).join(', ');
+    const initialImageDescriptions = initialCards.map(card => card.imageDescription).filter(Boolean).join(', ');
+
+    // Fetch existing classification rules and pictography data for context
+    let existingClassifications = [];
+    let existingPictography = [];
+    try {
+      existingClassifications = await getAllData(CLASSIFICATION_STORE);
+      existingPictography = await getAllData(PICTOGRAPHY_STORE);
+    } catch (error) {
+      console.error("Error fetching data from IndexedDB:", error);
+    }
+
+    const classificationContext = existingClassifications.length > 0
+      ? `\n\nPrevious Classification Rulesets for AI Refinement:\n${existingClassifications.map(c => `- Image: "${c.imageDescription}" Classification: "${c.classification}" ROE Context: "${c.roeContext}"`).join('\n')}`
+      : '';
+
+    const pictographyContext = existingPictography.length > 0
+      ? `\n\nPreviously Identified Pictography:\n${existingPictography.map(p => `- Image: "${p.imageDescription}" from "${p.sourceCardTitle}"`).join('\n')}`
+      : '';
+
+    switch (field) {
+      case 'chatInput':
+        prompt = `Generate a concise, creative, and engaging chat suggestion for a user interacting with an AI console related to a futuristic ${uefContext}. ${classificationContext} ${pictographyContext} The current input is: "${currentText}".`;
+        hintSetter = setChatHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'modalTitle':
+        prompt = `Suggest a concise and impactful title for a document about the United Earth Federation Archives, specifically related to ${uefContext}. ${classificationContext} ${pictographyContext} The current title is: "${currentText}".`;
+        hintSetter = setModalTitleHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'modalContent':
+        prompt = `Generate a detailed and informative content paragraph for a document about the United Earth Federation Archives, expanding on the title "${modalTitle}". Focus on ${uefContext}. ${classificationContext} ${pictographyContext} The current content is: "${currentText}".`;
+        hintSetter = setModalContentHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'modalCommentary':
+        prompt = `Provide an insightful and analytical commentary or blog post idea for a document about "${modalTitle}", connecting it to the themes of cadet pilot training, flight engineering, or ROE. ${classificationContext} ${pictographyContext} The current commentary is: "${currentText}".`;
+        hintSetter = setModalCommentaryHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'modalImageDescription':
+        prompt = `Analyze the provided image and generate a brief, descriptive caption for it, relating it to ${uefContext}. Focus on discernible properties, contextual awareness, and potential implications for training or operations. ${classificationContext} ${pictographyContext} The current caption is: "${currentText}".`;
+        hintSetter = setModalImageDescription;
+        contents = [{ text: prompt }];
+        if (modalImageUrl) {
+          const mimeTypeMatch = modalImageUrl.match(/^data:(.*?);base64,/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+          const base64Data = modalImageUrl.split(',')[1];
+          contents.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        } else {
+            contents[0].text = `Generate a brief, descriptive caption for an image related to "${modalTitle}", focusing on ${uefContext}. ${classificationContext} ${pictographyContext} The current caption is: "${currentText}".`;
+        }
+        break;
+      case 'roeGuidelines':
+        prompt = `Generate concise and clear guidelines or principles for Fighter Pilot Rules of Engagement (ROE) within the United Earth Federation context. Emphasize decision-making, threat assessment, and de-escalation protocols relevant to flight operations and maintaining peace. ${classificationContext} ${pictographyContext} The current guidelines are: "${currentText}".`;
+        hintSetter = setRoeGuidelinesHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'classifyImage': // For static images
+        prompt = `Given the image description: "${currentText}". Context: ${uefContext}. Current ROE Guidelines: "${roeGuidelines}". ${classificationContext} ${pictographyContext}
+        Based on this, classify the image for machine learning augmentation, engineering documentation, or maintenance routines. Also, explain its relevance to a pilot's cognitive decision-making and how it aligns with or impacts the provided ROE. Provide a concise classification and a brief explanation.`;
+        hintSetter = (hint) => setClassificationHints(prev => ({ ...prev, [currentText]: hint }));
+        contents = [{ text: prompt }];
+        if (imageToAnalyze) {
+          const mimeTypeMatch = imageToAnalyze.match(/^data:(.*?);base64,/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+          const base64Data = imageToAnalyze.split(',')[1];
+          contents.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        }
+        break;
+      case 'systemInstructions':
+        prompt = `As an AI console for the United Earth Federation, suggest a system instruction that establishes the AI's foundational role. Consider the context of UEF pilot training, flight engineering, and ROE. Emphasize precision, ethical guidance, and data integrity. ${classificationContext} ${pictographyContext} Current instruction: "${currentText}".`;
+        hintSetter = setSystemInstructionsHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'aiInstructions':
+        prompt = `As an AI console for the United Earth Federation, suggest an AI persona instruction. This AI assists cadet pilots and flight engineers. Focus on being a knowledgeable, supportive, and critical thinking guide for academic studies, flight simulations, and understanding ROE. ${classificationContext} ${pictographyContext} Current instruction: "${currentText}".`;
+        hintSetter = setAiInstructionsHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'userInstructions':
+        prompt = `As an AI console for the United Earth Federation, suggest a user context instruction that helps the AI understand the user's role. Assume the user is a cadet pilot or flight engineer. Focus on their learning objectives, operational duties, and need for accurate, context-aware information. ${classificationContext} ${pictographyContext} Current instruction: "${currentText}".`;
+        hintSetter = setUserInstructionsHint;
+        contents = [{ text: prompt }];
+        break;
+      case 'motionAnalysis': // New case for motion analysis
+        prompt = `Given the scenario depicted by the image description: "${modalImageDescription || 'no image description provided'}", and the card title "${modalTitle}". Generate a detailed "motion analysis" for a UEF pilot. Focus on potential dynamic events, tactical implications, and how a pilot's cognitive and classification rulesets (including ROE: "${roeGuidelines}") would apply. Consider aspects of identity, classification, ROE, and peacekeeping. Current analysis: "${currentText}".`;
+        hintSetter = setMotionAnalysisHint;
+        contents = [{ text: prompt }];
+        if (modalMotionUrl) { // Include the generated motion image for analysis
+          const mimeTypeMatch = modalMotionUrl.match(/^data:(.*?);base64,/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+          const base64Data = modalMotionUrl.split(',')[1];
+          contents.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        }
+        break;
+      case 'classifyMotion': // New case for classifying motion analysis
+        prompt = `Given the motion analysis: "${currentText}". Context: ${uefContext}. Current ROE Guidelines: "${roeGuidelines}". ${classificationContext} ${pictographyContext}
+        Based on this, classify this motion scenario for machine learning augmentation, engineering documentation, or maintenance routines. Also, explain its relevance to a pilot's cognitive decision-making and how it aligns with or impacts the provided ROE. Provide a concise classification and a brief explanation.`;
+        hintSetter = setMotionClassificationHint;
+        contents = [{ text: prompt }];
+        if (imageToAnalyze) { // Use the motion image for classification context
+          const mimeTypeMatch = imageToAnalyze.match(/^data:(.*?);base64,/);
+          const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+          const base64Data = imageToAnalyze.split(',')[1];
+          contents.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          });
+        }
+        break;
+      default:
+        return;
+    }
+
+    hintSetter('Generating suggestion...');
+
+    try {
+      const payload = { contents: [{ role: "user", parts: contents }] };
+      const apiKey = geminiApiKey || "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      let aiGeneratedText = "Failed to get suggestion.";
+      if (result.candidates && result.candidates.length > 0 &&
+          result.candidates[0].content && result.candidates[0].content.parts &&
+          result.candidates[0].content.parts.length > 0) {
+        aiGeneratedText = result.candidates[0].content.parts[0].text;
+
+        // After receiving a classification hint, store it in IndexedDB
+        if (field === 'classifyImage' || field === 'classifyMotion') {
+          const classificationData = {
+            imageDescription: currentText, // This will be the image description or motion analysis text
+            classification: aiGeneratedText,
+            roeContext: roeGuidelines,
+            timestamp: new Date().toISOString()
+          };
+          await addData(CLASSIFICATION_STORE, classificationData);
+
+          // Also update the pictographyData with the classification if it's a generated image/motion
+          if (field === 'classifyImage' && generatedImageIndex !== null && generatedImages[generatedImageIndex]) {
+            const updatedPictography = {
+              imageUrl: generatedImages[generatedImageIndex],
+              imageDescription: currentText,
+              sourceCardTitle: modalTitle,
+              classificationHint: aiGeneratedText,
+              type: 'static_image',
+              timestamp: new Date().toISOString()
+            };
+            await addData(PICTOGRAPHY_STORE, updatedPictography);
+          } else if (field === 'classifyMotion' && modalMotionUrl) {
+            const updatedPictography = {
+              imageUrl: modalMotionUrl,
+              imageDescription: currentText, // The motion analysis text
+              sourceCardTitle: modalTitle,
+              classificationHint: aiGeneratedText,
+              type: 'motion_scenario',
+              timestamp: new Date().toISOString()
+            };
+            await addData(PICTOGRAPHY_STORE, updatedPictography);
+
+            // Update Nuance Collective on main page
+            setNuanceCollective({
+              title: `Latest Motion Analysis for "${modalTitle}"`,
+              summary: `${aiGeneratedText.substring(0, 100)}...` // Truncate for summary
+            });
+          }
+        }
+      }
+      hintSetter(aiGeneratedText);
+    } catch (error) {
+      console.error(`Error generating hint for ${field}:`, error);
+      hintSetter(`Error: ${error.message}`);
+    }
+  };
+
+  // Function to generate AI-suggested images
+  const generateImageSuggestions = async () => {
+    setIsGeneratingImages(true);
+    setImageGenerationError('');
+    setGeneratedImages([]); // Clear previous generated images
+
+    const basePrompt = `Generate a high-resolution, futuristic image related to the United Earth Federation, focusing on: ${modalTitle}. Consider aspects of cadet pilot training, advanced flight engineering, or Rules of Engagement for fighter pilots.`;
+    const specificPrompt = modalImageDescription ? `${basePrompt} The current image shows: ${modalImageDescription}. Create images that augment this context.` : basePrompt;
+
+    try {
+      const payload = { instances: { prompt: specificPrompt }, parameters: { "sampleCount": 3 } }; // Request 3 images
+      const apiKey = geminiApiKey || ""; // Use provided key or empty string for Canvas runtime
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (result.predictions && result.predictions.length > 0) {
+        const newImages = result.predictions.map(prediction => `data:image/png;base64,${prediction.bytesBase64Encoded}`);
+        setGeneratedImages(newImages);
+      } else {
+        setImageGenerationError("Failed to generate images. No predictions returned.");
+      }
+    } catch (error) {
+      console.error("Error generating images:", error);
+      setImageGenerationError(`Error generating images: ${error.message}`);
+    } finally {
+      setIsGeneratingImages(false);
+    }
+  };
+
+  // Function to generate a simulated motion pictography (single image representing a scenario)
+  const generateMotionPictography = async () => {
+    setIsGeneratingMotion(true);
+    setMotionGenerationError('');
+    setModalMotionUrl('');
+    setModalMotionAnalysis(''); // Clear previous analysis
+
+    const prompt = `Generate a high-resolution, dynamic image depicting a key scenario for a UEF fighter pilot, relevant to either Rules of Engagement (ROE) or Peacekeeping. The image should convey motion or a critical decision point. Examples: a pilot identifying a target, a peacekeeping patrol encountering an anomaly, a complex maneuver during flight engineering test. Contextualize with "${modalTitle}" and "${modalImageDescription}".`;
+
+    try {
+      const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1 } };
+      const apiKey = geminiApiKey || "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+        setModalMotionUrl(`data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`);
+      } else {
+        setMotionGenerationError("Failed to generate motion scenario image. No predictions returned.");
+      }
+    } catch (error) {
+      console.error("Error generating motion scenario image:", error);
+      setMotionGenerationError(`Error generating motion scenario image: ${error.message}`);
+    } finally {
+      setIsGeneratingMotion(false);
+    }
+  };
+
+
+  // --- Main Page Content (Cards) Logic ---
+  const truncateLength = 150; // Length to truncate card content on main page
+
+  const initialCards = [
+    { id: 1, title: 'Royal Aeronautical Discipline School', content: 'Our rigorous academic and physical training prepares pilots for the United Earth Federation. We foster intelligence, excellence, and service for a peaceful Mecha civilization. This school is the bedrock of our future, instilling values of resilience and understanding in every cadet. Here, we learn not just to fly, but to lead with empathy and wisdom, ensuring the safety and prosperity of all interplanetary endeavors.', commentary: 'This card highlights the core mission of the school and its impact on the Federation\'s values.', imageUrl: 'https://placehold.co/100x100/000000/FFFFFF?text=School', imageDescription: 'A futuristic school building with advanced architectural design.', color: 'bg-gradient-to-br from-purple-600 to-indigo-800' },
+    { id: 2, title: 'Advanced Cockpit Design', content: 'Experience the future of flight with our sleek, aerodynamic cockpits. Featuring a 120-degree transparent camera view and integrated stability controls for unparalleled visibility. The intuitive interface and minimal emergency warnings ensure focus on critical mission parameters, providing pilots with the ultimate control and situational awareness for long-duration flights across the cosmos.', commentary: 'Focuses on the technological advancements in flight control and pilot experience.', imageUrl: 'https://placehold.co/100x100/000000/FFFFFF?text=Cockpit', imageDescription: 'Interior view of a modern spaceship cockpit with holographic displays.', color: 'bg-gradient-to-br from-blue-600 to-cyan-800' },
+    { id: 3, title: 'Leviathan Battleship', content: 'The colossal Leviathan, a Dreadnought class battleship, stands as humanity\'s last line of defense. Equipped with dual-barrel railgun cannons, point-defense plasma turrets, missile launchers, and adaptive armor, it safeguards Earth. Its special abilities, "Leviathan\'s Roar" and "Overdrive," make it a formidable presence against any extraterrestrial threat, embodying our commitment to peace through strength.', commentary: 'Describes the flagship of the Federation fleet and its defensive capabilities.', imageUrl: 'https://placehold.co/100x100/000000/FFFFFF?text=Battleship', imageDescription: 'The massive Leviathan battleship soaring through space, ready for combat.', color: 'bg-gradient-to-br from-red-600 to-pink-800' },
+    { id: 4, title: 'Federation Peacekeeping', content: 'Our forces uphold peace and diligence in interplanetary acts of peace. We embrace diversity and inclusivity, strengthening humanity through unity and shared purpose. Our peacekeepers are trained not just in combat, but in diplomacy and cultural understanding, ensuring that every interaction fosters harmony and builds bridges across star systems.', commentary: 'Emphasizes the Federation\'s core values and peacekeeping efforts.', imageUrl: 'https://placehold.co/100x100/000000/FFFFFF?text=Peace', imageDescription: 'Federation peacekeepers engaging in diplomatic talks with alien representatives.', color: 'bg-gradient-to-br from-green-600 to-lime-800' },
+  ];
+
+  const [contentCards, setContentCards] = useState(initialCards);
+  const [editingCardId, setEditingCardId] = useState(null); // State for inline title editing
+  const [currentPage, setCurrentPage] = useState(1);
+  const cardsPerPage = 4;
+
+  const totalPages = Math.ceil(contentCards.length / cardsPerPage);
+  const indexOfLastCard = currentPage * cardsPerPage;
+  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
+  const currentCards = contentCards.slice(indexOfFirstCard, indexOfLastCard);
+
+  // Log to check if cards are being generated and passed correctly
+  useEffect(() => {
+    console.log("Current cards for display:", currentCards);
+    console.log("Total cards:", contentCards.length);
+    console.log("Current page:", currentPage);
+  }, [currentCards, contentCards.length, currentPage]);
+
+
+  // --- Modal Functions ---
+  const openCardModal = (card) => {
+    setSelectedCard(card);
+    setModalTitle(card.title);
+    setModalContent(card.content);
+    setModalCommentary(card.commentary || ''); // Ensure commentary exists
+    setModalImageUrl(card.imageUrl || ''); // Set image URL for modal
+    setModalImageDescription(card.imageDescription || ''); // Set image description for modal
+    setModalOpen(true);
+    // Clear previous hints when opening a new modal
+    setModalTitleHint('');
+    setModalContentHint('');
+    setModalCommentaryHint('');
+    setModalImageDescription(''); // Clear image description hint
+    setGeneratedImages([]); // Clear generated images when opening a new card
+    setClassificationHints({}); // Clear classification hints
+    setImageGenerationError(''); // Clear image generation error
+
+    // Clear motion pictography states
+    setModalMotionUrl('');
+    setModalMotionAnalysis('');
+    setMotionGenerationError('');
+    setMotionAnalysisHint('');
+    setMotionClassificationHint('');
+  };
+
+  const closeCardModal = () => {
+    setSelectedCard(null);
+    setModalOpen(false);
+    // Clear hints when closing modal
+    setModalTitleHint('');
+    setModalContentHint('');
+    setModalCommentaryHint('');
+    setModalImageDescription(''); // Clear image description hint
+    setGeneratedImages([]); // Clear generated images
+    setClassificationHints({}); // Clear classification hints
+    setImageGenerationError(''); // Clear image generation error
+
+    // Clear motion pictography states
+    setModalMotionUrl('');
+    setModalMotionAnalysis('');
+    setMotionGenerationError('');
+    setMotionAnalysisHint('');
+    setMotionClassificationHint('');
+  };
+
+  const handleSaveModalEdit = () => {
+    setContentCards(prevCards => prevCards.map(card =>
+      card.id === selectedCard.id
+        ? { ...card, title: modalTitle, content: modalContent, commentary: modalCommentary, imageUrl: modalImageUrl, imageDescription: modalImageDescription }
+        : card
+    ));
+    closeCardModal();
+  };
+
+  const handleAddCard = () => {
+    const newId = contentCards.length > 0 ? Math.max(...contentCards.map(card => card.id)) + 1 : 1;
+    const neonColors = [
+      'bg-gradient-to-br from-purple-600 to-indigo-800',
+      'bg-gradient-to-br from-blue-600 to-cyan-800',
+      'bg-gradient-to-br from-red-600 to-pink-800',
+      'bg-gradient-to-br from-green-600 to-lime-800',
+      'bg-gradient-to-br from-yellow-600 to-orange-800',
+      'bg-gradient-to-br from-teal-600 to-emerald-800',
+    ];
+    const randomColor = neonColors[Math.floor(Math.random() * neonColors.length)];
+
+    const newCard = {
+      id: newId,
+      title: 'New Card Title',
+      content: 'Click "Read More" and then edit the content in the popup window. This is a new card added dynamically.',
+      commentary: 'Add your blog or commentary here.',
+      imageUrl: '', // Initialize new card with no image
+      imageDescription: '', // Initialize new card with no image description
+      color: randomColor,
+    };
+    setContentCards([...contentCards, newCard]);
+    // Optionally go to the last page to see the new card
+    setCurrentPage(totalPages + 1);
+  };
+
+  // Handle image file selection
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setModalImageUrl(reader.result); // Store as Base64
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleTitleChange = (e, id) => {
+    const newTitle = e.target.value;
+    setContentCards(contentCards.map(card =>
+      card.id === id ? { ...card, title: newTitle } : card
+    ));
+  };
+
+
+  return (
+    <div className="flex h-screen bg-gray-950 text-gray-100 font-inter relative overflow-hidden">
+      {/* Custom Scrollbar Styles */}
+      <style>
+        {`
+        /* For Webkit browsers (Chrome, Safari) */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #333; /* Dark track */
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #4A90E2; /* Blue thumb */
+          border-radius: 10px;
+          border: 2px solid #333; /* Border to match track */
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #5CA3FF; /* Lighter blue on hover */
+        }
+
+        /* For Firefox */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #4A90E2 #333; /* thumb and track color */
+        }
+        `}
+      </style>
+
+      {/* Main Content Area (Dynamic Cards) */}
+      <div className={`flex-1 p-8 transition-all duration-300 overflow-y-auto custom-scrollbar`}>
+        {/* Console Settings and Add Card Button */}
+        <div className="bg-gray-950 rounded-xl p-6 shadow-lg mb-8 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center space-x-4">
+            {/* Nuance Collective - Top Left Corner */}
+            <div className="bg-gray-800 p-4 rounded-lg shadow-inner border border-gray-700 w-full max-w-xs">
+              <h3 className="text-lg font-bold text-blue-400 mb-2">Nuance Collective</h3>
+              <p className="text-gray-300 text-sm font-semibold">{nuanceCollective.title}</p>
+              <p className="text-gray-400 text-xs mt-1 italic">{nuanceCollective.summary}</p>
+            </div>
+          </div>
+          <div className="flex gap-4 ml-auto"> {/* Added ml-auto to push buttons to the right */}
+            <button
+              onClick={handleAddCard}
+              className="px-6 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition-colors duration-200 flex items-center space-x-2"
+              aria-label="Add New Card"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              <span>Add Card</span>
+            </button>
+            <button
+              onClick={togglePanel}
+              className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors duration-200 flex items-center space-x-2"
+              aria-label={isPanelOpen ? "Close AI Console Panel" : "Open AI Console Panel"}
+            >
+              {isPanelOpen ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Close Panel</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Open Panel</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Pagination Controls - Moved Above Card Grid */}
+        <div className="flex justify-center items-center space-x-4 mb-8 p-4 rounded-xl bg-fuchsia-500 shadow-lg shadow-fuchsia-500/50 border border-fuchsia-400">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 rounded-lg bg-fuchsia-400 hover:bg-fuchsia-600 text-white font-bold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+          >
+            Previous
+          </button>
+          <span className="text-lg text-white font-semibold">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 rounded-lg bg-fuchsia-400 hover:bg-fuchsia-600 text-white font-bold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+          >
+            Next
+          </button>
+        </div>
+
+        {/* Card Grid */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {currentCards.map((card) => (
+            <div key={card.id} className={`relative rounded-xl shadow-lg p-6 ${card.color} bg-opacity-70 backdrop-filter backdrop-blur-sm border border-opacity-20 border-white`}>
+              <div className="flex items-start mb-4"> {/* Changed to flex items-start */}
+                {card.imageUrl && (
+                  <div className="flex-shrink-0 mr-4"> {/* Image container */}
+                    <img
+                      src={card.imageUrl}
+                      alt={card.imageDescription || card.title}
+                      className="w-24 h-24 object-cover rounded-md border border-gray-700"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100/333333/FFFFFF?text=No+Image"; }} // Fallback image
+                    />
+                    {card.imageDescription && (
+                      <p className="text-gray-300 text-sm mt-1 max-w-[6rem] overflow-hidden text-ellipsis whitespace-nowrap">
+                        {card.imageDescription}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="flex-1"> {/* Content container */}
+                  {/* Title editing is now triggered by onMouseDown on the h3 itself */}
+                  {editingCardId === card.id ? (
+                    <input
+                      type="text"
+                      value={card.title}
+                      onChange={(e) => handleTitleChange(e, card.id)}
+                      className="text-2xl font-bold bg-transparent border-b-2 border-white focus:outline-none w-full text-white"
+                      onBlur={() => setEditingCardId(null)} // FIX: Changed this line to only exit edit mode
+                      autoFocus // Automatically focus when in edit mode
+                    />
+                  ) : (
+                    <h3
+                      className="text-2xl font-bold text-white cursor-pointer"
+                      onMouseDown={() => setEditingCardId(card.id)} // Changed to setEditingCardId directly
+                    >
+                      {card.title}
+                    </h3>
+                  )}
+                  <p className="text-white text-lg leading-relaxed mt-2"> {/* Added mt-2 for spacing */}
+                    {card.content.length > truncateLength
+                      ? card.content.substring(0, truncateLength) + '...'
+                      : card.content}
+                  </p>
+                  {(card.content.length > truncateLength || card.commentary || card.imageUrl) && ( // Show read more if content truncated, commentary or image exists
+                    <button
+                      onClick={() => openCardModal(card)}
+                      className="mt-4 px-4 py-2 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold transition-colors duration-200"
+                    >
+                      Read More & Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+
+      {/* Resizable/Overlay Panel */}
+      <div
+        className={`fixed top-0 right-0 h-full bg-gray-950 shadow-2xl transition-transform duration-300 flex flex-col z-20 ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ width: `${panelWidth}px` }} // Fixed width
+      >
+        {/* Panel Header with Close Button */}
+        <div className="flex justify-between items-center p-4 bg-gray-950 rounded-tl-xl">
+          <h2 className="text-xl font-semibold text-blue-300">AI Console</h2>
+          <button
+            onClick={togglePanel} // Use the same toggle function to close
+            className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors duration-200"
+            aria-label="Close Panel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-700 bg-gray-950">
+          <button
+            className={`flex-1 py-3 text-center text-lg font-medium transition-colors duration-200 ${activeTab === 'inference' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('inference')}
+          >
+            API & Inference
+          </button>
+          <button
+            className={`flex-1 py-3 text-center text-lg font-medium transition-colors duration-200 ${activeTab === 'instructions' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('instructions')}
+          >
+            Instructions
+          </button>
+          <button
+            className={`flex-1 py-3 text-center text-lg font-medium transition-colors duration-200 ${activeTab === 'chat' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            Chat
+          </button>
+          <button
+            className={`flex-1 py-3 text-center text-lg font-medium transition-colors duration-200 ${activeTab === 'motion' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setActiveTab('motion')}
+          >
+            Motion & Classify
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+          {activeTab === 'inference' && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-blue-300">API Key Validation</h3>
+              <div>
+                <label htmlFor="openai-api-key" className="block text-gray-300 text-sm font-bold mb-2">
+                  OpenAI API Key:
+                </label>
+                <input
+                  type="password"
+                  id="openai-api-key"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400"
+                  value={openaiApiKey}
+                  onChange={(e) => setOpenaiApiKey(e.target.value)}
+                  placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+                <button
+                  onClick={() => alert("OpenAI API Key 'validation' initiated. (In a real app, this would send a test request).")}
+                  className="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors duration-200"
+                >
+                  Validate OpenAI Key
+                </button>
+              </div>
+
+              <div>
+                <label htmlFor="gemini-api-key" className="block text-gray-300 text-sm font-bold mb-2">
+                  Gemini API Key:
+                </label>
+                <input
+                  type="password"
+                  id="gemini-api-key"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder="AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+                <button
+                  onClick={() => alert("Gemini API Key 'validation' initiated. (In a real app, this would send a test request).")}
+                  className="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors duration-200"
+                >
+                  Validate Gemini Key
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm italic">
+                Note: API key validation here is simulated. In a live environment, it would involve actual API calls.
+              </p>
+            </div>
+          )}
+
+          {activeTab === 'instructions' && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-blue-300">Custom Instructions</h3>
+              <div>
+                <label htmlFor="system-instructions" className="block text-gray-300 text-sm font-bold mb-2">
+                  System Instructions:
+                </label>
+                <div className="flex gap-2 items-center">
+                  <textarea
+                    id="system-instructions"
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400 h-32 resize-y"
+                    value={systemInstructions}
+                    onChange={(e) => setSystemInstructions(e.target.value)}
+                    placeholder="Define the AI's core persona and rules."
+                  ></textarea>
+                  <button
+                    type="button"
+                    onClick={() => generateHint('systemInstructions', systemInstructions)}
+                    className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                    title="Get AI Suggestion"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {systemInstructionsHint && <p className="text-gray-400 text-sm mt-2">{systemInstructionsHint}</p>}
+              </div>
+              <div>
+                <label htmlFor="ai-instructions" className="block text-gray-300 text-sm font-bold mb-2">
+                  AI Persona Instructions:
+                </label>
+                <div className="flex gap-2 items-center">
+                  <textarea
+                    id="ai-instructions"
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400 h-32 resize-y"
+                    value={aiInstructions}
+                    onChange={(e) => setAiInstructions(e.target.value)}
+                    placeholder="Instructions for the AI's specific role or character (e.g., 'You are a helpful assistant for pilots')."
+                  ></textarea>
+                  <button
+                    type="button"
+                    onClick={() => generateHint('aiInstructions', aiInstructions)}
+                    className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                    title="Get AI Suggestion"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {aiInstructionsHint && <p className="text-gray-400 text-sm mt-2">{aiInstructionsHint}</p>}
+              </div>
+              <div>
+                <label htmlFor="user-instructions" className="block text-gray-300 text-sm font-bold mb-2">
+                  User Context/Instructions:
+                </label>
+                <div className="flex gap-2 items-center">
+                  <textarea
+                    id="user-instructions"
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400 h-32 resize-y"
+                    value={userInstructions}
+                    onChange={(e) => setUserInstructions(e.target.value)}
+                    placeholder="Information about the user or their current task."
+                  ></textarea>
+                  <button
+                    type="button"
+                    onClick={() => generateHint('userInstructions', userInstructions)}
+                    className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                    title="Get AI Suggestion"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {userInstructionsHint && <p className="text-gray-400 text-sm mt-2">{userInstructionsHint}</p>}
+              </div>
+              {/* New ROE Guidelines Section */}
+              <div className="space-y-6">
+                <h3 className="text-2xl font-semibold text-blue-300">Fighter Pilot ROE Guidelines</h3>
+                <div className="flex gap-2 items-center">
+                  <textarea
+                    id="roe-guidelines"
+                    className="w-full h-32 bg-gray-800 text-white focus:outline-none resize-y border border-gray-700 rounded-md p-3 leading-relaxed custom-scrollbar"
+                    value={roeGuidelines}
+                    onChange={(e) => setRoeGuidelines(e.target.value)}
+                    placeholder="Define Rules of Engagement for fighter pilots (e.g., 'Engage only hostile targets after clear identification')."
+                  ></textarea>
+                  <button
+                    type="button"
+                    onClick={() => generateHint('roeGuidelines', roeGuidelines)}
+                    className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                    title="Get AI Suggestion for ROE"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {roeGuidelinesHint && <p className="text-gray-400 text-sm mt-2">{roeGuidelinesHint}</p>}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'chat' && (
+            <div className="flex flex-col h-full">
+              <h3 className="text-2xl font-semibold text-blue-300 mb-4">AI Family Chat</h3>
+              <div className="flex-1 bg-gray-900 rounded-lg p-4 overflow-y-auto mb-4 custom-scrollbar">
+                {chatMessages.length === 0 ? (
+                  <p className="text-gray-400 text-center italic">Start a conversation with your AI Family assistant...</p>
+                ) : (
+                  chatMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`mb-3 p-3 rounded-lg max-w-[85%] ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white ml-auto rounded-br-none'
+                          : 'bg-gray-800 text-gray-100 mr-auto rounded-bl-none'
+                      }`}
+                    >
+                      <p className="font-bold text-sm mb-1">{msg.role === 'user' ? 'You' : 'AI Family'}</p>
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                    </div>
+                  ))
+                )}
+                <div ref={chatMessagesEndRef} /> {/* For auto-scrolling */}
+              </div>
+              <form onSubmit={handleChatSubmit} className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1 shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-800 border-gray-700 placeholder-gray-400"
+                />
+                <button
+                  type="button" // Changed to type="button" to prevent form submission
+                  onClick={() => generateHint('chatInput', chatInput)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors duration-200"
+                  title="Get AI Suggestion"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                    </svg>
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors duration-200"
+                >
+                  Send
+                </button>
+              </form>
+              {chatHint && <p className="text-gray-400 text-sm mt-2">{chatHint}</p>}
+            </div>
+          )}
+
+          {/* New Motion & Classification Tab Content */}
+          {activeTab === 'motion' && (
+            <div className="space-y-6">
+              <h3 className="text-2xl font-semibold text-blue-300">Motion Pictography & Classification</h3>
+              <p className="text-gray-400 text-sm italic">
+                Note: Full video processing and streaming require a backend. This feature simulates motion pictography with static images and AI-generated textual analysis.
+              </p>
+              <div>
+                <button
+                  onClick={generateMotionPictography}
+                  disabled={isGeneratingMotion}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingMotion ? 'Generating Motion Scenario...' : 'Generate Motion Scenario Image'}
+                </button>
+                {motionGenerationError && <p className="text-red-400 text-sm mt-2">{motionGenerationError}</p>}
+                {modalMotionUrl && (
+                  <div className="mt-4 p-4 bg-gray-800 rounded-md border border-gray-700">
+                    <h4 className="text-lg font-semibold text-blue-300 mb-2">Generated Motion Scenario:</h4>
+                    <img src={modalMotionUrl} alt="AI Generated Motion Scenario" className="w-full h-auto object-contain rounded-md mb-4" />
+                    <label htmlFor="motion-analysis" className="block text-gray-300 text-sm font-bold mb-2">
+                      Motion Analysis:
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <textarea
+                        id="motion-analysis"
+                        className="w-full h-32 bg-gray-900 text-white focus:outline-none resize-y border border-gray-700 rounded-md p-3 leading-relaxed custom-scrollbar"
+                        value={modalMotionAnalysis}
+                        onChange={(e) => setModalMotionAnalysis(e.target.value)}
+                        placeholder="AI will analyze the motion scenario here..."
+                      ></textarea>
+                      <button
+                        type="button"
+                        onClick={() => generateHint('motionAnalysis', modalMotionAnalysis)}
+                        className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                        title="Get AI Motion Analysis"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                    {motionAnalysisHint && <p className="text-gray-400 text-sm mt-2">{motionAnalysisHint}</p>}
+
+                    <button
+                      onClick={() => generateHint('classifyMotion', modalMotionAnalysis, modalMotionUrl)}
+                      className="mt-4 px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold transition-colors duration-200"
+                      title="Classify Motion Analysis & Apply ROE Ruleset"
+                    >
+                      Classify Motion & ROE
+                    </button>
+                    {motionClassificationHint && (
+                      <p className="text-gray-400 text-sm mt-2">
+                        **Classification:** {motionClassificationHint}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Card Modal */}
+      {modalOpen && selectedCard && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto custom-scrollbar"
+          onClick={closeCardModal} // Close modal when clicking outside the content
+        >
+          <div
+            className="relative bg-gray-900 rounded-xl shadow-2xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
+            onClick={(e) => e.stopPropagation()} // Prevent modal from closing when clicking inside
+          >
+            <button
+              onClick={closeCardModal}
+              className="absolute top-3 right-3 text-gray-300 hover:text-white text-3xl font-bold p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors duration-200 z-10"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+
+            <div className="mb-6">
+              <label htmlFor="modal-title" className="block text-blue-300 text-sm font-bold mb-2">
+                Title:
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  id="modal-title"
+                  className="text-3xl font-bold bg-transparent border-b-2 border-blue-400 focus:outline-none w-full text-white p-2 mb-4"
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  onBlur={handleSaveModalEdit} // Save on blur
+                />
+                <button
+                  type="button"
+                  onClick={() => generateHint('modalTitle', modalTitle)}
+                  className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200"
+                  title="Get AI Suggestion"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {modalTitleHint && <p className="text-gray-400 text-sm mt-2">{modalTitleHint}</p>}
+            </div>
+
+            {/* Image Upload Section - Moved and styled for thumbnail */}
+            <div className="mb-6"> {/* Removed flex and gap from here */}
+              <div className="flex items-center gap-4 mb-2"> {/* Added flex and gap for input and thumbnail */}
+                <label htmlFor="image-upload" className="block text-blue-300 text-sm font-bold shrink-0"> {/* Shrink-0 to prevent label from shrinking */}
+                  Image:
+                </label>
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="block w-full text-sm text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100 cursor-pointer"
+                />
+                {modalImageUrl && (
+                  <div className="shrink-0"> {/* Use shrink-0 to prevent image from shrinking */}
+                    <img src={modalImageUrl} alt="Uploaded preview" className="w-24 h-24 object-cover rounded-md border border-gray-700" /> {/* Small thumbnail styling */}
+                  </div>
+                )}
+              </div>
+              <label htmlFor="modal-image-description" className="block text-blue-300 text-sm font-bold mb-2">
+                Image Description:
+              </label>
+              <div className="flex gap-2 items-center">
+                <textarea
+                  id="modal-image-description"
+                  className="w-full h-20 bg-gray-800 text-white focus:outline-none resize-y border border-gray-700 rounded-md p-3 leading-relaxed custom-scrollbar"
+                  value={modalImageDescription}
+                  onChange={(e) => setModalImageDescription(e.target.value)}
+                  onBlur={handleSaveModalEdit} // Save on blur
+                  placeholder="Describe the image for context or accessibility."
+                ></textarea>
+                <button
+                  type="button"
+                  onClick={() => generateHint('modalImageDescription', modalImageDescription)}
+                  className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                  title="Get AI Suggestion"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {modalImageDescription && <p className="text-gray-400 text-sm mt-2">{modalImageDescription}</p>}
+            </div>
+
+            {/* AI Image Augmentation Section */}
+            <div className="mb-6">
+              <h4 className="text-xl font-semibold text-blue-300 mb-2">AI Image Augmentation for Classification</h4>
+              <button
+                onClick={generateImageSuggestions}
+                disabled={isGeneratingImages}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingImages ? 'Generating Images...' : 'Generate Related Images'}
+              </button>
+              {imageGenerationError && <p className="text-red-400 text-sm mt-2">{imageGenerationError}</p>}
+
+              {generatedImages.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  {generatedImages.map((imgSrc, index) => (
+                    <div key={index} className="bg-gray-800 rounded-md p-2 border border-gray-700 flex flex-col items-center">
+                      <img src={imgSrc} alt={`AI Generated ${index}`} className="w-32 h-32 object-cover rounded-md" />
+                      <button
+                        // Pass the image source to generateHint for image understanding
+                        onClick={() => generateHint('classifyImage', `AI Generated Image ${index} from card "${modalTitle}"`, imgSrc, index)}
+                        className="mt-2 px-3 py-1 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-sm"
+                        title="Get Classification Hint"
+                      >
+                        Classify & ROE
+                      </button>
+                      {classificationHints[`AI Generated Image ${index} from card "${modalTitle}"`] && (
+                        <p className="text-gray-400 text-xs mt-1 text-center">
+                          {classificationHints[`AI Generated Image ${index} from card "${modalTitle}"`]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="modal-content" className="block text-blue-300 text-sm font-bold mb-2">
+                Content:
+              </label>
+              <div className="flex gap-2 items-center">
+                <textarea
+                  id="modal-content"
+                  className="w-full h-48 bg-gray-800 text-white focus:outline-none resize-y border border-gray-700 rounded-md p-3 leading-relaxed custom-scrollbar"
+                  value={modalContent}
+                  onChange={(e) => setModalContent(e.target.value)}
+                  onBlur={handleSaveModalEdit} // Save on blur
+                />
+                <button
+                  type="button"
+                  onClick={() => generateHint('modalContent', modalContent)}
+                  className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                  title="Get AI Suggestion"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {modalContentHint && <p className="text-gray-400 text-sm mt-2">{modalContentHint}</p>}
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="modal-commentary" className="block text-blue-300 text-sm font-bold mb-2">
+                Blog or Commentary:
+              </label>
+              <div className="flex gap-2 items-center">
+                <textarea
+                  id="modal-commentary"
+                  className="w-full h-32 bg-gray-800 text-white focus:outline-none resize-y border border-gray-700 rounded-md p-3 leading-relaxed custom-scrollbar"
+                  value={modalCommentary}
+                  onChange={(e) => setModalCommentary(e.target.value)}
+                  onBlur={handleSaveModalEdit} // Save on blur
+                  placeholder="Add your thoughts or extended commentary here..."
+                ></textarea>
+                <button
+                  type="button"
+                  onClick={() => generateHint('modalCommentary', modalCommentary)}
+                  className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors duration-200 self-start"
+                  title="Get AI Suggestion"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6.672 1.911a1.102 1.102 0 011.916 0L10 3.732l1.412-1.821a1.102 1.102 0 011.916 0l2.5 3.22a1.102 1.102 0 01-.828 1.815H4.999a1.102 1.102 0 01-.828-1.815l2.5-3.22zM15 10a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4a1 1 0 011-1h10z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {modalCommentaryHint && <p className="text-gray-400 text-sm mt-2">{modalCommentaryHint}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleSaveModalEdit}
+                className="px-6 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold transition-colors duration-200"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={closeCardModal}
+                className="px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;

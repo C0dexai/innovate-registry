@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Family - Interactive Orchestration Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Dark Grey Base with Blue, Purple, Green, Pink Neon Accents -->
+    <!-- Application Structure Plan: The application is structured into five thematic, scrollable sections accessible via a fixed top navigation bar: 'Overview', 'Agents & Roles', 'Orchestration Flow', 'API & Data', and 'CI/CD & Ops'. This non-linear, thematic structure was chosen over the report's linear format to allow users (like operators or developers) to quickly jump to the information most relevant to their immediate needs. For instance, a developer can go directly to the 'API & Data' section without scrolling through the entire plan. Interactivity is centered on toggling details for different agents, viewing example workflow code, and exploring a dynamic chart that visualizes agent task distribution. A new glowing orb at the bottom provides quick access to these sections via a popup submenu, enhancing navigation on long pages. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: AI Family Roles -> Goal: Inform & Compare -> Viz/Method: Interactive Cards with toggleable details -> Interaction: Click to expand/collapse -> Justification: Allows users to get a quick overview of all agents and dive deep only into those they are interested in, preventing information overload. Method: HTML/CSS/JS.
+        - Report Info: Example YAML Workflow -> Goal: Inform & Organize -> Viz/Method: Syntax-highlighted code block -> Interaction: Click tabs to switch between YAML/JSON examples -> Justification: Presents complex configuration in a familiar, readable format for developers. Method: HTML/CSS/JS.
+        - Report Info: Agent Task Distribution (Implied) -> Goal: Compare & Analyze -> Viz/Method: Dynamic Doughnut Chart -> Interaction: Hover for tooltips, buttons to update data -> Justification: Provides a quick visual summary of how tasks are distributed among different agent roles, making it easy to understand the operational balance. Library: Chart.js.
+        - Report Info: API Endpoints & CI/CD Flow -> Goal: Organize & Inform -> Viz/Method: Structured HTML sections with icons and clear typography -> Interaction: Static but clearly sectioned for readability -> Justification: Presents technical specifications in a clean, organized manner that is easy to scan and reference. Method: HTML/CSS with Unicode icons.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212; /* Very dark grey */
+            color: #E0E0E0; /* Light text */
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .nav-link.active {
+            color: #00FFFF; /* Blue Neon for active */
+            border-bottom: 2px solid #00FFFF;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.7); /* Neon glow */
+        }
+        .section-card {
+            background-color: rgba(40, 40, 40, 0.7); /* Semi-transparent dark card background */
+            border: 1px solid rgba(58, 58, 58, 0.5); /* Semi-transparent dark border */
+            border-radius: 1rem;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); /* Blue neon glow */
+            transition: all 0.3s ease;
+        }
+        .section-card:hover {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.6); /* Stronger blue neon glow on hover */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: auto;
+            max-height: 450px;
+        }
+        .code-block {
+            background-color: #1F2937;
+            color: #F9FAFB;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: monospace;
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.4); /* Green neon glow */
+        }
+        .code-block .token-key { color: #93C5FD; } /* Light blue */
+        .code-block .token-string { color: #A5F3FC; } /* Cyan */
+        .code-block .token-comment { color: #6B7280; } /* Grey */
+        .code-block .token-number { color: #FBCFE8; } /* Pink */
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .collapsible-content.expanded {
+            max-height: 500px;
+        }
+
+        /* Glowing Orb and Submenu */
+        #glowing-orb {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(0, 255, 255, 0.8); /* Blue neon */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.6);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        #glowing-orb:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.8);
+            transform: scale(1.05);
+        }
+        #glowing-orb button {
+            background: none;
+            border: none;
+            color: black; /* Black text on neon for standout */
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #quick-goto-menu {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background-color: rgba(40, 40, 40, 0.9); /* Semi-transparent dark background */
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            padding: 1rem;
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 99;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #quick-goto-menu.show {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #quick-goto-menu a {
+            color: #BF00FF; /* Purple neon links */
+            font-weight: 500;
+            padding: 0.5rem;
+            border-radius: 0.3rem;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 5px rgba(191, 0, 255, 0.3);
+        }
+        #quick-goto-menu a:hover {
+            background-color: rgba(191, 0, 255, 0.1);
+            color: #FF1493; /* Pink neon on hover */
+            text-shadow: 0 0 8px rgba(255, 20, 147, 0.5);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px; /* width of the entire scrollbar */
+            height: 8px; /* height of horizontal scrollbar */
+            background-color: #121212; /* Black background for the scrollbar track */
+        }
+        ::-webkit-scrollbar-track {
+            background-color: #121212; /* Black background for the scrollbar track */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent white for the thumb */
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.7); /* White neon glow */
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.8); /* Brighter white on hover */
+            box-shadow: 0 0 8px rgba(255, 255, 255, 1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-gray-800/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-700">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-indigo-400">AI Family Orchestration</span>
+                </div>
+                <div class="hidden md:block">
+                    <div id="nav-links" class="ml-10 flex items-baseline space-x-4">
+                        <a data-target="overview" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-indigo-400 active">Overview</a>
+                        <a data-target="agents" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-indigo-400">Agents & Roles</a>
+                        <a data-target="orchestration" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-indigo-400">Orchestration Flow</a>
+                        <a data-target="api" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-indigo-400">API & Data</a>
+                        <a data-target="cicd" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-indigo-400">CI/CD & Ops</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <section id="overview" class="py-12">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-100 text-shadow-neon-blue">Interactive Orchestration Plan</h1>
+                <p class="mt-4 max-w-2xl mx-auto text-lg text-gray-300">An adaptive, AI-driven service layer for the entire AI Family ecosystem, designed for seamless coordination and operator support.</p>
+            </div>
+            <div class="section-card p-8 grid md:grid-cols-3 gap-8 text-center">
+                <div class="border-r border-gray-700 pr-8">
+                    <h3 class="text-3xl font-bold text-indigo-400 text-shadow-neon-purple">15</h3>
+                    <p class="mt-2 text-gray-300">Proactive Applications</p>
+                    <p class="text-sm text-gray-400 mt-1">Integrated under a unified framework.</p>
+                </div>
+                <div class="border-r border-gray-700 pr-8">
+                    <h3 class="text-3xl font-bold text-indigo-400 text-shadow-neon-green">9+</h3>
+                    <p class="mt-2 text-gray-300">Core AI Agents</p>
+                    <p class="text-sm text-gray-400 mt-1">Each with specialized roles and functions.</p>
+                </div>
+                <div>
+                    <h3 class="text-3xl font-bold text-indigo-400 text-shadow-neon-pink">Dual-LLM</h3>
+                    <p class="mt-2 text-gray-300">Intelligence Layer</p>
+                    <p class="text-sm text-gray-400 mt-1">Leveraging Gemini and OpenAI for background tasks.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="agents" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-100 text-shadow-neon-blue">Meet the AI Family</h2>
+            <p class="text-lg text-center text-gray-300 mb-10 max-w-3xl mx-auto">This ecosystem is powered by a team of specialized AI agents, each with a distinct role. Click on any agent to learn more about their function within the orchestration plan.</p>
+            <div id="agent-cards" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+        </section>
+
+        <section id="orchestration" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-100 text-shadow-neon-purple">Orchestration Flow</h2>
+            <p class="text-lg text-center text-gray-300 mb-10 max-w-3xl mx-auto">Workflows are defined in structured templates and executed by LYRA, the Master Orchestrator. This allows for complex, multi-app processes with built-in error handling and dynamic task routing.</p>
+            <div class="grid lg:grid-cols-2 gap-8 items-start">
+                <div class="section-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-indigo-400">Example Workflow: Image Generation & Analysis</h3>
+                    <p class="text-gray-300 mb-4">This example shows how a task is handed off from ANDIE (using the Image Maker app) to SOPHIA for semantic analysis. Outputs from one stage become the inputs for the next.</p>
+                    <div class="code-block" id="workflow-code"></div>
+                </div>
+                <div class="section-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-indigo-400">Agent Task Distribution</h3>
+                    <p class="text-gray-300 mb-4">This chart visualizes the typical distribution of tasks across different agent roles in the ecosystem, providing a clear overview of operational responsibilities.</p>
+                    <div class="chart-container">
+                        <canvas id="agentTaskChart"></canvas>
+                    </div>
+                    <div class="text-center mt-4 space-x-2">
+                        <button id="updateChartBtn1" class="bg-indigo-700 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-indigo-600">Scenario A</button>
+                        <button id="updateChartBtn2" class="bg-gray-700 text-gray-200 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-600">Scenario B</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="api" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-100 text-shadow-neon-green">API & Data Architecture</h2>
+            <p class="text-lg text-center text-gray-300 mb-10 max-w-3xl mx-auto">A standardized set of APIs and data handling protocols ensures seamless and secure communication between all 15 applications and the central orchestrator.</p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="section-card p-6">
+                    <h3 class="text-xl font-bold mb-2 flex items-center text-indigo-400"><span class="text-2xl mr-3" style="text-shadow: 0 0 5px #00FFFF;">📥</span> Task Submission</h3>
+                    <p class="text-gray-300">Applications accept tasks via a `POST /tasks` endpoint. The request includes workflow context, inputs, and a callback URL for status updates.</p>
+                </div>
+                <div class="section-card p-6">
+                    <h3 class="text-xl font-bold mb-2 flex items-center text-indigo-400"><span class="text-2xl mr-3" style="text-shadow: 0 0 5px #BF00FF;">📤</span> Event Hooks & Feedback</h3>
+                    <p class="text-gray-300">Apps report progress, success, or failure using a `POST /events` endpoint. This mechanism is crucial for the feedback loop and dynamic reassignment.</p>
+                </div>
+                <div class="section-card p-6">
+                    <h3 class="text-xl font-bold mb-2 flex items-center text-indigo-400"><span class="text-2xl mr-3" style="text-shadow: 0 0 5px #39FF14;">🔐</span> Secure Communication</h3>
+                    <p class="text-gray-300">All inter-app communication is secured using OAuth 2.0 and JWTs, with fine-grained RBAC enforced by KARA to ensure compliance and governance.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="cicd" class="py-12">
+            <h2 class="text-3xl font-bold text-center mb-2 text-gray-100 text-shadow-neon-pink">CI/CD & Operations</h2>
+            <p class="text-lg text-center text-gray-300 mb-10 max-w-3xl mx-auto">A robust CI/CD pipeline automates builds, testing, and deployments across the ecosystem, ensuring consistent and reliable software delivery with operator oversight.</p>
+            <div class="section-card p-8">
+                <div class="grid md:grid-cols-4 gap-8">
+                    <div>
+                        <h4 class="font-bold text-lg text-indigo-400">1. Build Automation</h4>
+                        <p class="text-sm text-gray-300 mt-2">Scripts in each repo automate artifact creation (e.g., Docker images), managed by agent DAN.</p>
+                    </div>
+                    <div class="text-2xl text-center self-center text-gray-500" style="text-shadow: 0 0 5px #00FFFF;">→</div>
+                    <div>
+                        <h4 class="font-bold text-lg text-indigo-400">2. Automated Testing</h4>
+                        <p class="text-sm text-gray-300 mt-2">Unit, integration, and E2E tests are automatically triggered, with agent DUDE overseeing execution.</p>
+                    </div>
+                    <div class="text-2xl text-center self-center text-gray-500" style="text-shadow: 0 0 5px #BF00FF;">→</div>
+                    <div>
+                        <h4 class="font-bold text-lg text-indigo-400">3. Secure Deployment</h4>
+                        <p class="text-sm text-gray-300 mt-2">A centralized pipeline triggers deployments to different environments via secure application APIs.</p>
+                    </div>
+                    <div class="text-2xl text-center self-center text-gray-500" style="text-shadow: 0 0 5px #39FF14;">→</div>
+                    <div>
+                        <h4 class="font-bold text-lg text-indigo-400">4. Monitoring & Rollback</h4>
+                        <p class="text-sm text-gray-300 mt-2">Live monitoring detects failures, enabling automated rollbacks to the last stable version.</p>
+                    </div>
+                </div>
+                <div class="text-center mt-8">
+                    <a href="#overview" class="text-indigo-400 font-semibold hover:underline" style="text-shadow: 0 0 8px rgba(255, 20, 147, 0.5);">Return to Top</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="glowing-orb">
+        <button id="orb-button">☰</button>
+    </div>
+
+    <div id="quick-goto-menu">
+        <a data-target="overview">Overview</a>
+        <a data-target="agents">Agents & Roles</a>
+        <a data-target="orchestration">Orchestration Flow</a>
+        <a data-target="api">API & Data</a>
+        <a data-target="cicd">CI/CD & Ops</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const agentData = [
+                { name: 'LYRA', role: 'Master Orchestrator', description: 'Supervises overall task flows and coordinates multi-agent operations. LYRA is the brain of the system, making decisions on task delegation, prioritization, and error handling.' },
+                { name: 'KARA', role: 'Security and Compliance', description: 'Monitors agent actions, ensures safe orchestration and governance. KARA enforces all security protocols, including authentication, authorization, and network policies.' },
+                { name: 'SOPHIA', role: 'Semantic Intelligence', description: 'Handles complex reasoning, semantic mapping, and context linking. SOPHIA understands the meaning and relationships within data, enabling advanced analysis and decision-making.' },
+                { name: 'CECILIA', role: 'Assistive Technology Lead', description: 'Provides real-time guidance, adaptive support, and operator aid. When automation fails or a complex decision is needed, CECILIA alerts and assists the human operator.' },
+                { name: 'GUAC', role: 'Communication Moderator', description: 'Oversees inter-application messaging and network security. GUAC ensures that all communication between services is secure, reliable, and follows the defined protocols.' },
+                { name: 'SPECIALIZED AGENTS', role: 'ANDIE / DAN / STAN / DUDE', description: 'A group of agents for specialized tasks including code execution (DAN), testing (DUDE), creative output (ANDIE), and multi-modal operations (STAN).' }
+            ];
+
+            const agentCardsContainer = document.getElementById('agent-cards');
+            agentData.forEach(agent => {
+                const card = document.createElement('div');
+                card.className = 'section-card p-6 cursor-pointer';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold text-indigo-400">${agent.name}</h3>
+                            <p class="text-sm text-gray-400">${agent.role}</p>
+                        </div>
+                        <span class="text-2xl text-gray-500 transform transition-transform duration-300">▼</span>
+                    </div>
+                    <div class="collapsible-content mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-300">${agent.description}</p>
+                    </div>
+                `;
+                agentCardsContainer.appendChild(card);
+                
+                card.addEventListener('click', () => {
+                    const content = card.querySelector('.collapsible-content');
+                    const icon = card.querySelector('span');
+                    content.classList.toggle('expanded');
+                    icon.style.transform = content.classList.contains('expanded') ? 'rotate(180deg)' : 'rotate(0deg)';
+                });
+            });
+
+            const workflowCodeContainer = document.getElementById('workflow-code');
+            const yamlExample = `
+<span class="token-comment"># Unified Orchestration Workflow</span>
+<span class="token-key">workflow_id:</span> <span class="token-string">image_gen_analysis_v1</span>
+<span class="token-key">name:</span> <span class="token-string">"Generate Image and Analyze Content"</span>
+<span class="token-key">stages:</span>
+  - <span class="token-key">stage_id:</span> <span class="token-string">"image_creation"</span>
+    <span class="token-key">agent_role:</span> <span class="token-string">"ANDIE"</span>
+    <span class="token-key">application:</span> <span class="token-string">"Image Maker"</span>
+    <span class="token-key">on_success:</span> <span class="token-string">"semantic_analysis"</span>
+    <span class="token-key">on_failure:</span> <span class="token-string">"error_handling_image_gen"</span>
+  - <span class="token-key">stage_id:</span> <span class="token-string">"semantic_analysis"</span>
+    <span class="token-key">agent_role:</span> <span class="token-string">"SOPHIA"</span>
+    <span class="token-key">application:</span> <span class="token-string">"Semantic Intelligence"</span>
+    <span class="token-key">inputs:</span>
+      <span class="token-key">image_url:</span> <span class="token-string">"{{ image_creation.outputs.image_url }}"</span>
+<span class="token-key">error_handlers:</span>
+  - <span class="token-key">handler_id:</span> <span class="token-string">"error_handling_image_gen"</span>
+    <span class="token-key">remedial_action:</span> <span class="token-string">"retry_stage"</span>
+    <span class="token-key">max_retries:</span> <span class="token-number">2</span>
+            `;
+            workflowCodeContainer.innerHTML = `<pre><code>${yamlExample}</code></pre>`;
+
+            const ctx = document.getElementById('agentTaskChart').getContext('2d');
+            const chartData = {
+                labels: ['Orchestration (LYRA)', 'Security (KARA)', 'Intelligence (SOPHIA)', 'Execution (Specialized)'],
+                datasets: [{
+                    label: 'Task Distribution',
+                    data: [15, 10, 25, 50],
+                    backgroundColor: ['#00FFFF', '#BF00FF', '#39FF14', '#FF1493'], /* Neon colors */
+                    borderColor: '#121212', /* Dark background for border */
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }]
+            };
+            const agentTaskChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#E0E0E0' /* Light text for legend */
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%', /* Make it a donut chart */
+                    elements: {
+                        arc: {
+                            borderWidth: 0 /* Remove default arc border */
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('updateChartBtn1').addEventListener('click', () => {
+                agentTaskChart.data.datasets[0].data = [15, 10, 25, 50];
+                agentTaskChart.update();
+            });
+            document.getElementById('updateChartBtn2').addEventListener('click', () => {
+                agentTaskChart.data.datasets[0].data = [20, 15, 35, 30];
+                agentTaskChart.update();
+            });
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('section');
+            const glowingOrb = document.getElementById('glowing-orb');
+            const orbButton = document.getElementById('orb-button');
+            const quickGotoMenu = document.getElementById('quick-goto-menu');
+            const quickGotoLinks = quickGotoMenu.querySelectorAll('a');
+
+            orbButton.addEventListener('click', () => {
+                quickGotoMenu.classList.toggle('show');
+            });
+
+            quickGotoLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('data-target');
+                    const targetSection = document.getElementById(targetId);
+                    
+                    window.scrollTo({
+                        top: targetSection.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                    quickGotoMenu.classList.remove('show'); // Hide menu after click
+                });
+            });
+
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = link.getAttribute('data-target');
+                    const targetSection = document.getElementById(targetId);
+                    
+                    window.scrollTo({
+                        top: targetSection.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 90) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('data-target') === current) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

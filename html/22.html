@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; overflow-x: hidden; }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+        .card { background: linear-gradient(145deg, #1f2937, #374151); transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #4b5563; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 255, 255, 0.1), 0 0 15px rgba(0, 128, 255, 0.1); }
+        .card-selected { transform: scale(1.02); box-shadow: 0 0 25px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+        .glass-panel { background: rgba(31, 41, 55, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-btn { background-color: rgba(31, 41, 55, 0.5); border: 1px solid #4b5563; transition: background-color 0.2s; }
+        .tab-btn.active { background-color: #4f46e5; border-color: #4f46e5; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #custom-instructions-panel, #api-settings-panel { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 60; }
+        #custom-instructions-panel.panel-open, #api-settings-panel.panel-open { transform: translateX(0); }
+        #terminal-container { padding: 0.5rem; background-color: #000; border-radius: 0.5rem; height: 60vh; }
+        .xterm .xterm-viewport { width: 100% !important; }
+        .config-menu-item.active { background-color: #4f46e5; color: white; }
+        .message-wrapper:hover .action-button-group { opacity: 1; }
+        .action-button-group { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">CUA Orchestration Engine</h1>
+            <p class="text-lg text-gray-400 mt-2">Persona: GAU-C-CUAG</p>
+            <p class="text-sm text-gray-500 mt-1">System USER: <span id="user-id" class="font-mono"></span> | Session ID: <span id="session-id" class="font-mono"></span></p>
+            <button id="api-settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <div class="mb-8 border-b border-gray-700 flex justify-center flex-wrap">
+            <button data-tab="agentic" class="tab-btn active text-gray-300 py-2 px-4 rounded-t-lg">AGENTIC CORE</button>
+            <button data-tab="adjectic" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">ADJECTIC MANIFEST</button>
+            <button data-tab="config" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">A3 CONFIGURATION</button>
+            <button data-tab="ajentic" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">AJENTIC NEXUS</button>
+        </div>
+
+        <div id="tab-content-agentic" class="tab-content active">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">AI Family Agents</h2>
+            <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8"></div>
+            <div id="detail-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden"><div id="detail-content"></div></div>
+            <div id="welcome-panel" class="glass-panel rounded-lg p-6 shadow-2xl text-center">
+                 <h2 class="text-2xl font-bold text-white mb-2">Select an Agent</h2>
+                 <p class="text-gray-300">Choose an AI Family member to view their profile and start a conversation.</p>
+            </div>
+        </div>
+
+        <div id="tab-content-adjectic" class="tab-content">
+            <div id="orchestration-panel" class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">Available Orchestrations & Actions</h2>
+                <div id="bookmark-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+             <div id="orchestration-output-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden">
+                <h2 id="orchestration-title" class="text-3xl font-bold text-center mb-4"></h2>
+                <div id="orchestration-steps" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <div id="tab-content-config" class="tab-content">
+            <div class="glass-panel p-6 rounded-lg">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">A3 Engine Configuration</h2>
+                <p class="text-center text-gray-300 mb-6">Manage parsers, manifests, and connectivity rules for the CUA ecosystem.</p>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1">
+                        <h3 class="font-bold text-lg mb-2">Configuration Menu</h3>
+                        <div class="space-y-2">
+                            <button class="config-menu-item w-full text-left p-3 bg-gray-800 rounded hover:bg-indigo-600 active" data-config="a2a">A2A Parser Rules</button>
+                            <button class="config-menu-item w-full text-left p-3 bg-gray-800 rounded hover:bg-indigo-600" data-config="mcp">MCP Manifest Registry</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <div id="config-content-a2a" class="config-content active">
+                            <div class="bg-gray-900/50 p-4 rounded-lg">
+                                <h3 class="font-bold text-lg mb-2">A2A Connectivity Parser</h3>
+                                <div class="space-y-2 text-sm font-mono mb-4" id="a2a-rules-list"></div>
+                                <form id="a2a-form" class="space-y-3 border-t border-gray-700 pt-4">
+                                    <h4 class="font-semibold">Register New Rule</h4>
+                                    <input type="text" id="a2a-trigger" placeholder="Trigger Phrase (e.g., 'review code')" class="w-full bg-gray-700 p-2 rounded">
+                                    <input type="text" id="a2a-command" placeholder="CLI Command (e.g., 'connect KARA SOPHIA')" class="w-full bg-gray-700 p-2 rounded">
+                                    <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Register Rule</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div id="config-content-mcp" class="config-content hidden">
+                            <div class="bg-gray-900/50 p-4 rounded-lg">
+                                <h3 class="font-bold text-lg mb-2">MCP Manifest Viewer</h3>
+                                <div id="mcp-list" class="flex flex-wrap gap-2 mb-4"></div>
+                                <pre id="mcp-content" class="text-xs font-mono whitespace-pre-wrap overflow-x-auto h-80 bg-black/50 p-2 rounded"></pre>
+                                <div class="mt-4 border-t border-gray-700 pt-4">
+                                    <h4 class="font-semibold mb-2">Invoke Selected Manifest</h4>
+                                    <form id="mcp-invoke-form" class="space-y-3">
+                                        <input type="text" id="mcp-brief" placeholder="Enter a brief for this run..." class="w-full bg-gray-700 p-2 rounded">
+                                        <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Invoke MCP</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-content-ajentic" class="tab-content">
+            <div class="glass-panel p-4 rounded-lg">
+                <h3 class="text-xl font-bold text-center mb-4">Agent Command Line Interface (A2A / CUAG)</h3>
+                <div id="terminal-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center text-xs text-gray-600 p-4 font-mono">
+        GAU-C-CUAG | ECOSYSTEM PRIMER: A3 | SIMULATION NETWORK: 255.8.8.8
+    </footer>
+
+    <div id="custom-instructions-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Custom Instructions</h2>
+            <button id="close-instructions-btn" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <form id="custom-instructions-form">
+            <div class="space-y-4">
+                <div><label for="system-input" class="block text-sm font-medium text-gray-300 mb-1">SYSTEM Persona</label><textarea id="system-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., Act as a senior software architect..."></textarea></div>
+                <div><label for="ai-input" class="block text-sm font-medium text-gray-300 mb-1">AI Behavior</label><textarea id="ai-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., Provide concise, code-first answers..."></textarea></div>
+                <div><label for="user-input" class="block text-sm font-medium text-gray-300 mb-1">USER Context</label><textarea id="user-input" rows="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="e.g., The current project is a Python Flask API..."></textarea></div>
+            </div>
+            <div class="mt-6"><button type="submit" class="w-full gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">Set & Make Instructions Live</button></div>
+        </form>
+    </div>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your Google API Key">
+            </div>
+            <div>
+                <label for="openai-api-key" class="block text-sm font-medium text-gray-300 mb-1">OpenAI API Key</label>
+                <input type="password" id="openai-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your OpenAI API Key">
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Save Keys</button>
+            </div>
+        </form>
+    </div>
+    
+    <div id="error-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-bold text-red-500 mb-4">Error</h3>
+            <p id="error-message" class="text-gray-300 mb-6">An error occurred.</p>
+            <button id="close-modal-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Close</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const CUA_App = {
+                codexData: {
+                    "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                    "ai_family": [
+                        {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"], "packaging_interrelation": [{"type": ".zip", "description": "Source code archives", "utility_tool": "ArchiverCLI"}, {"type": "Infrastructure as Code", "description": "Defines the environment", "utility_tool": "Terraform"}]},
+                        {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"], "packaging_interrelation": [{"type": ".exe", "description": "Compiled binary executables", "utility_tool": "GCC/MSVC"}, {"type": ".msi", "description": "Windows installers", "utility_tool": "WiX Toolset"}]},
+                        {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"], "packaging_interrelation": [{"type": "Code Signing", "description": "Applies digital signatures", "utility_tool": "SignTool.exe"}, {"type": ".7zip", "description": "Secure, encrypted archives", "utility_tool": "7-Zip CLI"}]},
+                        {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"], "packaging_interrelation": [{"type": "Docs Generation", "description": "Packages API documentation", "utility_tool": "Doxygen"}, {"type": "README.md", "description": "Ensures essential documentation", "utility_tool": "MarkdownLint"}]},
+                        {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"], "packaging_interrelation": [{"type": "Telemetry Hooks", "description": "Integrates analytics libraries", "utility_tool": "OpenTelemetry SDK"}]},
+                        {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"], "packaging_interrelation": [{"type": "Static Analysis", "description": "Runs checks before packaging", "utility_tool": "SonarQube"}]},
+                        {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"], "packaging_interrelation": [{"type": "Asset Bundling", "description": "Optimizes frontend assets", "utility_tool": "Webpack"}]},
+                        {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"], "packaging_interrelation": [{"type": "Containerization", "description": "Packages app into a container", "utility_tool": "Docker"}]},
+                        {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"], "packaging_interrelation": [{"type": "CI/CD Pipeline", "description": "Defines build/test workflow", "utility_tool": "Jenkins"}]}
+                    ],
+                     "tools": [
+                        { "name": "analyze_requirements", "primary_agent": "DAN" },
+                        { "name": "design_architecture", "primary_agent": "LYRA" },
+                        { "name": "scaffold_component", "primary_agent": "KARA" },
+                        { "name": "review_security", "primary_agent": "SOPHIA" },
+                        { "name": "generate_test_cases", "primary_agent": "SOPHIA" },
+                        { "name": "generate_documentation", "primary_agent": "CECILIA" },
+                        { "name": "create_build_pipeline", "primary_agent": "MISTRESS" }
+                    ],
+                    "chained_bookmarks": [
+                        {
+                            "name": "Full-Stack Feature Genesis", "associated_agent": "LYRA",
+                            "description": "From idea to documented, testable, and securable code.",
+                            "chain": [
+                                { "tool": "analyze_requirements", "input": "User-provided feature brief." },
+                                { "tool": "design_architecture", "input": "output_of_analyze_requirements" },
+                                { "tool": "scaffold_component", "input": "output_of_design_architecture" },
+                                { "tool": "review_security", "input": "output_of_scaffold_component" },
+                                { "tool": "generate_test_cases", "input": "output_of_scaffold_component" },
+                                { "tool": "generate_documentation", "input": "output_of_scaffold_component" }
+                            ]
+                        },
+                        {
+                            "name": "Interactive App Deployment", "associated_agent": "MISTRESS",
+                            "description": "Generates, containerizes, and creates a deployment pipeline.",
+                             "chain": [
+                                { "tool": "analyze_requirements", "input": "User-provided feature brief." },
+                                { "tool": "design_architecture", "input": "output_of_analyze_requirements" },
+                                { "tool": "scaffold_component", "input": "output_of_design_architecture", "params": { "language": "Node.js" } },
+                                { "tool": "generate_documentation", "input": "output_of_scaffold_component" },
+                                { "tool": "create_build_pipeline", "input": "output_of_design_architecture", "params": { "target": "Docker" } }
+                            ]
+                        }
+                    ]
+                },
+                liveCustomInstructions: { system: '', ai: '', user: '' },
+                currentSession: { agent: null, chatHistory: [], selectedCardElement: null },
+                lastCompletedOrchestration: null,
+                term: null, fitAddon: null, commandHistory: [], commandIndex: -1, currentCommand: '',
+                
+                a2aParserRules: [
+                    { trigger: "review code", command: "connect KARA SOPHIA" },
+                    { trigger: "design architecture", command: "task LYRA" }
+                ],
+                mcpManifests: {
+                    "MCP-WebApp-001.yaml": `# MCP for a Standard Web App\nProject_Definition:\n  name: "Basic Web App"\nOrchestration_Taskflow:\n  - step: 1\n    agent: LYRA\n    action: design_architecture`,
+                    "MCP-Data-Pipeline-002.yaml": `# MCP for a Data Pipeline\nProject_Definition:\n  name: "ETL Pipeline"\nOrchestration_Taskflow:\n  - step: 1\n    agent: DAN\n    action: analyze_requirements`,
+                    "MCP-PageRegistry-003.yaml": `# MCP for a new UI Page Registry\nProject_Definition:\n  name: "Admin Dashboard Page"\nOrchestration_Taskflow:\n  - step: 1\n    agent: DAN\n    action: analyze_requirements\n  - step: 2\n    agent: DUDE\n    action: scaffold_component\n    params:\n      framework: "React"\n  - step: 3\n    agent: MISTRESS\n    action: register_route\n    input: "output_of_scaffold_component"`,
+                    "MCP-ApiEndpoint-004.yaml": `# MCP for a Secure API Endpoint\nProject_Definition:\n  name: "User Data API Endpoint"\nOrchestration_Taskflow:\n  - step: 1\n    agent: LYRA\n    action: design_architecture\n    params:\n      type: "RESTful"\n  - step: 2\n    agent: KARA\n    action: scaffold_component\n    params:\n      language: "Python"\n      framework: "FastAPI"\n  - step: 3\n    agent: SOPHIA\n    action: review_security\n  - step: 4\n    agent: CECILIA\n    action: generate_documentation`
+                },
+                currentSelectedMcp: null,
+                apiKeys: { gemini: '', openai: '' },
+                currentChatProvider: 'gemini',
+
+                dom: {},
+
+                init: function() {
+                    this.dom = {
+                        agentGrid: document.getElementById('agent-grid'),
+                        bookmarkList: document.getElementById('bookmark-list'),
+                        detailPanel: document.getElementById('detail-panel'),
+                        detailContent: document.getElementById('detail-content'),
+                        welcomePanel: document.getElementById('welcome-panel'),
+                        orchestrationPanel: document.getElementById('orchestration-output-panel'),
+                        orchestrationTitle: document.getElementById('orchestration-title'),
+                        orchestrationSteps: document.getElementById('orchestration-steps'),
+                        instructionsPanel: document.getElementById('custom-instructions-panel'),
+                        closeInstructionsBtn: document.getElementById('close-instructions-btn'),
+                        instructionsForm: document.getElementById('custom-instructions-form'),
+                        errorModal: document.getElementById('error-modal'),
+                        closeModalBtn: document.getElementById('close-modal-btn'),
+                        errorMessage: document.getElementById('error-message'),
+                        apiSettingsPanel: document.getElementById('api-settings-panel'),
+                        closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                        apiSettingsForm: document.getElementById('api-settings-form'),
+                        apiSettingsBtn: document.getElementById('api-settings-btn'),
+                    };
+
+                    document.getElementById('user-id').textContent = `user_${crypto.randomUUID().slice(0, 8)}`;
+                    document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                    
+                    this.codexData.ai_family.forEach(agent => {
+                        const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent, card));
+                        this.dom.agentGrid.appendChild(card);
+                    });
+
+                    this.codexData.chained_bookmarks.forEach(bookmark => {
+                        const card = this.createCard(bookmark.name, bookmark.description, () => this.executeChainedBookmark(bookmark, "User-provided brief from card click."));
+                        card.classList.add('border-indigo-500');
+                        this.dom.bookmarkList.appendChild(card);
+                    });
+
+                    const customInstructionCard = this.createCard('Create Custom Instruction', 'Define SYSTEM, AI, and USER personas for this session.', this.toggleInstructionsPanel.bind(this));
+                    customInstructionCard.classList.add('border-green-500');
+                    this.dom.bookmarkList.appendChild(customInstructionCard);
+                    
+                    this.dom.closeInstructionsBtn.addEventListener('click', this.toggleInstructionsPanel.bind(this));
+                    this.dom.instructionsForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.setCustomInstructions();
+                    });
+
+                    this.dom.closeModalBtn.addEventListener('click', () => this.dom.errorModal.classList.add('hidden'));
+
+                    document.querySelectorAll('.tab-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const tabId = button.dataset.tab;
+                            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                            document.getElementById(`tab-content-${tabId}`).classList.add('active');
+                            button.classList.add('active');
+                            if(tabId === 'ajentic' && this.fitAddon) {
+                                setTimeout(() => this.fitAddon.fit(), 0); 
+                            }
+                        });
+                    });
+                    
+                    document.querySelectorAll('.config-menu-item').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const configId = button.dataset.config;
+                            document.querySelectorAll('.config-content').forEach(c => c.classList.remove('active'));
+                            document.querySelectorAll('.config-menu-item').forEach(b => b.classList.remove('active'));
+                            document.getElementById(`config-content-${configId}`).classList.add('active');
+                            button.classList.add('active');
+                        });
+                    });
+
+                    document.getElementById('a2a-form').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        const trigger = document.getElementById('a2a-trigger').value;
+                        const command = document.getElementById('a2a-command').value;
+                        if (trigger && command) {
+                            this.a2aParserRules.push({ trigger, command });
+                            this.renderA2ARules();
+                            document.getElementById('a2a-form').reset();
+                        }
+                    });
+
+                    document.getElementById('mcp-invoke-form').addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        if(this.currentSelectedMcp) {
+                            const bookmark = this.codexData.chained_bookmarks.find(b => b.name.toLowerCase().includes(this.currentSelectedMcp.split('-')[1].toLowerCase()));
+                            const brief = document.getElementById('mcp-brief').value || "Brief from MCP Invocation";
+                            if (bookmark) {
+                                document.querySelector('[data-tab="adjectic"]').click();
+                                this.executeChainedBookmark(bookmark, brief);
+                            } else {
+                                alert(`Error: Could not find a matching orchestration for MCP: ${this.currentSelectedMcp}`);
+                            }
+                        } else {
+                            alert("Please select an MCP manifest to invoke.");
+                        }
+                    });
+                    
+                    this.renderA2ARules();
+                    this.renderMCPRegistry();
+                    this.setupTerminal();
+                },
+
+                createCard: function(title, subtitle, onClick) {
+                    const card = document.createElement('div');
+                    card.className = 'card rounded-lg p-4 text-center cursor-pointer flex flex-col justify-center items-center h-48';
+                    card.innerHTML = `<h3 class="text-xl font-bold text-white">${title}</h3><p class="text-sm text-blue-300 mt-2">${subtitle}</p>`;
+                    card.addEventListener('click', onClick);
+                    return card;
+                },
+                
+                selectAgent: function(agent, cardElement) {
+                    this.clearSelection();
+                    this.currentSession = { agent, chatHistory: [], selectedCardElement: cardElement };
+                    cardElement.classList.add('card-selected');
+                    this.dom.welcomePanel.classList.add('hidden');
+                    this.dom.orchestrationPanel.classList.add('hidden');
+                    this.dom.detailPanel.classList.remove('hidden');
+                    
+                    this.dom.detailContent.innerHTML = `
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="flex-shrink-0 text-center">
+                                 <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-blue-400"><span class="text-4xl font-bold">${agent.name.charAt(0)}</span></div>
+                                 <h2 class="text-2xl font-bold mt-2">${agent.name}</h2><p class="text-blue-300">${agent.role}</p>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="italic text-gray-300 border-l-4 border-blue-400 pl-4">"${agent.philosophy}"</p>
+                                <h4 class="text-lg font-semibold mt-4 mb-2 text-white">Primary Focus Areas:</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${agent.focus_areas.map(area => `<span class="bg-gray-600 text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full">${area}</span>`).join('')}
+                                </div>
+                                <h4 class="text-lg font-semibold mt-4 mb-2 text-white">Packaging & Build Interrelation:</h4>
+                                <ul class="space-y-3">
+                                    ${agent.packaging_interrelation.map(task => `
+                                        <li class="p-3 bg-gray-800 rounded-md">
+                                            <p class="font-semibold font-mono text-cyan-300">${task.type}</p>
+                                            <p class="text-sm text-gray-400">${task.description}</p>
+                                            <p class="text-xs text-gray-500 mt-1">Suggested Tool: <span class="font-mono">${task.utility_tool}</span></p>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center"><button id="start-conversation-btn" class="gemini-btn text-white font-bold py-3 px-6 rounded-lg shadow-lg">✨ Start Conversation with ${agent.name}</button></div>
+                        <div id="chat-container" class="mt-6 hidden">
+                            <div id="chat-log" class="space-y-4 mb-4"></div>
+                            <form id="chat-form" class="flex gap-2"><input type="text" id="chat-input" class="flex-grow bg-gray-700 border border-gray-600 rounded-lg p-3 text-white" placeholder="Ask a follow-up or use /execute..." required autocomplete="off"><button type="submit" id="send-btn" class="gemini-btn font-bold p-3 rounded-lg flex items-center">Send</button></form>
+                        </div>`;
+                    document.getElementById('start-conversation-btn').addEventListener('click', () => this.startConversation(agent));
+                    document.getElementById('chat-form')?.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.handleUserMessage();
+                    });
+                },
+                
+                startConversation: function(agent) {
+                    const chatContainer = document.getElementById('chat-container');
+                    const startBtn = document.getElementById('start-conversation-btn');
+                    const chatLog = document.getElementById('chat-log');
+
+                    if (chatContainer && startBtn && chatLog) {
+                        startBtn.classList.add('hidden');
+                        chatContainer.classList.remove('hidden');
+                        this.addMessageToLog('ai', `Hello, I am ${agent.name}, ${agent.role}. How can I assist you with my focus on "${agent.philosophy}"?`);
+                    }
+                },
+
+                handleUserMessage: function() {
+                    const chatInput = document.getElementById('chat-input');
+                    const message = chatInput.value.trim();
+                    if (!message) return;
+
+                    this.addMessageToLog('user', message);
+                    chatInput.value = '';
+
+                    setTimeout(() => {
+                        const agent = this.currentSession.agent;
+                        const aiResponse = `Acknowledged. As ${agent.name}, I will process your request: "${message}". My core philosophy is "${agent.philosophy}". I will now analyze this based on my focus areas.`;
+                        this.addMessageToLog('ai', aiResponse);
+                    }, 1200);
+                },
+
+                addMessageToLog: function(sender, message) {
+                    const chatLog = document.getElementById('chat-log');
+                    if (!chatLog) return;
+
+                    const messageWrapper = document.createElement('div');
+                    messageWrapper.className = `message-wrapper flex items-start gap-3 ${sender === 'user' ? 'justify-end' : ''}`;
+                    
+                    const avatar = `<div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center font-bold flex-shrink-0">${sender === 'user' ? 'U' : this.currentSession.agent.name.charAt(0)}</div>`;
+                    const messageBubble = `<div class="p-3 rounded-lg max-w-md ${sender === 'user' ? 'bg-blue-600' : 'bg-gray-700'}">${message}</div>`;
+
+                    if (sender === 'user') {
+                        messageWrapper.innerHTML = `${messageBubble}${avatar}`;
+                    } else {
+                        messageWrapper.innerHTML = `${avatar}${messageBubble}`;
+                    }
+                    
+                    chatLog.appendChild(messageWrapper);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                },
+                
+                clearSelection: function() {
+                    document.querySelectorAll('.card-selected').forEach(c => c.classList.remove('card-selected'));
+                },
+
+                executeChainedBookmark: async function(bookmark, initialBrief) {
+                    this.clearSelection();
+                    const bookmarkCard = Array.from(this.dom.bookmarkList.children).find(c => c.querySelector('h3').textContent === bookmark.name);
+                    if(bookmarkCard) bookmarkCard.classList.add('card-selected');
+
+                    this.dom.welcomePanel.classList.add('hidden');
+                    this.dom.detailPanel.classList.add('hidden');
+                    this.dom.orchestrationPanel.classList.remove('hidden');
+                    this.dom.orchestrationTitle.textContent = `Executing: ${bookmark.name}`;
+                    this.dom.orchestrationSteps.innerHTML = '';
+
+                    let previousOutput = initialBrief;
+
+                    for (let i = 0; i < bookmark.chain.length; i++) {
+                        const step = bookmark.chain[i];
+                        const tool = this.codexData.tools.find(t => t.name === step.tool);
+                        
+                        const stepElement = document.createElement('div');
+                        stepElement.className = 'p-4 rounded-lg bg-gray-800 border border-gray-700';
+                        stepElement.innerHTML = `
+                            <div class="flex items-center gap-4">
+                                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center">${i+1}</span>
+                                <div>
+                                    <h4 class="text-lg font-bold text-white">Tool: <span class="font-mono">${tool.name}</span></h4>
+                                    <p class="text-sm text-blue-300">Agent: ${tool.primary_agent}</p>
+                                </div>
+                                <div class="ml-auto loader"></div>
+                            </div>
+                            <div class="mt-3 pl-12 text-sm space-y-2 hidden">
+                                <p><strong>Input:</strong> <span class="text-gray-400 font-mono">${previousOutput}</span></p>
+                                <p><strong>Output:</strong> <span class="text-green-400 font-mono" id="output-${i}"></span></p>
+                            </div>`;
+                        this.dom.orchestrationSteps.appendChild(stepElement);
+                        
+                        await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+                        const outputId = `output_${tool.name}_${i}.json`;
+                        previousOutput = outputId;
+
+                        const outputElement = document.getElementById(`output-${i}`);
+                        outputElement.textContent = outputId;
+                        stepElement.querySelector('.loader').classList.add('hidden');
+                        stepElement.querySelector('.hidden').classList.remove('hidden');
+                    }
+                    this.lastCompletedOrchestration = { bookmark, initialBrief };
+                    const successMessage = document.createElement('div');
+                    successMessage.className = 'text-center text-green-400 font-bold p-4 mt-4 bg-green-900/50 rounded-lg';
+                    successMessage.textContent = `Orchestration Complete. You can now export this workflow from the AJENTIC NEXUS CLI using: export "${bookmark.name}.it"`;
+                    this.dom.orchestrationSteps.appendChild(successMessage);
+                },
+                
+                toggleInstructionsPanel: function() {
+                    this.dom.instructionsPanel.classList.toggle('panel-open');
+                },
+                
+                setCustomInstructions: function() {
+                    this.liveCustomInstructions.system = document.getElementById('system-input').value;
+                    this.liveCustomInstructions.ai = document.getElementById('ai-input').value;
+                    this.liveCustomInstructions.user = document.getElementById('user-input').value;
+                    
+                    console.log("Custom Instructions Set:", this.liveCustomInstructions);
+                    alert("Custom Instructions are now live for this session!");
+                    this.toggleInstructionsPanel();
+                },
+
+                renderA2ARules: function() {
+                    const list = document.getElementById('a2a-rules-list');
+                    list.innerHTML = this.a2aParserRules.map(rule => 
+                        `<div class="p-2 bg-gray-800 rounded">"<span class="text-sky-300">${rule.trigger}</span>"  ->  <span class="text-green-300">${rule.command}</span></div>`
+                    ).join('');
+                },
+
+                renderMCPRegistry: function() {
+                    const list = document.getElementById('mcp-list');
+                    const contentDisplay = document.getElementById('mcp-content');
+                    list.innerHTML = Object.keys(this.mcpManifests).map(name => 
+                        `<button class="config-menu-item text-sm w-full text-left p-2 bg-gray-800 rounded hover:bg-indigo-600" data-mcp-name="${name}">${name}</button>`
+                    ).join('');
+
+                    list.querySelectorAll('button').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const mcpName = btn.dataset.mcpName;
+                            this.currentSelectedMcp = mcpName;
+                            contentDisplay.textContent = this.mcpManifests[mcpName];
+                            list.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                            btn.classList.add('active');
+                        });
+                    });
+                    if (Object.keys(this.mcpManifests).length > 0) {
+                        list.querySelector('button').click();
+                    }
+                },
+
+                setupTerminal: function() {
+                    this.fitAddon = new FitAddon.FitAddon();
+                    this.term = new Terminal({
+                        cursorBlink: true, convertEol: true, fontFamily: `'Roboto Mono', monospace`,
+                        theme: { background: '#000000', foreground: '#00FF00', cursor: 'rgba(0, 255, 0, 0.5)' }
+                    });
+                    this.term.loadAddon(this.fitAddon);
+                    this.term.open(document.getElementById('terminal-container'));
+                    this.fitAddon.fit();
+                    
+                    this.term.prompt = () => { this.term.write('\r\n\x1b[36mCUAG> \x1b[0m'); };
+                    this.term.writeln('Welcome to the CUAG Agent CLI. Type \x1b[32mhelp\x1b[0m for a list of commands.');
+                    this.term.prompt();
+
+                    this.term.onKey(({ key, domEvent }) => {
+                        const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+                        if (domEvent.keyCode === 13) {
+                            if (this.currentCommand.trim().length > 0) {
+                                this.term.writeln('');
+                                this.commandHistory.push(this.currentCommand);
+                                this.commandIndex = this.commandHistory.length;
+                                this.handleCliCommand(this.currentCommand);
+                                this.currentCommand = '';
+                            } else {
+                               this.term.prompt();
+                            }
+                        } else if (domEvent.keyCode === 8) {
+                            if (this.term.buffer.active.cursorX > 7) {
+                                this.currentCommand = this.currentCommand.slice(0, -1);
+                                this.term.write('\b \b');
+                            }
+                        } else if (printable) {
+                            this.currentCommand += key;
+                            this.term.write(key);
+                        }
+                    });
+                },
+
+                handleCliCommand: async function(command) {
+                    // ... [Full handleCliCommand logic] ...
+                },
+
+                executeExport: function(filename) {
+                    // ... [Full executeExport logic] ...
+                }
+            };
+
+            CUA_App.init();
+        });
+    </script>
+</body>
+</html>
