@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/index.html",
+      "destination": "/bootloader.js"
+    },
+    { "source": "**", "destination": "/index.html" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "CASSA VEGAS: The Family",
+  "description": "Interact with the CASSA VEGAS family through a tabbed interface. Select an agent to view their profile and start a conversation.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "display-capture"
+  ],
+  "prompt": ""
+}

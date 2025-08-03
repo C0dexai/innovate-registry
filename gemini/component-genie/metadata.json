@@ -1,0 +1,6 @@
+{
+  "name": "Component Genie",
+  "description": "A v0.dev clone that generates React components from text prompts and allows editing and saving them directly to a GitHub repository. Features a file explorer, Monaco editor, and live preview.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
