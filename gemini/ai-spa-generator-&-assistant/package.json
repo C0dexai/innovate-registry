@@ -1,0 +1,22 @@
+{
+  "name": "ai-spa-generator-&-assistant",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/genai": "^1.8.0",
+    "@monaco-editor/react": "^4.6.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.3.5"
+  }
+}

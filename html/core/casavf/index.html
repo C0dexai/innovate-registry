@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CASSA VEGAS: The Family</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --neon-cyan: #00ffff;
+        --neon-fuchsia: #ff00ff;
+        --neon-lime: #39ff14;
+        --neon-purple: #9d00ff;
+        --dark-bg: #0d0d0f;
+        --dark-bg-secondary: #1a1a1d;
+      }
+
+      body {
+        font-family: 'Rajdhani', sans-serif;
+        background-color: var(--dark-bg);
+        background-image: 
+          linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px), 
+          linear-gradient(to right, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 3rem 3rem;
+        color: var(--neon-cyan);
+      }
+
+      .neon-glow-fuchsia {
+        animation: neon-glow-fuchsia 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes neon-glow-fuchsia {
+        from {
+          text-shadow: 0 0 3px #fff, 0 0 8px #fff, 0 0 12px var(--neon-fuchsia), 0 0 18px var(--neon-fuchsia);
+        }
+        to {
+          text-shadow: 0 0 8px #fff, 0 0 12px var(--neon-fuchsia), 0 0 20px var(--neon-fuchsia), 0 0 25px var(--neon-fuchsia);
+        }
+      }
+
+      .agent-speaking-glow {
+        animation: speaking-glow 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes speaking-glow {
+        from {
+            box-shadow: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan), inset 0 0 8px rgba(0, 255, 255, 0.3);
+        }
+        to {
+            box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan), 0 0 30px var(--neon-purple), inset 0 0 8px rgba(0, 255, 255, 0.3);
+        }
+      }
+      
+      .listening-glow {
+        animation: listening-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes listening-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 255, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--dark-bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--neon-cyan);
+        border-radius: 10px;
+        border: 1px solid var(--neon-cyan);
+        box-shadow: 0 0 5px var(--neon-cyan);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: #fff;
+        box-shadow: 0 0 10px var(--neon-cyan);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.8.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-900 text-neutral-200">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

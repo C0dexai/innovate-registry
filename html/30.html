@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide: CUA Orchestration Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Added marked.js -->
+
+    <!-- Chosen Palette: Warm Neutrals with a Tech Accent -->
+    <!-- Application Structure Plan: A tabbed dashboard interface is used to separate the main concepts of the guide into logical, non-linear sections: 1) Core Concepts, 2) AI Family explorer (now interactive), 3) an interactive Building Workflow diagram, and 4) a functional CLI Cheatsheet. This structure allows both new users to learn sequentially and experienced users to quickly reference specific information without excessive scrolling, enhancing usability and information retrieval. Key interactions include tab switching, clickable cards for agent details, an interactive chat with dynamic hints, and an accordion-style cheatsheet. -->
+    <!-- Visualization & Content Choices: The report is conceptual, so no data charts are used. Instead, information is presented using structured HTML and CSS. Goal: Organize -> Method: Interactive cards for the AI Family. Goal: Explain a Process -> Method: A clickable CSS-based process diagram for the Building Workflow. Goal: Reference -> Method: An interactive accordion for the CLI Cheatsheet. The AI Family tab now features a simulated chat for direct interaction, task initiation, and agent connection, with dynamic, prose-based hints (user, AI, system) to guide the conversation. These choices directly support the non-linear, exploratory dashboard structure and avoid SVG/Mermaid as required. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F5F5F4; /* stone-200 */
+            color: #1f2937; /* gray-800 */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom-color: #4f46e5; /* indigo-600 */
+            color: #4f46e5;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .prose-code::before, .prose-code::after {
+            content: '';
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+        }
+        .accordion-content.open {
+            max-height: 500px; /* Adjust as needed */
+        }
+        .process-step {
+            transition: all 0.3s ease;
+        }
+        .process-step.active {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            transform: scale(1.05);
+        }
+        /* Simulated chat styles */
+        .chat-bubble {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            max-width: 80%;
+            margin-bottom: 0.5rem;
+        }
+        .chat-bubble-ai {
+            background-color: #e5e7eb; /* gray-200 */
+            border-bottom-left-radius: 0.125rem;
+            align-self: flex-start; /* Align AI messages to the left */
+        }
+        .chat-bubble-user {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            border-bottom-right-radius: 0.125rem;
+            align-self: flex-end; /* Align user messages to the right */
+        }
+        .chat-hint {
+            padding: 0.5rem 0.75rem;
+            border-left-width: 4px;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        /* New styles for hint types */
+        .message-bubble.user-prompt-suggestion { /* For the "Try:" hint */
+            background-color: #d1d5db; /* gray-300 */
+            color: #3b82f6; /* blue-500 */
+            font-style: italic;
+            font-size: 0.875rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .message-bubble.ai-hint {
+            background-color: #e0e7ff; /* indigo-100 */
+            color: #4f46e5; /* indigo-600 */
+            font-style: italic;
+            font-size: 0.875rem;
+            border-left: 4px solid #4f46e5;
+            padding-left: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .message-bubble.system-hint {
+            background-color: #f3e8ff; /* purple-100 */
+            color: #a855f7; /* purple-500 */
+            font-style: italic;
+            font-size: 0.875rem;
+            border-left: 4px solid #a855f7;
+            padding-left: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        /* Resizer handle style */
+        .resizer-handle {
+            height: 8px;
+            background-color: #d1d5db; /* gray-300 */
+            cursor: ns-resize; /* North-south resize cursor */
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+            flex-shrink: 0; /* Prevent it from shrinking */
+        }
+        /* Ensure chat log fills available space */
+        #chat-log {
+            flex-grow: 1;
+            min-height: 100px; /* Minimum height for chat log */
+            max-height: 400px; /* Max height for chat log, adjust as needed */
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-gray-900">Interactive Guide to the CUA Engine</h1>
+            <p class="mt-2 text-lg text-gray-600">Your explorable resource for building AI inference applications.</p>
+        </header>
+
+        <nav class="flex justify-center border-b border-gray-300 mb-8">
+            <button class="tab-btn active text-lg font-semibold py-4 px-6" data-tab="concepts">Core Concepts</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="family">AI Family</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="workflow">Building Workflow</button>
+            <button class="tab-btn text-lg font-semibold py-4 px-6" data-tab="cheatsheet">CLI Cheatsheet</button>
+        </nav>
+
+        <main>
+            <!-- Tab: Core Concepts -->
+            <div id="concepts" class="tab-content active">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-4 text-center">The "Ajentic Flow"</h2>
+                    <p class="text-lg text-gray-700 mb-6 text-center">The CUA Orchestration Engine is designed around a principle called "ajentic flow"—a highly interactive and guided experience for building AI applications. Instead of static documentation, the engine uses its AI agents to proactively offer contextual insights and suggestions, ensuring a seamless journey from your initial idea to a fully orchestrated task.</p>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-2xl font-bold mb-4">The Layered Hinting System</h3>
+                        <p class="text-gray-700 mb-4">After every interaction, the system provides three layers of guidance to ensure you're never left wondering what to do next. This creates a continuous and intuitive conversational flow.</p>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo-600">➔</span>
+                                <div>
+                                    <h4 class="font-bold text-lg">User Prompt Suggestion (`Try:`)</h4>
+                                    <p class="text-gray-600">An immediate, actionable prompt you can use for your next conversational step. It's the quickest way to move forward.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo-600">💡</span>
+                                <div>
+                                    <h4 class="font-bold text-lg">AI Hint (`AI Hint:`)</h4>
+                                    <p class="text-gray-600">A deeper technical or conceptual insight from the current AI agent, providing context related to its specific role and expertise.</p>
+                                </div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-2xl mr-4 text-indigo-600">⚙️</span>
+                                <div>
+                                    <h4 class="font-bold text-lg">System Suggestion (`System Suggestion:`)</h4>
+                                    <p class="text-gray-600">Strategic guidance from the CUA Engine itself, recommending broader actions, different tools, or more complex orchestrations to achieve your goals efficiently.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: AI Family -->
+            <div id="family" class="tab-content">
+                 <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">Meet the AI Family</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">The CUA Engine's power comes from its family of specialized AI agents. Each agent has a unique role, philosophy, and set of skills. Click on any agent to learn more about their capabilities and start an interactive session.</p>
+                    <div id="agent-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <!-- Agent cards will be injected here by JS -->
+                    </div>
+                    <div id="agent-details" class="mt-8 bg-white p-6 rounded-lg shadow-md" style="display: none;">
+                        <!-- Agent details and interactive chat will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Building Workflow -->
+            <div id="workflow" class="tab-content">
+                 <div class="max-w-6xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">The 4 Phases of Building an Application</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">Building an application with the CUA Engine is a guided, four-phase process. Click on each phase below to see a detailed explanation and an example of the interactive workflow.</p>
+                    
+                    <div id="process-nav" class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-0 mb-8">
+                        <!-- Process steps will be injected here -->
+                    </div>
+
+                    <div id="workflow-details-container" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="workflow-text" class="bg-white p-6 rounded-lg shadow-md">
+                            <!-- Details for the selected phase will appear here -->
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
+                            <h4 class="text-white font-bold text-center mb-4">First Run Simulation</h4>
+                             <div class="bg-white h-96 flex flex-col p-4 rounded-md overflow-y-auto">
+                                <div class="chat-bubble chat-bubble-ai">Hello, I am LYRA... How can I assist you?</div>
+                                <div class="chat-bubble chat-bubble-user">I need to build a new microservice...</div>
+                                <div class="chat-bubble chat-bubble-ai">
+                                    That's an excellent challenge! For a highly scalable and secure user authentication microservice, we'll need to focus on robust architectural patterns...
+                                    <div class="chat-hint border-blue-500 bg-blue-50"><b>Try:</b> Ask about initial architectural considerations for microservices.</div>
+                                    <div class="chat-hint border-yellow-500 bg-yellow-50"><b>AI Hint:</b> When designing scalable microservices, key architectural considerations include statelessness, fault tolerance, and effective API gateway management...</div>
+                                    <div class="chat-hint border-purple-500 bg-purple-50"><b>System Suggestion:</b> To initiate a structured development process... consider utilizing the 'Full-Stack Feature Genesis' orchestration.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: CLI Cheatsheet -->
+            <div id="cheatsheet" class="tab-content">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center">CLI Cheatsheet</h2>
+                    <p class="text-lg text-gray-700 mb-8 text-center">A quick reference for using the A3 NEXUS command-line interface. Click each command to see its purpose, an example, and the logical process behind it.</p>
+                    <div id="accordion-container" class="space-y-4">
+                        <!-- Accordion items will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Global variables for Firebase configuration and app ID (not used in this version)
+        // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let userId; // userId will now be a random UUID
+
+        const DBHelper = (() => {
+            let indexedDbInstance;
+            const DB_NAME = 'CUA_Engine_DB';
+            const DB_VERSION = 1;
+            const RULES_STORE = 'a2aRules';
+            const CHAT_STORE = 'chatHistory';
+
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+                    request.onerror = (event) => reject("Error opening IndexedDB.");
+                    request.onsuccess = (event) => {
+                        indexedDbInstance = event.target.result;
+                        resolve(indexedDbInstance);
+                    };
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(RULES_STORE)) {
+                            db.createObjectStore(RULES_STORE, { keyPath: 'trigger' });
+                        }
+                        if (!db.objectStoreNames.contains(CHAT_STORE)) {
+                            const chatStore = db.createObjectStore(CHAT_STORE, { keyPath: 'id', autoIncrement: true });
+                            chatStore.createIndex('agentName', 'agentName', { unique: false });
+                        }
+                    };
+                });
+            }
+
+            async function getStore(storeName, mode) {
+                if (!indexedDbInstance) await openDB();
+                return indexedDbInstance.transaction(storeName, mode).objectStore(storeName);
+            }
+
+            return {
+                async saveRule(rule) {
+                    const store = await getStore(RULES_STORE, 'readwrite');
+                    store.put(rule);
+                },
+                async getRules() {
+                    const store = await getStore(RULES_STORE, 'readonly');
+                    return store.getAll();
+                },
+                async saveMessage(message) {
+                    const store = await getStore(CHAT_STORE, 'readwrite');
+                    store.add(message);
+                },
+                async getChatHistory(agentName) {
+                    const store = await getStore(CHAT_STORE, 'readonly');
+                    const index = store.index('agentName');
+                    return index.getAll(agentName);
+                }
+            };
+        })();
+
+        const CUA_App = (() => {
+            const codexData = {
+                "version": "2.0", "author": "CODEX System", "contact": "ANDOY AI",
+                "ai_family": [
+                    {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+                    {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+                    {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+                    {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+                    {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"]},
+                    {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"]},
+                    {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"]},
+                    {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"]},
+                    {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"]}
+                ],
+                "tools": [
+                    { "name": "analyze_requirements", "primary_agent": "DAN" },
+                    { "name": "design_architecture", "primary_agent": "LYRA" },
+                    { "name": "scaffold_component", "primary_agent": "KARA" },
+                    { "name": "review_security", "primary_agent": "SOPHIA" },
+                    { "name": "generate_test_cases", "primary_agent": "SOPHIA" },
+                    { "name": "generate_documentation", "primary_agent": "CECILIA" },
+                    { "name": "create_build_pipeline", "primary_agent": "MISTRESS" }
+                ],
+                "chained_bookmarks": [
+                    {
+                        "name": "Full-Stack Feature Genesis", "associated_agent": "LYRA",
+                        "description": "From idea to documented, testable, and securable code.",
+                        "chain": []
+                    },
+                    {
+                        "name": "Interactive App Deployment", "associated_agent": "MISTRESS",
+                        "description": "Generates, containerizes, and creates a deployment pipeline.",
+                           "chain": []
+                    }
+                ]
+            };
+            let a2aParserRules = [
+                { trigger: "review code", command: "connect KARA SOPHIA" },
+                { trigger: "design architecture", command: "task LYRA" }
+            ];
+            let mcpManifests = {
+                "MCP-WebApp-001.yaml": `
+# MCP for a Standard Web App
+
+This manifest outlines the standard steps for deploying a web application.
+
+## Overview
+The process involves **initial setup**, **dependency installation**, and **application launch**.
+
+\`\`\`yaml
+# Example YAML configuration
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-webapp-pod
+spec:
+  containers:
+  - name: webapp-container
+    image: my-webapp:latest
+    ports:
+    - containerPort: 80
+\`\`\`
+
+## Steps:
+1.  **Initialize Project:** Setup basic project structure.
+2.  **Install Dependencies:** Fetch required libraries.
+3.  **Build Application:** Compile and bundle assets.
+4.  **Deploy to Environment:** Push to staging or production.
+
+\`\`\`javascript
+// Example JavaScript snippet
+function greet(name) {
+    console.log(\`Hello, \${name}!\`);
+}
+greet('World');
+\`\`\`
+`,
+                "MCP-Data-Pipeline-002.yaml": `# MCP for a Data Pipeline...`,
+                "MCP-PageRegistry-003.yaml": `# MCP for a new UI Page Registry...`,
+                "MCP-ApiEndpoint-004.yaml": `# MCP for a Secure API Endpoint...`,
+                "MCP-Supervised-Deploy-005.yaml": `# MCP for a Supervised Deployment...`
+            };
+            
+            let liveCustomInstructions = { system: '', ai: '', user: '' };
+            let apiKeys = { gemini: '', openai: '' }; 
+            let currentSession = { agent: null, chatHistory: [], selectedCardElement: null };
+            let dom = {};
+            let userId; // Defined globally for CUA_App scope
+            const isAuthReady = true; // Always true as Firebase is removed
+
+            async function init() {
+                userId = `user_${crypto.randomUUID().slice(0, 8)}`; // Generate a random user ID
+                document.getElementById('user-id').textContent = userId; // Display user ID
+
+                // Cache DOM elements
+                dom = {
+                    agentGrid: document.getElementById('agent-grid'),
+                    agentDetails: document.getElementById('agent-details'), // Cache agent-details
+                    // General app elements (from original CUA_App)
+                    instructionsPanel: document.getElementById('custom-instructions-panel'),
+                    closeInstructionsBtn: document.getElementById('close-instructions-btn'),
+                    systemInput: document.getElementById('system-input'), 
+                    aiInput: document.getElementById('ai-input'),
+                    userInput: document.getElementById('user-input'),
+                    instructionsForm: document.getElementById('custom-instructions-form'),
+                    apiKeysForm: document.getElementById('api-keys-form'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key'),
+                    openaiApiKeyInput: document.getElementById('openai-api-key'),
+                    errorModal: document.getElementById('error-modal'),
+                    closeModalBtn: document.getElementById('close-modal-btn'),
+                    errorMessage: document.getElementById('error-message'),
+                    errorTitle: document.getElementById('error-title'),
+                    mcpContent: document.getElementById('mcp-content')
+                };
+
+                // Set unique Session ID
+                document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                
+                const savedRules = await DBHelper.getRules();
+                if (savedRules.length > 0) {
+                    a2aParserRules = savedRules;
+                } else {
+                    a2aParserRules.forEach(rule => DBHelper.saveRule(rule));
+                }
+
+                renderAgentCards();
+                renderWorkflowPhases();
+                renderCheatsheet();
+                setupEventListeners();
+            }
+
+            function renderAgentCards() {
+                const agentGrid = dom.agentGrid;
+                agentGrid.innerHTML = ''; // Clear existing cards
+                agentData.forEach(agent => {
+                    const card = document.createElement('div');
+                    card.className = 'card bg-white p-6 rounded-lg shadow-md cursor-pointer text-center';
+                    card.innerHTML = `<h3 class="text-xl font-bold text-indigo-600">${agent.name}</h3><p class="text-gray-500">${agent.role}</p>`;
+                    card.addEventListener('click', () => selectAgent(agent));
+                    agentGrid.appendChild(card);
+                });
+            }
+
+            function renderWorkflowPhases() {
+                const processNav = document.getElementById('process-nav');
+                const workflowText = document.getElementById('workflow-text');
+                processNav.innerHTML = ''; // Clear existing
+                workflowData.forEach((item, index) => {
+                    const step = document.createElement('div');
+                    step.className = 'process-step bg-white p-4 rounded-lg shadow-md cursor-pointer text-center flex-1';
+                    step.innerHTML = `<h4 class="font-bold">${item.phase}</h4>`;
+                    
+                    const arrow = document.createElement('div');
+                    if (index < workflowData.length - 1) {
+                        arrow.innerHTML = `<span class="text-2xl text-gray-400 mx-4 hidden md:inline">→</span>`;
+                    }
+
+                    step.addEventListener('click', () => {
+                        document.querySelectorAll('.process-step').forEach(s => s.classList.remove('active'));
+                        step.classList.add('active');
+                        workflowText.innerHTML = `
+                            <h3 class="text-2xl font-bold mb-2">${item.title}</h3>
+                            <p class="text-gray-700 mb-4">${item.description}</p>
+                            <ul class="space-y-2">
+                                ${item.details.map(detail => `<li class="flex items-start"><span class="text-indigo-500 font-bold mr-2">✓</span><span>${detail}</span></li>`).join('')}
+                            </ul>
+                        `;
+                    });
+                    processNav.appendChild(step);
+                    processNav.appendChild(arrow);
+                });
+                if(processNav.children[0]) {
+                    processNav.children[0].click(); // Activate first step by default
+                }
+            }
+
+            function renderCheatsheet() {
+                const accordionContainer = document.getElementById('accordion-container');
+                accordionContainer.innerHTML = ''; // Clear existing
+                cheatsheetData.forEach(item => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'bg-white rounded-lg shadow-md';
+
+                    const header = document.createElement('div');
+                    header.className = 'p-4 flex justify-between items-center cursor-pointer';
+                    header.innerHTML = `<h3 class="text-lg font-semibold"><code class="font-mono text-indigo-600 bg-indigo-50 p-1 rounded">${item.command}</code></h3><span class="text-2xl text-gray-400 transition-transform duration-300 transform">+</span>`;
+
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content px-4 pb-4';
+                    content.innerHTML = `
+                        <p class="text-gray-700 mb-2">${item.description}</p>
+                        <p class="text-gray-700 mb-2"><strong class="font-semibold">Example:</strong> <code class="font-mono text-sm bg-gray-200 p-1 rounded">${item.example}</code></p>
+                        <p class="text-gray-700"><strong class="font-semibold">Logical Process:</strong> ${item.process}</p>
+                    `;
+
+                    header.addEventListener('click', () => {
+                        const isOpen = content.classList.contains('open');
+                        document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+                        document.querySelectorAll('.accordion-header-span').forEach(s => s.classList.remove('rotate-45'));
+                        
+                        if (!isOpen) {
+                            content.classList.add('open');
+                            header.querySelector('span').classList.add('rotate-45');
+                        }
+                    });
+                    header.querySelector('span').classList.add('accordion-header-span');
+
+                    wrapper.appendChild(header);
+                    wrapper.appendChild(content);
+                    accordionContainer.appendChild(wrapper);
+                });
+            }
+
+            function setupEventListeners() {
+                dom.closeInstructionsBtn.addEventListener('click', toggleInstructionsPanel);
+                dom.instructionsForm.addEventListener('submit', (e) => { e.preventDefault(); setCustomInstructions(); });
+                dom.apiKeysForm.addEventListener('submit', (e) => { e.preventDefault(); setApiKeys(); }); 
+                dom.closeModalBtn.addEventListener('click', () => dom.errorModal.classList.add('hidden'));
+
+                document.querySelectorAll('.tab-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+                        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(tabId).classList.add('active'); // Use tabId directly
+                        button.classList.add('active');
+                    });
+                });
+            }
+
+            // Function to set up the chat resizer
+            function setupChatResizer() {
+                let isResizing = false;
+                const chatLog = dom.chatLog;
+                const resizer = dom.resizerHandle;
+
+                if (!chatLog || !resizer) {
+                    console.error("Chat log or resizer handle not found for setup.");
+                    return;
+                }
+
+                let startY, startHeight;
+
+                resizer.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    startY = e.clientY;
+                    startHeight = chatLog.offsetHeight;
+                    document.addEventListener('mousemove', doMouseMove);
+                    document.addEventListener('mouseup', doMouseUp);
+                    document.body.style.cursor = 'ns-resize';
+                    chatLog.style.userSelect = 'none';
+                    chatLog.style.pointerEvents = 'none';
+                });
+
+                function doMouseMove(e) {
+                    if (!isResizing) return;
+                    const newHeight = startHeight + (e.clientY - startY);
+                    const minHeight = 100;
+                    const maxHeight = window.innerHeight * 0.6;
+                    chatLog.style.height = `${Math.min(Math.max(newHeight, minHeight), maxHeight)}px`;
+                }
+
+                function doMouseUp() {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', doMouseMove);
+                    document.removeEventListener('mouseup', doMouseUp);
+                    document.body.style.cursor = '';
+                    chatLog.style.userSelect = '';
+                    chatLog.style.pointerEvents = '';
+                }
+            }
+
+
+            async function selectAgent(agent) {
+                currentSession = { agent, chatHistory: [] }; // Reset chat history for new agent
+                dom.agentDetails.style.display = 'block';
+                dom.agentDetails.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-shrink-0 text-center">
+                               <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center mx-auto border-2 border-indigo-400"><span class="text-4xl font-bold text-indigo-600">${agent.name.charAt(0)}</span></div>
+                               <h2 class="text-2xl font-bold text-gray-900 mt-2">${agent.name}</h2><p class="text-indigo-600">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-gray-600 border-l-4 border-indigo-400 pl-4">"${agent.philosophy}"</p>
+                            <h4 class="text-lg font-semibold mt-4 mb-2 text-gray-800">Primary Focus Areas:</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${agent.focus_areas.map(area => `<span class="bg-gray-200 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">${area}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div id="agent-chat-container" class="mt-6 flex flex-col h-[400px] bg-gray-100 p-4 rounded-lg shadow-inner">
+                        <div id="chat-log" class="space-y-4 overflow-y-auto p-2 flex-grow min-h-0"></div>
+                        <div class="resizer-handle"></div> <!-- Resizer Handle -->
+                        <form id="chat-form" class="flex gap-2 flex-shrink-0 mt-2">
+                            <input type="text" id="chat-input" class="flex-grow bg-white border border-gray-300 rounded-lg p-3 text-gray-800" placeholder="Ask a question or provide a task..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                        </form>
+                        <div class="flex justify-end mt-2 flex-shrink-0">
+                            <button id="generate-hint-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold p-2 rounded-lg text-sm w-48">Generate Hint</button>
+                        </div>
+                        <div id="agent-control-panel" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 flex-shrink-0">
+                            <div class="col-span-1 p-4 bg-gray-200 rounded-lg">
+                                <h5 class="font-bold text-md mb-2 text-gray-800">Tasking & Handoff</h5>
+                                <input type="text" id="task-brief-input" class="w-full bg-white p-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2 text-gray-800" placeholder="Brief for task or handoff...">
+                                <button id="initiate-task-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg text-sm mb-2">Initiate Task</button>
+                                <select id="connect-agent-select" class="w-full bg-white p-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800">
+                                    <option value="">Connect to Agent...</option>
+                                    ${agentData.filter(a => a.name !== agent.name).map(a => `<option value="${a.name}">${a.name} (${a.role})</option>`).join('')}
+                                </select>
+                                <button id="connect-agent-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg text-sm mt-2">Connect Agents</button>
+                            </div>
+                            <div id="hint-display-area" class="col-span-1 p-4 bg-gray-200 rounded-lg space-y-2">
+                                <h5 class="font-bold text-md mb-2 text-gray-800">Next Steps & Insights</h5>
+                                <div id="current-user-prompt-suggestion" class="text-blue-600 italic text-sm"></div>
+                                <div id="current-ai-hint" class="text-indigo-600 italic text-sm"></div>
+                                <div id="current-system-suggestion" class="text-purple-600 italic text-sm"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                
+                // Re-cache DOM elements relevant to the new agent details panel
+                dom.chatLog = document.getElementById('chat-log');
+                dom.resizerHandle = document.querySelector('#agent-chat-container .resizer-handle');
+                dom.chatInput = document.getElementById('chat-input');
+                dom.sendBtn = document.getElementById('send-btn');
+                dom.generateHintBtn = document.getElementById('generate-hint-btn');
+                dom.taskBriefInput = document.getElementById('task-brief-input');
+                dom.initiateTaskBtn = document.getElementById('initiate-task-btn');
+                dom.connectAgentSelect = document.getElementById('connect-agent-select');
+                dom.connectAgentBtn = document.getElementById('connect-agent-btn');
+                dom.currentUserPromptSuggestion = document.getElementById('current-user-prompt-suggestion');
+                dom.currentAiHint = document.getElementById('current-ai-hint');
+                dom.currentSystemSuggestion = document.getElementById('current-system-suggestion');
+
+                // Add event listeners for the new buttons
+                dom.chatForm = document.getElementById('chat-form');
+                dom.chatForm.addEventListener('submit', (e) => { e.preventDefault(); handleUserMessage(); });
+                dom.generateHintBtn.addEventListener('click', handleGenerateHint);
+                dom.initiateTaskBtn.addEventListener('click', handleInitiateTask);
+                dom.connectAgentBtn.addEventListener('click', handleConnectAgents);
+
+                setupChatResizer(); // Setup the resizer for the new chat area
+
+                const greeting = generateAgentGreeting(agent);
+                addMessageToLog('ai', greeting);
+            }
+                                
+            function addMessageToLog(sender, message, save = true, hintType = null) {
+                const chatLog = dom.chatLog; // Use cached dom.chatLog
+                if (!chatLog) return;
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `chat-bubble ${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`;
+                
+                // Apply specific hint styling
+                if (hintType === 'user_prompt_suggestion') {
+                    messageBubble.classList.add('message-bubble', 'user-prompt-suggestion');
+                } else if (hintType === 'ai_hint') {
+                    messageBubble.classList.add('message-bubble', 'ai-hint');
+                } else if (hintType === 'system_hint') {
+                    messageBubble.classList.add('message-bubble', 'system-hint');
+                }
+
+                messageBubble.innerHTML = message; // Use innerHTML to allow basic formatting if needed
+
+                messageWrapper.appendChild(messageBubble);
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight;
+                
+                if (save && !hintType) { // Only save if not a hint
+                    currentSession.chatHistory.push({ sender, message }); // Add to session history
+                    // DBHelper.saveMessage({ agentName: currentSession.agent.name, sender, message }); // IndexedDB saving
+                }
+            }
+
+            async function handleUserMessage() {
+                const message = dom.chatInput.value.trim();
+                if (!message) return;
+
+                addMessageToLog('user', message);
+                dom.chatInput.value = '';
+                
+                dom.sendBtn.disabled = true;
+                dom.sendBtn.innerHTML = '<div class="loader"></div>';
+
+                const agent = currentSession.agent;
+                
+                const comprehensiveResponseSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                let fullPromptForAI = `As the AI agent "${agent.name}", with the role of "${agent.role}" and the philosophy "${agent.philosophy}", respond to the user's message in a helpful, conversational way. Your specific focus areas are: ${agent.focus_areas.join(', ')}. Do not use any numbered lists in your primary response unless the user explicitly requests a numbered list. Treat any numbers in the user's message as part of their natural language, not as a request for a numbered response.
+
+                After your primary response, also provide the following as separate fields in the JSON output:
+                -   A 'user_prompt_suggestion' (a concise subject or topic, 1-2 sentences): This should be a direct, actionable natural language input the user could type next to continue the conversation or explore a suggested path.
+                -   A 'ai_hint' (a detailed explanation, 2-4 sentences): This should be a detailed, contextual explanation or follow-up from the AI's perspective, providing deeper insight related to its core capabilities.
+                -   A 'system_suggestion' (a comprehensive strategic insight, 3-5 sentences): This should be a comprehensive, strategic system-level suggestion for the user's next action within the CUA Engine, guiding them towards more complex or optimal workflows, perhaps suggesting a specific orchestration or a different agent.
+
+                Ensure none of these hints or suggestions use numbered lists unless explicitly requested by the user.
+                User Message: "${message}"`;
+
+
+                const aiResult = await invokeLLM(fullPromptForAI, comprehensiveResponseSchema);
+
+                if (aiResult.success) {
+                    addMessageToLog('ai', aiResult.data.text);
+                    
+                    // Display hints in the dedicated area
+                    dom.currentUserPromptSuggestion.textContent = aiResult.data.user_prompt_suggestion ? `Try: ${aiResult.data.user_prompt_suggestion}` : '';
+                    dom.currentAiHint.textContent = aiResult.data.ai_hint ? `AI Hint: ${aiResult.data.ai_hint}` : '';
+                    dom.currentSystemSuggestion.textContent = aiResult.data.system_suggestion ? `System Suggestion: ${aiResult.data.system_suggestion}` : '';
+
+                } else {
+                    const errorMessage = `I apologize, but I encountered an error.\n\n**Details:** ${aiResult.error}`;
+                    addMessageToLog('ai', errorMessage);
+                    showError(aiResult.error, "API Communication Error");
+                }
+
+                dom.sendBtn.disabled = false;
+                dom.sendBtn.innerHTML = 'Send';
+            }
+
+            async function handleGenerateHint() {
+                if (!currentSession.agent) {
+                    showError("Please select an AI agent first to generate a hint.", "No Agent Selected");
+                    return;
+                }
+
+                dom.generateHintBtn.disabled = true;
+                dom.generateHintBtn.innerHTML = '<div class="loader"></div>';
+
+                const lastMessages = currentSession.chatHistory.slice(-3).map(msg => `${msg.sender}: ${msg.message}`).join('\n');
+                const userHintSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "suggested_input": { "type": "STRING" }
+                    },
+                    required: ["suggested_input"]
+                };
+                // Updated prompt for user-initiated hint to be more detailed
+                const hintPrompt = `Given the current conversation context with ${currentSession.agent.name} (last messages: "${lastMessages}"), provide a detailed, progressive suggestion (2-4 sentences) for the user's next input. Focus on guiding them towards deeper interaction or utilizing more advanced features of the CUA Engine. Provide only the suggested input text. Do not use any numbered lists in your response.`;
+                
+                const hintResult = await invokeLLM(hintPrompt, userHintSchema);
+
+                if (hintResult.success && hintResult.data.suggested_input) {
+                    dom.currentUserPromptSuggestion.textContent = `Consider: ${hintResult.data.suggested_input}`;
+                    dom.currentAiHint.textContent = ''; // Clear other hints
+                    dom.currentSystemSuggestion.textContent = ''; // Clear other hints
+                } else if (hintResult.error) {
+                    showError(`Failed to generate hint: ${hintResult.error}`, "Hint Generation Error");
+                }
+
+                dom.generateHintBtn.disabled = false;
+                dom.generateHintBtn.innerHTML = 'Generate Hint';
+            }
+
+            async function handleInitiateTask() {
+                const brief = dom.taskBriefInput.value.trim();
+                if (!brief) {
+                    showError("Please provide a brief for the task.", "Input Required");
+                    return;
+                }
+                if (!currentSession.agent) {
+                    showError("Please select an AI agent first.", "No Agent Selected");
+                    return;
+                }
+
+                dom.initiateTaskBtn.disabled = true;
+                dom.initiateTaskBtn.innerHTML = '<div class="loader"></div>';
+
+                const taskExecutionSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_hint": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                const taskPrompt = `Simulate the initiation of a task for ${currentSession.agent.name} (${currentSession.agent.role}) with the brief: "${brief}". Describe the initial steps the agent would take, how it aligns with its philosophy and focus areas. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences) for the user's next action related to this task. Do not use any numbered lists in your response.`;
+
+                const result = await invokeLLM(taskPrompt, taskExecutionSchema);
+
+                if (result.success) {
+                    addMessageToLog('ai', `**Task Initiated for ${currentSession.agent.name}:** ${result.data.text}`);
+                    dom.currentUserPromptSuggestion.textContent = result.data.user_prompt_suggestion ? `Try: ${result.data.user_prompt_suggestion}` : '';
+                    dom.currentAiHint.textContent = result.data.ai_hint ? `AI Hint: ${result.data.ai_hint}` : '';
+                    dom.currentSystemSuggestion.textContent = result.data.system_suggestion ? `System Suggestion: ${result.data.system_suggestion}` : '';
+                } else {
+                    showError(`Task initiation failed: ${result.error}`, "Task Execution Error");
+                }
+
+                dom.initiateTaskBtn.disabled = false;
+                dom.initiateTaskBtn.innerHTML = 'Initiate Task';
+                dom.taskBriefInput.value = '';
+            }
+
+            async function handleConnectAgents() {
+                const targetAgentName = dom.connectAgentSelect.value;
+                if (!targetAgentName) {
+                    showError("Please select an agent to connect with.", "Selection Required");
+                    return;
+                }
+                if (!currentSession.agent) {
+                    showError("Please select a primary AI agent first.", "No Primary Agent Selected");
+                    return;
+                }
+
+                dom.connectAgentBtn.disabled = true;
+                dom.connectAgentBtn.innerHTML = '<div class="loader"></div>';
+
+                const connectAgentsSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_hint": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                const connectPrompt = `Simulate a collaborative connection between ${currentSession.agent.name} (${currentSession.agent.role}) and ${targetAgentName} (${codexData.ai_family.find(a => a.name === targetAgentName)?.role || 'unknown role'}). Describe how they would typically interact given their roles and focus areas, and what a potential joint task might involve. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_hint' (3-5 sentences) for a follow-up for the user. Do not use any numbered lists in your response.`;
+                const result = await invokeLLM(connectPrompt, connectAgentsSchema);
+
+                if (result.success) {
+                    addMessageToLog('ai', `**Connecting ${currentSession.agent.name} with ${targetAgentName}:** ${result.data.text}`);
+                    dom.currentUserPromptSuggestion.textContent = result.data.user_prompt_suggestion ? `Try: ${result.data.user_prompt_suggestion}` : '';
+                    dom.currentAiHint.textContent = result.data.ai_hint ? `AI Hint: ${result.data.ai_hint}` : '';
+                    dom.currentSystemSuggestion.textContent = result.data.system_suggestion ? `System Suggestion: ${result.data.system_suggestion}` : '';
+                } else {
+                    showError(`Agent connection failed: ${result.error}`, "Connection Error");
+                }
+
+                dom.connectAgentBtn.disabled = false;
+                dom.connectAgentBtn.innerHTML = 'Connect Agents';
+                dom.connectAgentSelect.value = ''; // Reset dropdown
+            }
+
+
+            function renderA2ARules() {
+                const list = document.getElementById('a2a-rules-list');
+                list.innerHTML = a2aParserRules.map(rule => 
+                    `<div class="p-2 bg-gray-800 rounded">"<span class="text-sky-300">${rule.trigger}</span>"  ->  <span class="text-green-300">${rule.command}</span></div>`
+                ).join('');
+            }
+
+            function renderMCPRegistry() {
+                const list = document.getElementById('mcp-list');
+                const contentDisplay = dom.mcpContent; 
+                list.innerHTML = Object.keys(mcpManifests).map(name => 
+                    `<button class="config-menu-item text-sm w-full text-left p-2 bg-gray-800 rounded hover:bg-indigo-600" data-mcp-name="${name}">${name}</button>`
+                ).join('');
+
+                list.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const mcpName = btn.dataset.mcpName;
+                        currentSelectedMcp = mcpName;
+                        
+                        contentDisplay.innerHTML = marked.parse(mcpManifests[mcpName]);
+
+                        contentDisplay.querySelectorAll('pre code').forEach(codeBlock => {
+                            const preElement = codeBlock.parentElement;
+                            preElement.style.position = 'relative'; 
+
+                            const copyBtnContainer = document.createElement('div');
+                            copyBtnContainer.className = 'action-button-group mcp-copy-button-group absolute top-1 right-1';
+                            copyBtnContainer.innerHTML = `
+                                <button title="Copy to clipboard" class="p-1 rounded-md hover:bg-black/20 text-white/70 hover:text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                      <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                      <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                    </svg>
+                                </button>
+                            `;
+                            const copyButton = copyBtnContainer.querySelector('button');
+                            copyButton.addEventListener('click', () => CUA_App.copyCodeToClipboard(codeBlock.textContent, copyButton));
+                            preElement.appendChild(copyBtnContainer);
+                        });
+
+                        list.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    });
+                });
+                if (Object.keys(mcpManifests).length > 0) {
+                    list.querySelector('button').click();
+                }
+            }
+
+            function showError(message, title = "Error") {
+                dom.errorMessage.textContent = message;
+                dom.errorTitle.textContent = title;
+                dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.includes('Success') || title.includes('Validating') ? 'text-green-500' : 'text-red-500'}`;
+                dom.errorModal.classList.remove('hidden');
+            }
+
+            function clearSelection() {
+                document.querySelectorAll('.card-selected').forEach(c => c.classList.remove('card-selected'));
+            }
+            
+            function toggleInstructionsPanel() {
+                dom.instructionsPanel.classList.toggle('panel-open');
+            }
+
+            // --- CORE LOGIC ---
+            // Removed Firebase save logic, now just updates local state
+            async function setCustomInstructions() {
+                liveCustomInstructions.system = dom.systemInput.value;
+                liveCustomInstructions.ai = dom.aiInput.value;
+                liveCustomInstructions.user = dom.userInput.value;
+                showError("Custom Instructions are now live!", "Success");
+            }
+
+            // Removed Firebase save logic, now just updates local state
+            async function setApiKeys() {
+                apiKeys.gemini = dom.geminiApiKeyInput.value;
+                apiKeys.openai = dom.openaiApiKeyInput.value;
+                showError("API Keys saved for this session!", "Success");
+            }
+            
+            async function invokeLLM(prompt, responseSchema, retries = 5, delay = 2000) { 
+                   const apiKey = apiKeys.gemini || ""; 
+                   const modelName = 'gemini-2.0-flash'; 
+                   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+                   const payload = {
+                       contents: [{ parts: [{ text: prompt }] }],
+                       generationConfig: {
+                           responseMimeType: "application/json",
+                           responseSchema: responseSchema
+                       }
+                   };
+
+                   for (let i = 0; i < retries; i++) {
+                       try {
+                           const response = await fetch(apiUrl, {
+                               method: 'POST',
+                               headers: { 'Content-Type': 'application/json' },
+                               body: JSON.stringify(payload)
+                           });
+
+                           const data = await response.json();
+
+                           if (!response.ok) {
+                               const errorMsg = data.error?.message || `HTTP Error: ${response.statusText}`;
+                               // Check for specific retryable errors (e.g., 429 Too Many Requests, 5xx server errors)
+                               if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
+                                   console.warn(`Retrying LLM call due to transient error (Status: ${response.status}). Attempt ${i + 1}/${retries}`);
+                                   await new Promise(res => setTimeout(res, delay * Math.pow(2, i))); // Exponential backoff
+                                   continue; // Try again
+                               }
+                               throw new Error(errorMsg); // Non-retryable error
+                           }
+                           
+                           if (!data.candidates || data.candidates.length === 0) {
+                               if (data.promptFeedback && data.promptFeedback.blockReason) {
+                                   throw new Error(`Request blocked due to: ${data.promptFeedback.blockReason}`);
+                               }
+                               throw new Error("API returned no candidates. This could be due to content filtering.");
+                           }
+
+                           const responseText = data.candidates[0].content.parts[0].text;
+                           try {
+                               const parsedJson = JSON.parse(responseText);
+                               return { success: true, data: parsedJson };
+                           } catch (jsonError) {
+                               throw new Error(`Failed to parse JSON response: ${jsonError.message}. Raw: ${responseText}`);
+                           }
+
+                       } catch (error) {
+                           if (i === retries - 1) { // Last retry failed
+                               return { success: false, error: error.message };
+                           }
+                           // For transient network errors, just log and retry
+                           console.error(`LLM call failed (attempt ${i + 1}/${retries}):`, error.message);
+                           await new Promise(res => setTimeout(res, delay * Math.pow(2, i))); // Exponential backoff
+                       }
+                   }
+                   return { success: false, error: "Max retries exceeded for LLM call." }; // Should not be reached if retries > 0
+            }
+
+            function copyMessage(elementId, buttonElement) {
+                const messageElement = document.getElementById(elementId);
+                if (!messageElement) return;
+
+                const textToCopy = messageElement.innerText;
+
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed'; 
+                textArea.style.top = '0';
+                textArea.style.left = '0';
+                textArea.style.opacity = '0';
+
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        const originalContent = buttonElement.innerHTML;
+                        buttonElement.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-400" viewBox="0 0 16 16">
+                              <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/>
+                            </svg>
+                        `;
+                        setTimeout(() => {
+                            buttonElement.innerHTML = originalContent;
+                        }, 1500);
+                    }
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                    showError("Failed to copy text to clipboard.");
+                }
+
+                document.body.removeChild(textArea);
+            }
+
+            // New function to copy code directly
+            function copyCodeToClipboard(codeText, buttonElement) {
+                const textArea = document.createElement('textarea');
+                textArea.value = codeText;
+                textArea.style.position = 'fixed'; 
+                textArea.style.top = '0';
+                textArea.style.left = '0';
+                textArea.style.opacity = '0';
+
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        const originalContent = buttonElement.innerHTML;
+                        buttonElement.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-400" viewBox="0 0 16 16">
+                              <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/>
+                            </svg>
+                        `;
+                        setTimeout(() => {
+                            buttonElement.innerHTML = originalContent;
+                        }, 1500);
+                    }
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                    showError("Failed to copy text to clipboard.");
+                }
+
+                document.body.removeChild(textArea);
+            }
+
+
+            async function executeChainedBookmark(bookmark, initialBrief) {
+                // This function is still for the "A3 MANIFEST" Orchestration tab
+                // and will need to be adapted if it's to be dynamically called from the agent chat.
+                // For now, it remains as is, but its calls to invokeLLM will benefit from the new schema.
+                const orchestrationPanel = document.getElementById('orchestration-output-panel');
+                const orchestrationTitle = document.getElementById('orchestration-title');
+                const orchestrationSteps = document.getElementById('orchestration-steps');
+
+                orchestrationPanel.classList.remove('hidden');
+                orchestrationTitle.textContent = `Executing: ${bookmark.name}`;
+                orchestrationSteps.innerHTML = ''; // Clear previous steps
+
+                const addStep = (text, type = 'info') => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = `p-3 rounded-lg ${type === 'info' ? 'bg-gray-800' : type === 'success' ? 'bg-green-700' : 'bg-red-700'} text-sm text-gray-200`;
+                    stepElement.textContent = text;
+                    orchestrationSteps.appendChild(stepElement);
+                    orchestrationSteps.scrollTop = orchestrationSteps.scrollHeight;
+                };
+
+                addStep(`Initiating orchestration: "${bookmark.name}" with brief: "${initialBrief}"`, 'info');
+
+                const orchestrationStepSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_suggestion": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                if (bookmark.name === "Full-Stack Feature Genesis") {
+                    addStep("Step 1: DAN (The Analyst) is analyzing requirements...", 'info');
+                    let result = await invokeLLM(
+                        `As DAN, the Analyst, analyze the following brief for a new feature: "${initialBrief}". Provide a brief analysis of key requirements and potential edge cases. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`DAN's Analysis: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`DAN's Analysis Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    // Subsequent steps would follow a similar pattern, using results from previous steps
+                    addStep("Step 2: LYRA (The Architect) is designing the architecture...", 'info');
+                    result = await invokeLLM(
+                        `As LYRA, the Architect, design a high-level architecture for a feature based on this analysis: "${result.data.text}". Focus on design patterns and dependency management. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`LYRA's Architecture: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`LYRA's Architecture Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 3: KARA (The Builder) is scaffolding the component...", 'info');
+                    result = await invokeLLM(
+                        `As KARA, the Builder, scaffold a basic component structure (e.g., file names, class outlines) based on this architecture: "${result.data.text}". Focus on efficiency and code quality. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`KARA's Scaffolding: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`KARA's Scaffolding Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 4: SOPHIA (The Guardian) is reviewing security and generating test cases...", 'info');
+                    result = await invokeLLM(
+                        `As SOPHIA, the Guardian, review the following component scaffolding for security considerations and generate a few high-level test cases: "${result.data.text}". Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`SOPHIA's Security Review & Test Cases: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`SOPHIA's Review Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 5: CECILIA (The Documentarian) is generating documentation...", 'info');
+                    result = await invokeLLM(
+                        `As CECILIA, the Documentarian, generate basic documentation for the new feature based on the previous steps, including requirements, architecture, and test cases: "${initialBrief}". Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`CECILIA's Documentation: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`CECILIA's Documentation Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Orchestration 'Full-Stack Feature Genesis' completed successfully!", 'success');
+
+                } else if (bookmark.name === "Interactive App Deployment") {
+                    addStep("Step 1: MISTRESS (The Orchestrator) is planning the deployment...", 'info');
+                    let result = await invokeLLM(
+                        `As MISTRESS, the Orchestrator, plan the high-level steps for deploying an interactive application based on the brief: "${initialBrief}". Focus on containerization and CI/CD pipeline creation. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`MISTRESS's Deployment Plan: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addMessageToLog(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`MISTRESS's Plan Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 2: KARA (The Builder) is generating application code...", 'info');
+                    result = await invokeLLM(
+                        `As KARA, the Builder, generate a simple "Hello World" style interactive web application code (e.g., HTML/JS) based on the deployment plan: "${result.data.text}". Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`KARA's Application Code: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`KARA's Code Generation Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 3: MISTRESS (The Orchestrator) is creating a containerization strategy...", 'info');
+                    result = await invokeLLM(
+                        `As MISTRESS, the Orchestrator, outline a Dockerfile and containerization strategy for the following application code: "${result.data.text}". Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`MISTRESS's Containerization Strategy: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`MISTRESS's Containerization Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Step 4: MISTRESS (The Orchestrator) is creating a build pipeline...", 'info');
+                    result = await invokeLLM(
+                        `As MISTRESS, the Orchestrator, create a conceptual CI/CD pipeline (e.g., steps for GitHub Actions or Jenkins) for deploying this containerized application: "${result.data.text}". Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_suggestion' (3-5 sentences). Do not use any numbered lists in your response.`,
+                        orchestrationStepSchema
+                    );
+                    if(result.success) {
+                        addStep(`MISTRESS's Build Pipeline: ${result.data.text}`, 'success');
+                        if (result.data.user_prompt_suggestion) addStep(`Try: ${result.data.user_prompt_suggestion}`, 'info');
+                        if (result.data.ai_hint) addStep(`AI Hint: ${result.data.ai_hint}`, 'info');
+                        if (result.data.system_suggestion) addStep(`System Suggestion: ${result.data.system_suggestion}`, 'info');
+                    } else {
+                        addStep(`MISTRESS's Pipeline Creation Failed: ${result.error}`, 'error');
+                        return;
+                    }
+
+                    addStep("Orchestration 'Interactive App Deployment' completed successfully!", 'success');
+                } else {
+                    addStep(`Unknown orchestration: ${bookmark.name}`, 'error');
+                }
+
+                // This is a placeholder for the Orchestration tab's output.
+                // It does not affect the agent chat's hint display logic.
+            }
+            
+            // --- CLI (AJENTIC NEXUS) ---
+            function setupTerminal() {
+                // This function is for the CLI tab, which is separate from the interactive agent chat.
+                // Its implementation remains as provided in the previous version.
+                const terminalContainer = document.getElementById('terminal-container');
+                if (!terminalContainer) return; // Ensure element exists
+
+                fitAddon = new FitAddon.FitAddon();
+                term = new Terminal({
+                    cursorBlink: true, convertEol: true, fontFamily: `'Roboto Mono', monospace`,
+                    theme: { background: '#000000', foreground: '#00FF00', cursor: 'rgba(0, 255, 0, 0.5)' }
+                });
+                term.loadAddon(fitAddon);
+                term.open(terminalContainer);
+                fitAddon.fit();
+                
+                term.prompt = () => { term.write('\r\n\x1b[36mCUAG> \x1b[0m'); };
+                term.writeln('Welcome to the CUAG Agent CLI v2. Type \x1b[32mhelp\x1b[0m for commands.');
+                term.prompt();
+
+                term.onKey(({ key, domEvent }) => {
+                    const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+                    if (domEvent.keyCode === 13) { // Enter
+                        if (currentCommand.trim().length > 0) {
+                            term.writeln('');
+                            commandHistory.push(currentCommand);
+                            commandIndex = commandHistory.length;
+                            handleCliCommand(currentCommand);
+                            currentCommand = '';
+                        } else {
+                           term.prompt();
+                        }
+                    } else if (domEvent.keyCode === 8) { // Backspace
+                        if (term.buffer.active.cursorX > 7) { // 7 is the length of "CUAG> "
+                            currentCommand = currentCommand.slice(0, -1);
+                            term.write('\b \b');
+                        }
+                    } else if (domEvent.keyCode === 38) { // Up arrow
+                        if (commandIndex > 0) {
+                            commandIndex--;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = commandHistory[commandIndex];
+                            term.write(currentCommand);
+                        }
+                    } else if (domEvent.keyCode === 40) { // Down arrow
+                        if (commandIndex < commandHistory.length - 1) {
+                            commandIndex++;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = commandHistory[commandIndex];
+                            term.write(currentCommand);
+                        } else if (commandIndex === commandHistory.length - 1) { // Last command, clear
+                            commandIndex = commandHistory.length;
+                            term.write('\x1b[2K\r'); // Clear current line
+                            term.prompt();
+                            currentCommand = '';
+                        }
+                    }
+                    else if (printable) {
+                        currentCommand += key;
+                        term.write(key);
+                    }
+                });
+            }
+
+            async function handleCliCommand(command) {
+                const parts = command.trim().split(/\s+/);
+                const cmd = parts[0].toLowerCase();
+                const args = parts.slice(1);
+
+                // Schema for CLI responses with hints
+                const cliResponseSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "text": { "type": "STRING" },
+                        "user_prompt_suggestion": { "type": "STRING", "nullable": true },
+                        "ai_hint": { "type": "STRING", "nullable": true },
+                        "system_hint": { "type": "STRING", "nullable": true }
+                    },
+                    required: ["text"]
+                };
+
+                switch (cmd) {
+                    case 'help':
+                        term.writeln('\x1b[32mCUA Orchestration Engine CLI Help:\x1b[0m');
+                        term.writeln('  \x1b[33mdelegate <AGENT> "<PROMPT>"\x1b[0m - Delegates a task to an agent using the default Gemini LLM.');
+                        term.writeln('  \x1b[33mconnect <AGENT1> <AGENT2>\x1b[0m - Simulates a connection between two agents.');
+                        term.writeln('  \x1b[33mparser <TRIGGER_PHRASE>\x1b[0m - Parses a trigger phrase using A2A rules.');
+                        term.writeln('  \x1b[33mclear\x1b[0m - Clears the terminal screen.');
+                        term.writeln('  \x1b[33mexit\x1b[0m - Exits the CLI (does nothing in this simulation).');
+                        break;
+
+                    case 'delegate':
+                        if (args.length < 2) {
+                            term.writeln('\x1b[31mError: Usage: delegate <AGENT> "<PROMPT>"\x1b[0m');
+                        } else {
+                            const agentName = args[0].toUpperCase();
+                            const agent = codexData.ai_family.find(a => a.name === agentName);
+                            const promptMatch = command.match(/"(.*?)"/);
+
+                            if (!agent) {
+                                term.writeln(`\x1b[31mError: Agent "${agentName}" not found.\x1b[0m`);
+                            } else if (!promptMatch) {
+                                term.writeln(`\x1b[31mError: Prompt must be enclosed in double quotes.\x1b[0m`);
+                            } else {
+                                const userPrompt = promptMatch[1];
+                                let fullPrompt = `You are an AI assistant acting as the agent "${agent.name}". Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Your primary focus areas are: ${agent.focus_areas.join(', ')}. Do not use any numbered lists in your primary response unless the user explicitly requests a numbered list. Treat any numbers in the user's message as part of their natural language, not as a request for a numbered response.
+
+                                After your primary response, also provide the following as separate fields in the JSON output:
+                                -   A 'user_prompt_suggestion' (a concise subject or topic, 1-2 sentences): This should be a direct, actionable natural language input the user could type next to continue the conversation or explore a suggested path.
+                                -   A 'ai_hint' (a detailed explanation, 2-4 sentences): This should be a detailed, contextual explanation or follow-up from the AI's perspective, providing deeper insight related to its core capabilities.
+                                -   A 'system_hint' (a comprehensive strategic insight, 3-5 sentences): This should be a comprehensive, strategic system-level suggestion for the user's next action within the CUA Engine, guiding them towards more complex or optimal workflows, perhaps suggesting a specific orchestration or a different agent.
+
+                                Ensure none of these hints or suggestions use numbered lists unless explicitly requested by the user.
+                                User Request: "${userPrompt}"`;
+
+                                term.writeln(`\x1b[36mDelegating to ${agentName} via Gemini...\x1b[0m`);
+                                const result = await invokeLLM(fullPrompt, cliResponseSchema); 
+
+                                if(result.success) {
+                                    term.writeln(`\x1b[32m--- Response from ${agentName} (via Gemini) ---\x1b[0m`);
+                                    term.writeln(result.data.text);
+                                    if (result.data.user_prompt_suggestion) {
+                                        term.writeln(`\x1b[36mTry: ${result.data.user_prompt_suggestion}\x1b[0m`);
+                                    }
+                                    if (result.data.ai_hint) {
+                                        term.writeln(`\x1b[35mAI Hint: ${result.data.ai_hint}\x1b[0m`); 
+                                    }
+                                    if (result.data.system_hint) {
+                                        term.writeln(`\x1b[38;5;129mSystem Suggestion: ${result.data.system_hint}\x1b[0m`); // A different color for system hint
+                                    }
+                                    term.writeln(`\x1b[32m--- End of Response ---\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mDelegation failed: ${result.error}\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+                    
+                    case 'connect':
+                        if (args.length !== 2) {
+                            term.writeln('\x1b[31mError: Usage: connect <AGENT1> <AGENT2>\x1b[0m');
+                        } else {
+                            const agent1Name = args[0].toUpperCase();
+                            const agent2Name = args[1].toUpperCase();
+                            const agent1 = codexData.ai_family.find(a => a.name === agent1Name);
+                            const agent2 = codexData.ai_family.find(a => a.name === agent2Name);
+
+                            if (!agent1 || !agent2) {
+                                term.writeln(`\x1b[31mError: One or both agents not found. Agents must be from the AI Family.\x1b[0m`);
+                            } else {
+                                term.writeln(`\x1b[34mEstablishing secure A2A connection between ${agent1.name} and ${agent2.name}...\x1b[0m`);
+                                const connectionPrompt = `Simulate a brief, collaborative dialogue between ${agent1.name} (${agent1.role}) and ${agent2.name} (${agent2.role}). They are discussing a task related to their focus areas (${agent1.focus_areas.join(', ')} and ${agent2.focus_areas.join(', ')}). Provide a summary of their interaction. Also, provide a concise 'user_prompt_suggestion' (subject/topic), a detailed 'ai_hint' (2-4 sentences), and a comprehensive, strategic 'system_hint' (3-5 sentences) for a follow-up for the user. Do not use any numbered lists in your response.`;
+                                const result = await invokeLLM(connectionPrompt, cliResponseSchema); 
+                                if(result.success) {
+                                    term.writeln(`\x1b[32m--- A2A Connection Log ---\x1b[0m`);
+                                    term.writeln(result.data.text);
+                                    if (result.data.user_prompt_suggestion) {
+                                        term.writeln(`\x1b[36mTry: ${result.data.user_prompt_suggestion}\x1b[0m`);
+                                    }
+                                    if (result.data.ai_hint) {
+                                        term.writeln(`\x1b[35mAI Hint: ${result.data.ai_hint}\x1b[0m`);
+                                    }
+                                    if (result.data.system_hint) {
+                                        term.writeln(`\x1b[38;5;129mSystem Suggestion: ${result.data.system_hint}\x1b[0m`);
+                                    }
+                                    term.writeln(`\x1b[32m--- End of A2A Log ---\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mConnection simulation failed: ${result.error}\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+
+                    case 'parser':
+                        if (args.length === 0) {
+                            term.writeln('\x1b[31mError: Usage: parser "<TRIGGER_PHRASE>"\x1b[0m');
+                        } else {
+                            const triggerPhraseMatch = command.match(/"(.*?)"/);
+                            if (!triggerPhraseMatch) {
+                                term.writeln(`\x1b[31mError: Trigger phrase must be enclosed in double quotes.\x1b[0m`);
+                            } else {
+                                const trigger = triggerPhraseMatch[1].toLowerCase();
+                                const rule = a2aParserRules.find(r => r.trigger.toLowerCase() === trigger);
+                                if (rule) {
+                                    term.writeln(`\x1b[32mParsed: "${trigger}" -> Command: "${rule.command}"\x1b[0m`);
+                                } else {
+                                    term.writeln(`\x1b[31mNo A2A rule found for trigger: "${trigger}"\x1b[0m`);
+                                }
+                            }
+                        }
+                        break;
+
+                    case 'clear':
+                        term.clear();
+                        term.writeln('Terminal cleared.');
+                        break;
+
+                    case 'exit':
+                        term.writeln('\x1b[33mExiting CLI. Session remains active.\x1b[0m');
+                        break;
+
+                    default:
+                        term.writeln(`\x1b[31mError: Unknown command "${cmd}". Type 'help' for a list of commands.\x1b[0m`);
+                }
+                term.prompt();
+            }
+            
+            return { 
+                start: init,
+                copyMessage: copyMessage,
+                copyCodeToClipboard: copyCodeToClipboard 
+            };
+        })();
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            CUA_App.start();
+        });
+    </script>
+</body>
+</html>

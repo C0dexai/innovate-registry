@@ -1,0 +1,6 @@
+{
+  "name": "AI SPA Generator & Assistant",
+  "description": "An AI-powered tool to help you generate, analyze, and modify single-page applications (SPAs) and other code scripts using Gemini.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

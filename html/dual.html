@@ -1,0 +1,84 @@
+<html>
+<head><title>CUAGemini Terminal</title></head>
+<body>
+<div id="terminal-container" style="width:100%;height:500px;background:black;color:white;"></div>
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const fitAddon = new FitAddon.FitAddon();
+    const term = new Terminal({ cursorBlink: true });
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal-container'));
+    fitAddon.fit();
+
+    let currentShell = 'win';
+    let currentDirectory = 'C:\\Users\\CUAG';
+    let commandHistory = [];
+    let commandIndex = -1;
+    let currentCommand = '';
+
+    function prompt() {
+        let promptText = '';
+        if (currentShell === 'win') promptText = '\r\nCUAGemini> ';
+        else if (currentShell === 'bash' || currentShell === 'lyr') promptText = '\r\nLYRIX$ ';
+        else if (currentShell === 'repo') promptText = '\r\nREPOTERM# ';
+        term.write(promptText);
+    }
+
+    term.writeln('Microsoft Windows [Version 10.0.19045.2846]');
+    term.writeln('(c) Microsoft Corporation. All rights reserved.');
+    prompt();
+
+    term.onKey(({ key, domEvent }) => {
+        const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+        if (domEvent.keyCode === 13) {
+            if (currentCommand.trim().length > 0) {
+                term.writeln('');
+                commandHistory.push(currentCommand);
+                commandIndex = commandHistory.length;
+                handleCliCommand(currentCommand);
+                currentCommand = '';
+            } else {
+                prompt();
+            }
+        } else if (domEvent.keyCode === 8) {
+            if (currentCommand.length > 0) {
+                currentCommand = currentCommand.slice(0, -1);
+                term.write('\b \b');
+            }
+        } else if (printable) {
+            currentCommand += key;
+            term.write(key);
+        }
+    });
+
+    async function handleCliCommand(command) {
+        const url = `dual.php?command=${encodeURIComponent(command)}&cd=${encodeURIComponent(currentDirectory)}&shell=${encodeURIComponent(currentShell)}`;
+        try {
+            const response = await fetch(url);
+            const output = await response.text();
+
+            const cdMatch = output.match(/^set current directory (.+?)$/im);
+            const shellMatch = output.match(/^set shell mode (win|bash|lyr|repo)$/im);
+
+            if (cdMatch && cdMatch[1]) {
+                currentDirectory = cdMatch[1].trim();
+            } else if (shellMatch && shellMatch[1]) {
+                currentShell = shellMatch[1].trim();
+                if(currentShell === 'bash' || currentShell === 'lyr') term.writeln('\r\nSwitching to LYRIX persona...');
+                else if(currentShell === 'repo') term.writeln('\r\nEntering REPOTERM for repository tasks...');
+                else term.writeln('\r\nBack to CUAGemini...');
+            } else {
+                term.write('\r\n' + output.replace(/\n/g, '\r\n'));
+            }
+        } catch (error) {
+            term.writeln(`\r\nError: ${error.message}`);
+        } finally {
+            prompt();
+        }
+    }
+});
+</script>
+</body>
+</html>

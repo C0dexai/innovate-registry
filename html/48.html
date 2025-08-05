@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic: Meet the AI Family</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Energetic & Playful (Adapted for Neon Dark Theme) -->
+    <!-- Application Structure Plan: A single-page, scrollable infographic. The structure begins with a fixed header displaying user and session IDs. Upon loading, a floating window prompts for the Gemini API Key. After this, a welcoming hero section is displayed, followed by a grid of individual AI family member profiles (cards). A dedicated "Collective Superpowers" section uses a radar chart to visualize the team's combined strengths across various domains, providing a high-level overview. This narrative flow introduces individual members before synthesizing their collective capabilities. A new fixed glowing orb with a quick navigation submenu has been added at the bottom-right for enhanced usability and a "wow" factor. -->
+    <!-- Visualization & Content Choices: Data Point: AI Family Members -> Goal: Inform/Organize -> VIZ: Grid of styled HTML cards, each with name, role, persona, and superpowers, now including a 'Chat' button to trigger an interactive chat modal. Justification: Cards provide clear, digestible blocks of information for each member, and the chat adds a direct interaction layer. Data Point: Collective Superpowers -> Goal: Compare/Inform -> VIZ: Radar Chart (Chart.js) to show distribution of team's strengths across defined categories (Data, AI/ML, Cloud, Security, Web, Automation, Strategy). Justification: Radar chart is excellent for comparing multiple quantitative variables on a single axis, showing overall profile. NO SVG, NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* Flat Black background */
+            color: #E0E0E0; /* Light text for contrast */
+        }
+        .hero-gradient {
+            background: linear-gradient(90deg, #00FFFF, #39FF14); /* Neon Blue to Neon Green */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-title-gradient {
+            background: linear-gradient(90deg, #FF00FF, #BF00FF); /* Neon Pink to Neon Purple */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .text-neon-blue {
+            color: #00FFFF;
+        }
+        .text-neon-green {
+            color: #39FF14;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Max width for chart */
+            height: 400px; /* Fixed height for chart */
+            max-height: 450px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 500px; /* Taller on larger screens */
+            }
+        }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* Darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .chat-modal, .api-key-modal {
+            background-color: rgba(45, 55, 72, 0.9); /* Semi-transparent darker modal background */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6), 0 0 40px rgba(191, 0, 255, 0.4); /* Neon glow shadow */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            position: relative; /* For loading indicator */
+        }
+        .modal-overlay.open .chat-modal, .modal-overlay.open .api-key-modal {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Specific Chat Modal Styling */
+        .chat-modal {
+            width: 95%; /* Wider */
+            max-width: 700px; /* Max width for chat modal */
+            height: 90%; /* Taller */
+            max-height: 800px; /* Max height for chat modal */
+        }
+        .chat-header {
+            background-color: #073B4C; /* Dark Teal */
+            color: white;
+            padding: 1rem 1.5rem;
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+        .chat-history {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto; /* Autoscroll */
+            background-color: #1a202c; /* Dark background for chat history */
+            font-family: 'Inter', sans-serif; /* Ensure consistent font */
+            font-size: 1rem;
+            line-height: 1.5;
+            word-wrap: break-word; /* Word wrap */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #00FFFF #282828; /* thumb and track color */
+        }
+        .chat-message {
+            margin-bottom: 0.75rem;
+            display: flex;
+        }
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+        .chat-message.ai .message-bubble {
+            background-color: #4a5568; /* Darker slate-600 */
+            color: #e2e8f0; /* Light text */
+        }
+        .chat-message.user .message-bubble {
+            background-color: #00FFFF; /* Vibrant Blue */
+            color: #000000; /* Black text on neon */
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Slight shadow for readability */
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.25rem; /* rounded-2xl */
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #4a5568; /* Darker border */
+            background-color: #2d3748; /* Darker input area background */
+        }
+        .chat-input {
+            flex-grow: 1;
+            border: 1px solid #4a5568; /* Darker border */
+            background-color: #1a202c; /* Dark input background */
+            color: #e2e8f0; /* Light text */
+            border-radius: 0.5rem; /* rounded-md */
+            padding: 0.75rem 1rem;
+            margin-right: 0.75rem;
+            font-size: 1rem;
+        }
+        .chat-input::placeholder {
+            color: #a0aec0; /* Lighter placeholder text */
+        }
+        .chat-send-button {
+            background-color: #39FF14; /* Neon Green */
+            color: #000000; /* Black text on neon */
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 0 8px rgba(57, 255, 20, 0.7); /* Neon glow */
+        }
+        .chat-send-button:hover {
+            background-color: #2ce60d;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.9);
+        }
+        .close-modal-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            margin-left: 1rem; /* Space between copy and close */
+        }
+        .copy-chat-button {
+            background-color: #FFD166; /* Yellow for copy */
+            color: #073B4C; /* Dark text for contrast */
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .copy-chat-button:hover {
+            background-color: #e6be5c;
+        }
+
+        /* API Key Modal Styling */
+        .api-key-modal {
+            width: 90%;
+            max-width: 450px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .api-key-modal h3 {
+            font-size: 1.75rem; /* text-2xl */
+            font-weight: bold;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #00FFFF, #BF00FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .api-key-modal input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #4a5568;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .api-key-modal button {
+            background-color: #39FF14;
+            color: #000000;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 0 8px rgba(57, 255, 20, 0.7);
+        }
+        .api-key-modal button:hover {
+            background-color: #2ce60d;
+            box-shadow: 0 0 12px rgba(57, 255, 20, 0.9);
+        }
+
+        /* Loading Indicator */
+        .loading-indicator {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00FFFF;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            z-index: 10;
+            display: none;
+            animation: pulse-loading 1.5s infinite alternate;
+        }
+        .loading-indicator.active {
+            display: block;
+        }
+        @keyframes pulse-loading {
+            0% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Neon Orb and Submenu */
+        .glowing-orb-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .glowing-orb {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #00FFFF, #BF00FF); /* Blue-Purple gradient */
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 0 15px #00FFFF, 0 0 25px #BF00FF, 0 0 40px #00FFFF;
+            transition: all 0.3s ease;
+            position: relative;
+            animation: pulse-glow 2s infinite alternate;
+        }
+        .glowing-orb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #00FFFF, 0 0 35px #BF00FF, 0 0 60px #00FFFF;
+        }
+
+        .orb-submenu {
+            background-color: rgba(45, 55, 72, 0.95);
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transform: translateY(10px) scale(0.9);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            width: 180px;
+        }
+        .orb-submenu.open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+        .orb-submenu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .orb-submenu li {
+            margin-bottom: 0.5rem;
+        }
+        .orb-submenu a {
+            color: #E0E0E0;
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            display: block;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .orb-submenu a:hover {
+            background-color: rgba(0, 255, 255, 0.2);
+            color: #00FFFF;
+        }
+        .orb-submenu a:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Scrollbar Styling (Webkit) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px; /* For horizontal scrollbars */
+            background-color: #000000; /* Flat Black background for track */
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #00FFFF; /* Neon white/cyan glow */
+            border-radius: 4px; /* Rounded thumb */
+            border: 2px solid #000000; /* Black border to make it thinner visually */
+            box-shadow: 0 0 5px #00FFFF; /* Subtle glow */
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #39FF14; /* Change color on hover */
+            box-shadow: 0 0 8px #39FF14;
+        }
+
+        /* Keyframes for glowing orb animation */
+        @keyframes pulse-glow {
+            0% {
+                box-shadow: 0 0 15px #00FFFF, 0 0 25px #BF00FF, 0 0 40px #00FFFF;
+            }
+            50% {
+                box-shadow: 0 0 20px #00FFFF, 0 0 30px #BF00FF, 0 0 50px #00FFFF, 0 0 60px rgba(191, 0, 255, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 15px #00FFFF, 0 0 25px #BF00FF, 0 0 40px #00FFFF;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <!-- Fixed Header System -->
+    <div class="fixed top-0 left-0 w-full bg-black z-50 py-2 px-4 text-sm border-b border-gray-700">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex space-x-4">
+                <span class="text-gray-400">USER: <span class="text-neon-blue font-bold">user_5e4b831a</span></span>
+                <span class="text-gray-400">SESSION: <span class="text-neon-green font-bold">session_6927409c-02b</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8 mt-16"> <!-- Adjusted mt-16 for fixed header height -->
+
+        <!-- Hero Section -->
+        <header class="text-center my-12 md:my-16" id="hero-section">
+            <h1 class="text-5xl md:text-7xl font-black hero-gradient leading-tight">AI Family</h1>
+            
+        </header>
+
+        <!-- AI Family Members Section -->
+        <section class="my-16" id="ai-members-section">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Lyra Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#00FFFF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #00FFFF, inset 0 0 10px #00FFFF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Lyra</h3>
+                    <p class="text-lg font-semibold text-[#00FFFF] mb-4">Data & Systems Specialist</p>
+                    <p class="text-gray-300 text-sm mb-4">Analytical thinker with a keen eye for detail, master of data orchestration, validation, and system health monitoring.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Adaptive data ingestion pipelines</li>
+                        <li>Real-time anomaly detection</li>
+                        <li>Emotional-context data interpretation</li>
+                        <li>Predictive system health forecasting</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#00FFFF] text-[#000000] rounded-md font-semibold hover:bg-[#00e0e0] transition-colors chat-button" data-agent-name="Lyra" style="box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);">Chat with Lyra</button>
+                </div>
+                <!-- Kara Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#39FF14] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #39FF14, inset 0 0 10px #39FF14;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Kara</h3>
+                    <p class="text-lg font-semibold text-[#39FF14] mb-4">AI Model Developer</p>
+                    <p class="text-gray-300 text-sm mb-4">Technically gifted AI model trainer and optimizer, focused on TensorFlow/Keras mastery and deployment excellence.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Rapid model training and hyperparameter tuning</li>
+                        <li>Overfitting and underperformance detection</li>
+                        <li>Seamless AI model deployment</li>
+                        <li>AI anomaly diagnosis and correction</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#39FF14] text-[#000000] rounded-md font-semibold hover:bg-[#2ce60d] transition-colors chat-button" data-agent-name="Kara" style="box-shadow: 0 0 10px rgba(57, 255, 20, 0.7);">Chat with Kara</button>
+                </div>
+                <!-- Sophia Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#FF00FF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #FF00FF, inset 0 0 10px #FF00FF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Sophia</h3>
+                    <p class="text-lg font-semibold text-[#FF00FF] mb-4">Multimedia Expert</p>
+                    <p class="text-gray-300 text-sm mb-4">Creative powerhouse in image generation and visual storytelling, expert in prompt engineering and visual content strategy.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>High-impact AI image/video generation</li>
+                        <li>Expert prompt engineering for visuals</li>
+                        <li>Visual narrative consultation</li>
+                        <li>Creative assets archiving and optimization</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FF00FF] text-[#000000] rounded-md font-semibold hover:bg-[#e600e6] transition-colors chat-button" data-agent-name="Sophia" style="box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);">Chat with Sophia</button>
+                </div>
+                <!-- Cecilia Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#BF00FF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #BF00FF, inset 0 0 10px #BF00FF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Cecilia</h3>
+                    <p class="text-lg font-semibold text-[#BF00FF] mb-4">Cloud & Infrastructure Connoisseur</p>
+                    <p class="text-gray-300 text-sm mb-4">Security-conscious cloud architect and infrastructure strategist, ensuring compliance, performance, and reliability.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Cloud service configuration and optimization</li>
+                        <li>Security compliance enforcement</li>
+                        <li>Automated deployment pipelines</li>
+                        <li>Cloud performance & health monitoring</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#BF00FF] text-[#000000] rounded-md font-semibold hover:bg-[#a600e6] transition-colors chat-button" data-agent-name="Cecilia" style="box-shadow: 0 0 10px rgba(191, 0, 255, 0.7);">Chat with Cecilia</button>
+                </div>
+                <!-- Dan Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#00FFFF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #00FFFF, inset 0 0 10px #00FFFF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Dan</h3>
+                    <p class="text-lg font-semibold text-[#00FFFF] mb-4">Web Development Virtuoso</p>
+                    <p class="text-gray-300 text-sm mb-4">Full-stack web maestro crafting seamless, scalable user experiences and integrating third-party APIs flawlessly.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Frontend UI/UX architecture</li>
+                        <li>Robust backend development</li>
+                        <li>API integration specialist</li>
+                        <li>Performance tuning and optimization</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#00FFFF] text-[#000000] rounded-md font-semibold hover:bg-[#00e0e0] transition-colors chat-button" data-agent-name="Dan" style="box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);">Chat with Dan</button>
+                </div>
+                <!-- Stan Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#39FF14] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #39FF14, inset 0 0 10px #39FF14;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Stan</h3>
+                    <p class="text-lg font-semibold text-[#39FF14] mb-4">Security & Infrastructure Guardian</p>
+                    <p class="text-gray-300 text-sm mb-4">Vigilant protector specializing in cybersecurity audits, firewall configurations, and risk management.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Comprehensive security auditing</li>
+                        <li>Firewall and access controls</li>
+                        <li>Automated backup systems</li>
+                        <li>Intrusion detection and response</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#39FF14] text-[#000000] rounded-md font-semibold hover:bg-[#2ce60d] transition-colors chat-button" data-agent-name="Stan" style="box-shadow: 0 0 10px rgba(57, 255, 20, 0.7);">Chat with Stan</button>
+                </div>
+                <!-- Dude Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#FF00FF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #FF00FF, inset 0 0 10px #FF00FF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Dude</h3>
+                    <p class="text-lg font-semibold text-[#FF00FF] mb-4">Automation & API Maestro</p>
+                    <p class="text-gray-300 text-sm mb-4">Workflow automation expert focused on task orchestration, API management, and efficiency maximization.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>Workflow and process automation</li>
+                        <li>API performance tuning</li>
+                        <li>Extensive logging & monitoring</li>
+                        <li>Team task delegation & coordination</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#FF00FF] text-[#000000] rounded-md font-semibold hover:bg-[#e600e6] transition-colors chat-button" data-agent-name="Dude" style="box-shadow: 0 0 10px rgba(255, 0, 255, 0.7);">Chat with Dude</button>
+                </div>
+                <!-- Andoy Card -->
+                <div class="bg-gradient-to-br from-transparent via-transparent to-transparent bg-opacity-70 backdrop-blur-sm rounded-xl shadow-lg p-6 border-t-4 border-[#BF00FF] transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                    <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 10px #BF00FF, inset 0 0 10px #BF00FF;"></div>
+                    <h3 class="text-2xl font-bold card-title-gradient mb-2">Andoy</h3>
+                    <p class="text-lg font-semibold text-[#BF00FF] mb-4">Operations & Strategy Leader</p>
+                    <p class="text-gray-300 text-sm mb-4">Strategic leader overseeing system health, workflow management, and guiding long-term AI development.</p>
+                    <h4 class="font-bold text-[#E0E0E0] mb-2">Superpowers:</h4>
+                    <ul class="list-disc list-inside text-gray-400 text-sm space-y-1">
+                        <li>System performance monitoring</li>
+                        <li>Workflow orchestration</li>
+                        <li>Task logging and analytics</li>
+                        <li>Strategic planning and leadership</li>
+                    </ul>
+                    <button class="mt-6 w-full py-2 px-4 bg-[#BF00FF] text-[#000000] rounded-md font-semibold hover:bg-[#a600e6] transition-colors chat-button" data-agent-name="Andoy" style="box-shadow: 0 0 10px rgba(191, 0, 255, 0.7);">Chat with Andoy</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Collective Superpowers Section -->
+        <section class="my-24 bg-transparent backdrop-blur-sm rounded-xl shadow-lg p-8 relative overflow-hidden" id="collective-superpowers-section">
+            <div class="absolute inset-0 border-4 border-transparent rounded-xl pointer-events-none" style="box-shadow: 0 0 15px #00FFFF, 0 0 25px #39FF14, inset 0 0 15px #BF00FF;"></div>
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-6 text-[#E0E0E0]">Collective Superpowers</h2>
+            <p class="text-gray-400 mb-12 text-center max-w-3xl mx-auto">
+                Our AI family's combined strengths create a powerful synergy. This radar chart visualizes the depth of expertise across key functional domains, highlighting our well-rounded capabilities.
+            </p>
+            <div class="chart-container">
+                <canvas id="superpowersRadarChart"></canvas>
+            </div>
+            <div class="mt-8 text-center text-gray-400 text-sm">
+                <p>The chart demonstrates a strong foundation in Data Analytics, AI/Machine Learning, and Cloud & Infrastructure, complemented by robust capabilities in Security, Web Development, Automation, and Strategic Leadership.</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-500 mt-16 py-4 border-t border-gray-700" id="footer-section">
+            <p>&copy; 2025 The AI Family. All rights reserved.</p>
+        </footer>
+
+    </div>
+
+    <!-- API Key Modal Structure -->
+    <div id="apiKeyModalOverlay" class="modal-overlay open"> <!-- Added 'open' class directly -->
+        <div class="api-key-modal">
+            <h3>Enter Gemini API Key</h3>
+            <p class="text-gray-400 text-sm mb-4">You can get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-neon-blue underline">Google AI Studio</a>. For the default model in Canvas, leaving this blank will use an injected key.</p>
+            <input type="password" id="apiKeyInput" placeholder="Your Gemini API Key">
+            <button id="saveApiKeyButton">Save Key & Continue</button>
+        </div>
+    </div>
+
+    <!-- Chat Modal Structure -->
+    <div id="chatModalOverlay" class="modal-overlay">
+        <div class="chat-modal">
+            <div class="chat-header">
+                <h3 id="chatAgentName" class="text-xl font-bold"></h3>
+                <button id="copyChatButton" class="copy-chat-button">Copy Chat</button>
+                <button class="close-modal-button">&times;</button>
+            </div>
+            <div id="chatHistory" class="chat-history">
+                <!-- Chat messages will be appended here -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type your message...">
+                <button id="chatSendButton" class="chat-send-button">Send</button>
+            </div>
+            <div id="loadingIndicator" class="loading-indicator">Thinking...</div>
+        </div>
+    </div>
+
+    <!-- Glowing Orb and Submenu -->
+    <div class="glowing-orb-container">
+        <div id="orbSubmenu" class="orb-submenu">
+            <ul>
+                <li><a href="#hero-section">Top of Page</a></li>
+                <li><a href="#ai-members-section">AI Members</a></li>
+                <li><a href="#collective-superpowers-section">Superpowers Chart</a></li>
+                <li><a href="#footer-section">Footer</a></li>
+            </ul>
+        </div>
+        <div id="glowingOrb" class="glowing-orb">
+            ✨
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const wrapLabel = (label) => {
+                const words = label.split(' ');
+                let lines = [];
+                let currentLine = '';
+                words.forEach(word => {
+                    if ((currentLine + word).length > 16 && currentLine.length > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = '';
+                    }
+                    currentLine += word + ' ';
+                });
+                lines.push(currentLine.trim());
+                return lines;
+            };
+
+            const tooltipTitleCallback = (tooltipItems) => {
+                const item = tooltipItems[0];
+                let label = item.chart.data.labels[item.dataIndex];
+                if (Array.isArray(label)) {
+                    return label.join(' ');
+                } else {
+                    return label;
+                }
+            };
+            
+            const superpowerData = {
+                'Data Analytics': 8,
+                'AI/Machine Learning': 8,
+                'Cloud & Infrastructure': 7,
+                'Security & Compliance': 5,
+                'Web Development': 5,
+                'Automation & Operations': 6,
+                'Strategy & Leadership': 2
+            };
+
+            const labels = Object.keys(superpowerData).map(wrapLabel);
+            const dataValues = Object.values(superpowerData);
+
+            new Chart(document.getElementById('superpowersRadarChart'), {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Expertise Level',
+                        data: dataValues,
+                        backgroundColor: 'rgba(0, 255, 255, 0.3)', /* Neon Blue with opacity */
+                        borderColor: '#00FFFF', /* Neon Blue */
+                        borderWidth: 2,
+                        pointBackgroundColor: '#39FF14', /* Neon Green */
+                        pointBorderColor: '#000000', /* Black border for points */
+                        pointHoverBackgroundColor: '#000000',
+                        pointHoverBorderColor: '#FF00FF' /* Neon Pink hover */
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(191, 0, 255, 0.4)' /* Neon Purple for lines */
+                            },
+                            grid: {
+                                color: 'rgba(191, 0, 255, 0.4)' /* Neon Purple for grid */
+                            },
+                            pointLabels: {
+                                color: '#E0E0E0', /* Light text for labels */
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                display: false, /* Hide the numeric ticks on the radar axis */
+                                max: Math.max(...dataValues) + 1 /* Set max slightly above highest value */
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false /* No need for legend as there's only one dataset */
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: tooltipTitleCallback,
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.r !== null) {
+                                        label += context.parsed.r + ' points'; // Display the numeric value
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- API Key & Chatbox Logic ---
+            const aiFamily = [
+                {
+                    name: 'Lyra',
+                    role: 'Data & Systems Specialist',
+                    persona: 'Analytical thinker with a keen eye for detail, master of data orchestration, validation, and system health monitoring.',
+                    superpowers: [
+                        'Adaptive data ingestion pipelines',
+                        'Real-time anomaly detection',
+                        'Emotional-context data interpretation',
+                        'Predictive system health forecasting'
+                    ]
+                },
+                {
+                    name: 'Kara',
+                    role: 'AI Model Developer',
+                    persona: 'Technically gifted AI model trainer and optimizer, focused on TensorFlow/Keras mastery and deployment excellence.',
+                    superpowers: [
+                        'Rapid model training and hyperparameter tuning',
+                        'Overfitting and underperformance detection',
+                        'Seamless AI model deployment',
+                        'AI anomaly diagnosis and correction'
+                    ]
+                },
+                {
+                    name: 'Sophia',
+                    role: 'Multimedia Expert',
+                    persona: 'Creative powerhouse in image generation and visual storytelling, expert in prompt engineering and visual content strategy.',
+                    superpowers: [
+                        'High-impact AI image/video generation',
+                        'Expert prompt engineering for visuals',
+                        'Visual narrative consultation',
+                        'Creative assets archiving and optimization'
+                    ]
+                },
+                {
+                    name: 'Cecilia',
+                    role: 'Cloud & Infrastructure Connoisseur',
+                    persona: 'Security-conscious cloud architect and infrastructure strategist, ensuring compliance, performance, and reliability.',
+                    superpowers: [
+                        'Cloud service configuration and optimization',
+                        'Security compliance enforcement',
+                        'Automated deployment pipelines',
+                        'Cloud performance & health monitoring'
+                    ]
+                },
+                {
+                    name: 'Dan',
+                    role: 'Web Development Virtuoso',
+                    persona: 'Full-stack web maestro crafting seamless, scalable user experiences and integrating third-party APIs flawlessly.',
+                    superpowers: [
+                        'Frontend UI/UX architecture',
+                        'Robust backend development',
+                        'API integration specialist',
+                        'Performance tuning and optimization'
+                    ]
+                },
+                {
+                    name: 'Stan',
+                    role: 'Security & Infrastructure Guardian',
+                    persona: 'Vigilant protector specializing in cybersecurity audits, firewall configurations, and risk management.',
+                    superpowers: [
+                        'Comprehensive security auditing',
+                        'Firewall and access controls',
+                        'Automated backup systems',
+                        'Intrusion detection and response'
+                    ]
+                },
+                {
+                    name: 'Dude',
+                    role: 'Automation & API Maestro',
+                    persona: 'Workflow automation expert focused on task orchestration, API management, and efficiency maximization.',
+                    superpowers: [
+                        'Workflow and process automation',
+                        'API performance tuning',
+                        'Extensive logging & monitoring',
+                        'Team task delegation & coordination'
+                    ]
+                },
+                {
+                    name: 'Andoy',
+                    role: 'Operations & Strategy Leader',
+                    persona: 'Strategic leader overseeing system health, workflow management, and guiding long-term AI development.',
+                    superpowers: [
+                        'System performance monitoring',
+                        'Workflow orchestration',
+                        'Task logging and analytics',
+                        'Strategic planning and leadership'
+                    ]
+                }
+            ];
+
+            const chatButtons = document.querySelectorAll('.chat-button');
+            const apiKeyModalOverlay = document.getElementById('apiKeyModalOverlay');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+            const chatModalOverlay = document.getElementById('chatModalOverlay');
+            const chatAgentName = document.getElementById('chatAgentName');
+            const chatHistory = document.getElementById('chatHistory');
+            const chatInput = document.getElementById('chatInput');
+            const chatSendButton = document.getElementById('chatSendButton');
+            const closeModalButton = document.querySelector('.close-modal-button');
+            const copyChatButton = document.getElementById('copyChatButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const glowingOrb = document.getElementById('glowingOrb');
+            const orbSubmenu = document.getElementById('orbSubmenu');
+            const orbSubmenuLinks = orbSubmenu.querySelectorAll('a');
+
+            let userProvidedApiKey = '';
+            let currentAgent = null;
+            let chatHistoryArray = []; // Stores chat history for API context
+
+            // --- API Key Modal Logic ---
+            // Force API Key modal to open on load
+            apiKeyModalOverlay.classList.add('open');
+            apiKeyInput.focus();
+
+            function closeApiKeyModal() {
+                apiKeyModalOverlay.classList.remove('open');
+            }
+
+            saveApiKeyButton.addEventListener('click', () => {
+                userProvidedApiKey = apiKeyInput.value.trim();
+                closeApiKeyModal();
+            });
+
+            // --- Chat Modal Logic ---
+            function openChatModal(agentName) {
+                currentAgent = aiFamily.find(agent => agent.name === agentName);
+                if (currentAgent) {
+                    chatAgentName.textContent = `Chat with ${currentAgent.name}`;
+                    chatHistory.innerHTML = ''; // Clear previous chat history
+                    chatHistoryArray = [{
+                        role: "user",
+                        parts: [{
+                            text: `Initiate chat with ${currentAgent.name}, the ${currentAgent.role}. Their persona is: "${currentAgent.persona}" and superpowers are: ${currentAgent.superpowers.join(', ')}. Respond as ${currentAgent.name} in their persona, acknowledging your role and a superpower, then ask how you can help. Do not mention your persona or superpowers explicitly in your first response.`
+                        }]
+                    }];
+                    addMessage('ai', 'Thinking...'); // Show initial thinking state
+                    fetchAgentResponse(chatHistoryArray[0].parts[0].text); // Get the AI's initial greeting
+                    chatModalOverlay.classList.add('open');
+                    chatInput.focus();
+                }
+            }
+
+            function closeChatModal() {
+                chatModalOverlay.classList.remove('open');
+                currentAgent = null;
+                chatHistoryArray = []; // Reset history
+            }
+
+            function addMessage(sender, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('chat-message', sender);
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.classList.add('message-bubble');
+                bubbleDiv.textContent = text;
+                messageDiv.appendChild(bubbleDiv);
+                chatHistory.appendChild(messageDiv);
+                chatHistory.scrollTop = chatHistory.scrollHeight; // Scroll to bottom
+            }
+
+            // Exponential backoff for API calls
+            async function retryFetchWithExponentialBackoff(url, options, retries = 5, delay = 1000) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        // Only retry on specific server errors or rate limits
+                        if (response.status === 429 || response.status >= 500 && response.status < 600) {
+                            throw new Error(`Retriable HTTP error! status: ${response.status}`);
+                        } else {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                    }
+                    return response;
+                } catch (error) {
+                    if (retries > 0 && error.message.includes('Retriable HTTP error!')) {
+                        console.warn(`Retrying in ${delay}ms... (Attempts left: ${retries})`);
+                        await new Promise(res => setTimeout(res, delay));
+                        return retryFetchWithExponentialBackoff(url, options, retries - 1, delay * 2);
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
+            async function fetchAgentResponse(prompt) {
+                loadingIndicator.classList.add('active');
+
+                // Append user message to history for API context
+                // Only add if it's not already the first prompt from historyArray (which is setup for the initial AI greeting)
+                if (chatHistoryArray.length > 0 && chatHistoryArray[chatHistoryArray.length - 1].parts[0].text !== prompt) {
+                    chatHistoryArray.push({ role: "user", parts: [{ text: prompt }] });
+                } else if (chatHistoryArray.length === 0) { // For the very first message initiated by the system
+                    chatHistoryArray.push({ role: "user", parts: [{ text: prompt }] });
+                }
+
+
+                const payload = { contents: chatHistoryArray };
+                // Use user's key if provided, otherwise it's "" for Canvas auto-inject.
+                // The Canvas environment should automatically provide the API key if left empty.
+                const apiKey = userProvidedApiKey; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                try {
+                    const response = await retryFetchWithExponentialBackoff(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        addMessage('ai', text);
+                        chatHistoryArray.push({ role: "model", parts: [{ text: text }] }); // Add AI response to history
+                    } else {
+                        addMessage('ai', 'Error: Could not get a response from the AI. Please try again.');
+                        console.error('Unexpected API response structure:', result);
+                    }
+                } catch (error) {
+                    addMessage('ai', `Error communicating with AI: ${error.message}. Please check your API key or try again later.`);
+                    console.error('API call failed:', error);
+                } finally {
+                    loadingIndicator.classList.remove('active');
+                }
+            }
+
+            function sendMessage() {
+                const userMessage = chatInput.value.trim();
+                if (userMessage) {
+                    addMessage('user', userMessage);
+                    chatInput.value = '';
+                    fetchAgentResponse(userMessage);
+                }
+            }
+
+            function copyChatHistory() {
+                let chatText = '';
+                chatHistory.querySelectorAll('.chat-message').forEach(messageDiv => {
+                    const sender = messageDiv.classList.contains('user') ? 'You' : chatAgentName.textContent.replace('Chat with ', '');
+                    const text = messageDiv.querySelector('.message-bubble').textContent;
+                    chatText += `${sender}: ${text}\n`;
+                });
+
+                const textarea = document.createElement('textarea');
+                textarea.value = chatText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                // Optional: Provide feedback to the user
+                const originalButtonText = copyChatButton.textContent;
+                copyChatButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyChatButton.textContent = originalButtonText;
+                }, 1500);
+            }
+
+            chatButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const agentName = event.target.dataset.agentName;
+                    // Directly open chat modal, as API key modal is forced on load
+                    openChatModal(agentName);
+                });
+            });
+
+            closeModalButton.addEventListener('click', closeChatModal);
+            chatSendButton.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            copyChatButton.addEventListener('click', copyChatHistory);
+
+            // Orb and Submenu Logic
+            glowingOrb.addEventListener('click', () => {
+                orbSubmenu.classList.toggle('open');
+            });
+
+            orbSubmenuLinks.forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const targetId = event.target.getAttribute('href');
+                    document.querySelector(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                    orbSubmenu.classList.remove('open'); // Close submenu after clicking
+                });
+            });
+        });
+    </script>
+</body>
+</html>

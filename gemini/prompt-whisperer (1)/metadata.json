@@ -1,0 +1,6 @@
+{
+  "name": "Prompt Whisperer",
+  "description": "An advanced single-page application designed for prompt engineering. It provides a nuanced, contextual layout for composing, testing, and iterating on AI prompts with a focus on developer workflow and vibe.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

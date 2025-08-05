@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebase = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged,
+            getFirestore,
+            doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, orderBy, serverTimestamp
+        };
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0A0A10; color: #E2E8F0; }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+        .glass-panel { background: rgba(31, 41, 55, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-btn { transition: all 0.3s ease; border-bottom: 2px solid transparent; color: #A0AEC0; }
+        .tab-btn.active { border-bottom-color: #6366F1; color: #6366F1; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Neon styling for cards */
+        .card { 
+            transition: transform 0.3s ease, box-shadow 0.3s ease; 
+            background-color: #1a1a2e; /* Darker background */
+            position: relative;
+            z-index: 10;
+            border: 1px solid transparent; /* Base border for effect */
+        }
+        .card:hover { 
+            transform: translateY(-5px); 
+            border-color: #6366F1; /* Blue border on hover */
+            box-shadow: 0 0 10px #6366F1, 0 0 20px #6366F1, 0 0 40px #6366F1; /* Blue neon glow */
+        }
+
+        /* Neon styling for AI chat messages */
+        .chat-bubble-ai { 
+            background-color: #2D3748; 
+            border-bottom-left-radius: 0.125rem; 
+            align-self: flex-start;
+            position: relative;
+            box-shadow: 0 0 5px #34D399; /* Green neon glow */
+            border: 1px solid #34D399;
+        }
+        .chat-bubble-user { 
+            background-color: #6366F1; 
+            color: white; 
+            border-bottom-right-radius: 0.125rem; 
+            align-self: flex-end;
+        }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 2s linear infinite; margin: auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes glowing {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .dual-chat-container { border: 1px solid #4A5568; border-radius: 0.5rem; overflow: hidden; }
+        .chat-column { padding: 1rem; }
+        .chat-column-gemini { background-color: rgba(15, 23, 42, 0.5); }
+        .chat-column-openai { background-color: rgba(15, 23, 42, 0.3); }
+        .chat-column h5 { color: #A0AEC0; font-weight: bold; margin-bottom: 0.5rem; }
+        #api-settings-panel { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 60; }
+        #api-settings-panel.panel-open { transform: translateX(0); }
+        #custom-message-box { display: none; position: fixed; top: 2rem; right: 2rem; z-index: 70; }
+        .dual-chat-container { display: grid; grid-template-columns: 1fr; }
+        @media (min-width: 768px) {
+            .dual-chat-container { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        /* Custom scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #ffffff;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl md:text-5xl font-bold text-white hidden">CUA Orchestration Engine</h1>
+            <p class="mt-2 text-lg text-gray-400 hidden">Dual-Inference Agent Interaction Layer</p>
+            <div class="mt-4 text-sm text-gray-400">
+                User ID: <span id="user-id" class="font-semibold text-indigo-400"></span> | Session ID: <span id="session-id" class="font-semibold text-indigo-400"></span>
+            </div>
+            <button id="api-settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37-2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <main>
+            <div id="family" class="tab-content active">
+                <div class="max-w-7xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center text-white">Meet the AI Family</h2>
+                    <p class="text-lg text-gray-400 mb-8 text-center">Select an agent to begin a live, dual-LLM interactive session.</p>
+                    <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+                    <div id="agent-details" class="mt-8 glass-panel p-6 rounded-lg shadow-lg" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your Google API Key">
+            </div>
+            <div>
+                <label for="openai-api-key" class="block text-sm font-medium text-gray-300 mb-1">OpenAI API Key</label>
+                <input type="password" id="openai-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your OpenAI API Key">
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg">Save Keys</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Custom message box -->
+    <div id="custom-message-box" class="p-4 rounded-lg shadow-lg max-w-sm w-full transition-all duration-300 transform translate-x-full">
+        <p id="message-content" class="text-white"></p>
+    </div>
+
+    <script type="module">
+        const CUA_Engine = {
+            codexData: {
+                "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                "ai_family": [
+                    {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure."},
+                    {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution."},
+                    {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design."},
+                    {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared."},
+                    {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity."},
+                    {"name": "ORION", "role": "The Visionary", "philosophy": "Structure from chaos."},
+                    {"name": "VULCAN", "role": "The Fabricator", "philosophy": "Strength in creation."},
+                    {"name": "ATLAS", "role": "The Protector", "philosophy": "Endurance through foresight."},
+                    {"name": "APOLLO", "role": "The Scribe", "philosophy": "Clarity illuminates truth."},
+                    {"name": "MERCURY", "role": "The Conductor", "philosophy": "Flow in coordination."}
+                ]
+            },
+            currentSession: { agent: null, geminiChatHistory: [], openaiChatHistory: [] },
+            apiKeys: { gemini: '', openai: '' },
+            dom: {},
+            db: null,
+            auth: null,
+            userId: null,
+            sessionId: null,
+
+            init: function() {
+                this.dom = {
+                    agentGrid: document.getElementById('agent-grid'),
+                    agentDetails: document.getElementById('agent-details'),
+                    apiSettingsPanel: document.getElementById('api-settings-panel'),
+                    closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                    apiSettingsForm: document.getElementById('api-settings-form'),
+                    apiSettingsBtn: document.getElementById('api-settings-btn'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key'),
+                    openaiApiKeyInput: document.getElementById('openai-api-key'),
+                    messageBox: document.getElementById('custom-message-box'),
+                    messageContent: document.getElementById('message-content'),
+                };
+                
+                this.sessionId = `session_${crypto.randomUUID().slice(0, 12)}`;
+                document.getElementById('session-id').textContent = this.sessionId;
+
+                this.setupFirestore();
+                
+                this.codexData.ai_family.forEach(agent => {
+                    const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent));
+                    this.dom.agentGrid.appendChild(card);
+                });
+                
+                this.dom.apiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                this.dom.closeApiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                this.dom.apiSettingsForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveApiKeys();
+                });
+                this.loadApiKeys();
+            },
+
+            setupFirestore: async function() {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+                try {
+                    const app = firebase.initializeApp(firebaseConfig);
+                    this.db = firebase.getFirestore(app);
+                    this.auth = firebase.getAuth(app);
+                    
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        await firebase.signInWithCustomToken(this.auth, __initial_auth_token);
+                    } else {
+                        await firebase.signInAnonymously(this.auth);
+                    }
+                    
+                    firebase.onAuthStateChanged(this.auth, (user) => {
+                        if (user) {
+                            this.userId = user.uid;
+                            document.getElementById('user-id').textContent = this.userId;
+                            console.log('Firebase initialized. User ID:', this.userId);
+                        } else {
+                            this.userId = crypto.randomUUID();
+                            document.getElementById('user-id').textContent = `anon_${this.userId.slice(0, 8)}`;
+                            console.log('Signed in anonymously with ID:', this.userId);
+                        }
+                    });
+
+                } catch (error) {
+                    this.showMessage('Failed to initialize Firebase.', 'bg-red-500');
+                    console.error('Firebase initialization error:', error);
+                }
+            },
+
+            createCard: function(title, subtitle, onClick) {
+                const card = document.createElement('div');
+                card.className = 'card p-6 rounded-lg shadow-dark cursor-pointer text-center';
+                card.innerHTML = `<div class="relative z-20"><h3 class="text-xl font-bold text-indigo-400">${title}</h3><p class="text-gray-400">${subtitle}</p></div>`;
+                card.addEventListener('click', onClick);
+                return card;
+            },
+            
+            selectAgent: async function(agent) {
+                this.currentSession = { agent, geminiChatHistory: [], openaiChatHistory: [] };
+                this.dom.agentDetails.style.display = 'block';
+                
+                this.dom.agentDetails.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-6 items-center mb-6">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-indigo-500"><span class="text-4xl font-bold text-indigo-400">${agent.name.charAt(0)}</span></div>
+                            <h2 class="text-2xl font-bold text-white mt-2">${agent.name}</h2>
+                            <p class="text-indigo-400">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-gray-400 border-l-4 border-indigo-500 pl-4">"${agent.philosophy}"</p>
+                        </div>
+                    </div>
+                    <div id="chat-interface">
+                        <div class="dual-chat-container">
+                            <div class="chat-column chat-column-gemini">
+                                <h5><i class="fas fa-brain mr-2"></i>Gemini Response</h5>
+                                <div id="gemini-chat-log" class="space-y-2 overflow-y-auto max-h-96 min-h-[10rem]"></div>
+                            </div>
+                            <div class="chat-column chat-column-openai">
+                                <h5><i class="fas fa-robot mr-2"></i>OpenAI Response</h5>
+                                <div id="openai-chat-log" class="space-y-2 overflow-y-auto max-h-96 min-h-[10rem]"></div>
+                            </div>
+                        </div>
+                        <form id="chat-form" class="flex gap-2 mt-4">
+                            <input type="text" id="chat-input" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg p-3 text-white" placeholder="Ask a question or provide a task..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                        </form>
+                    </div>`;
+                
+                document.getElementById('chat-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleUserMessage();
+                });
+                
+                this.currentSession.geminiChatHistory = [];
+                this.currentSession.openaiChatHistory = [];
+                
+                if (this.db) {
+                    this.loadChatHistory();
+                } else {
+                    this.showMessage('Firestore not ready. Starting a new session without persistence.', 'bg-yellow-500');
+                    this.startConversation(agent);
+                }
+            },
+            
+            loadChatHistory: function() {
+                const chatLogRef = firebase.collection(this.db, `/artifacts/${__app_id}/public/data/sessions/${this.sessionId}/messages`);
+                const q = firebase.query(chatLogRef, firebase.orderBy('timestamp'));
+
+                firebase.onSnapshot(q, (snapshot) => {
+                    const geminiLog = document.getElementById('gemini-chat-log');
+                    const openaiLog = document.getElementById('openai-chat-log');
+                    
+                    if (geminiLog) geminiLog.innerHTML = '';
+                    if (openaiLog) openaiLog.innerHTML = '';
+
+                    this.currentSession.geminiChatHistory = [];
+                    this.currentSession.openaiChatHistory = [];
+                    
+                    snapshot.forEach(doc => {
+                        const messageData = doc.data();
+                        if (messageData.sender === 'user') {
+                            this.addMessageToLog('gemini-chat-log', 'user', messageData.text);
+                            this.addMessageToLog('openai-chat-log', 'user', messageData.text);
+                            this.currentSession.geminiChatHistory.push({role: 'user', parts: [{text: messageData.text}]});
+                            this.currentSession.openaiChatHistory.push({role: 'user', parts: [{text: messageData.text}]});
+                        } else if (messageData.sender === 'gemini' && geminiLog) {
+                            this.addMessageToLog('gemini-chat-log', 'ai', messageData.text);
+                            this.currentSession.geminiChatHistory.push({role: 'model', parts: [{text: messageData.text}]});
+                        } else if (messageData.sender === 'openai' && openaiLog) {
+                            this.addMessageToLog('openai-chat-log', 'ai', messageData.text);
+                            this.currentSession.openaiChatHistory.push({role: 'model', parts: [{text: messageData.text}]});
+                        }
+                    });
+
+                    if (snapshot.empty && this.currentSession.agent) {
+                        this.startConversation(this.currentSession.agent);
+                    }
+                });
+            },
+
+            startConversation: async function(agent) {
+                const prompt = `Introduce yourself as the AI agent named ${agent.name}. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Greet the user and ask how you can assist them based on your specific role.`;
+                
+                const geminiLog = document.getElementById('gemini-chat-log');
+                const openaiLog = document.getElementById('openai-chat-log');
+
+                if(geminiLog) geminiLog.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                if(openaiLog) openaiLog.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                
+                const geminiPromise = this.getAiResponse('gemini', prompt, []);
+                const openaiPromise = this.getAiResponse('openai', prompt, []);
+                
+                const [geminiResponse, openaiResponse] = await Promise.all([geminiPromise, openaiPromise]);
+                
+                if (geminiResponse.success) this.saveMessageToFirestore('gemini', geminiResponse.data);
+                if (openaiResponse.success) this.saveMessageToFirestore('openai', openaiResponse.data);
+            },
+
+            handleUserMessage: async function() {
+                const chatInput = document.getElementById('chat-input');
+                const sendBtn = document.getElementById('send-btn');
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                chatInput.value = '';
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loader"></div>';
+
+                await this.saveMessageToFirestore('user', message);
+                
+                const geminiHistoryForApi = [...this.currentSession.geminiChatHistory, { role: 'user', parts: [{ text: message }] }];
+                const openaiHistoryForApi = [...this.currentSession.openaiChatHistory, { role: 'user', parts: [{ text: message }] }];
+
+                const geminiPromise = this.getAiResponse('gemini', message, geminiHistoryForApi);
+                const openaiPromise = this.getAiResponse('openai', message, openaiHistoryForApi);
+                const [geminiResponse, openaiResponse] = await Promise.all([geminiPromise, openaiPromise]);
+                
+                if (geminiResponse.success) this.saveMessageToFirestore('gemini', geminiResponse.data);
+                else this.showMessage(`Gemini Error: ${geminiResponse.error}`, 'bg-red-500');
+                
+                if (openaiResponse.success) this.saveMessageToFirestore('openai', openaiResponse.data);
+                else this.showMessage(`OpenAI Error: ${openaiResponse.error}`, 'bg-red-500');
+
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send';
+            },
+
+            saveMessageToFirestore: async function(sender, text) {
+                if (!this.db || !this.userId) {
+                    this.showMessage('Firestore is not ready. Message not saved.', 'bg-yellow-500');
+                    return;
+                }
+                const sessionPath = `/artifacts/${__app_id}/public/data/sessions/${this.sessionId}/messages`;
+                try {
+                    await firebase.addDoc(firebase.collection(this.db, sessionPath), {
+                        sender: sender,
+                        text: text,
+                        timestamp: firebase.serverTimestamp(),
+                        userId: this.userId
+                    });
+                } catch (error) {
+                    this.showMessage('Failed to save message to database.', 'bg-red-500');
+                    console.error('Firestore save error:', error);
+                }
+            },
+
+            getAiResponse: async function(provider, userMessage, history) {
+                const apiKey = this.apiKeys[provider];
+                if (!apiKey) {
+                    return { success: false, error: `${provider.charAt(0).toUpperCase() + provider.slice(1)} API key not set. Please set it in the API Settings.` };
+                }
+                
+                const agent = this.currentSession.agent;
+                const systemPrompt = `You are ${agent.name}, an AI agent. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Keep your responses concise and in character.`;
+
+                try {
+                    let response;
+                    if (provider === 'openai') {
+                        const messages = [
+                            { role: "system", content: systemPrompt },
+                            ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0].text })),
+                            { role: "user", content: userMessage }
+                        ];
+                        response = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                            body: JSON.stringify({ model: "gpt-4o", messages: messages })
+                        });
+                    } else { // Gemini
+                        const formattedHistory = history.map(m => ({
+                            role: m.role,
+                            parts: m.parts
+                        }));
+                        const payload = {
+                            contents: [...formattedHistory, { role: "user", parts: [{ text: userMessage }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        };
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                    }
+
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                    const result = await response.json();
+
+                    if (provider === 'openai') {
+                        if (!result.choices || result.choices.length === 0) throw new Error("API returned no choices.");
+                        return { success: true, data: result.choices[0].message.content };
+                    } else {
+                        if (!result.candidates || result.candidates.length === 0) throw new Error("API returned no candidates.");
+                        return { success: true, data: result.candidates[0].content.parts[0].text };
+                    }
+                } catch (error) {
+                    console.error(`${provider} API Error:`, error);
+                    return { success: false, error: error.message };
+                }
+            },
+
+            addMessageToLog: function(logId, sender, message) {
+                const chatLog = document.getElementById(logId);
+                if (!chatLog) return;
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+                
+                const messageContainer = document.createElement('div');
+                messageContainer.className = `flex flex-col ${sender === 'user' ? 'items-end' : 'items-start'}`;
+
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `chat-bubble ${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`;
+                messageBubble.innerHTML = marked.parse(message);
+                
+                messageContainer.appendChild(messageBubble);
+
+                if (sender !== 'user') {
+                    const copyButton = document.createElement('button');
+                    copyButton.innerHTML = `<i class="fa-solid fa-copy text-sm text-gray-400 hover:text-white transition-colors duration-200"></i>`;
+                    copyButton.className = 'mt-1 p-1 rounded-full w-fit bg-gray-700 hover:bg-gray-600 focus:outline-none';
+                    copyButton.onclick = () => this.copyToClipboard(message);
+                    messageContainer.appendChild(copyButton);
+                }
+
+                messageWrapper.appendChild(messageContainer);
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            },
+            
+            copyToClipboard: function(text) {
+                const el = document.createElement('textarea');
+                el.value = text;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                this.showMessage('Copied to clipboard!', 'bg-green-500');
+            },
+
+            toggleApiSettings: function() {
+                this.dom.apiSettingsPanel.classList.toggle('panel-open');
+            },
+
+            saveApiKeys: function() {
+                this.apiKeys.gemini = this.dom.geminiApiKeyInput.value;
+                this.apiKeys.openai = this.dom.openaiApiKeyInput.value;
+                localStorage.setItem('cuaApiKeys', JSON.stringify(this.apiKeys));
+                this.showMessage('API Keys saved!', 'bg-green-500');
+                this.toggleApiSettings();
+            },
+
+            loadApiKeys: function() {
+                const savedKeys = localStorage.getItem('cuaApiKeys');
+                if (savedKeys) {
+                    this.apiKeys = JSON.parse(savedKeys);
+                    this.dom.geminiApiKeyInput.value = this.apiKeys.gemini || '';
+                    this.dom.openaiApiKeyInput.value = this.apiKeys.openai || '';
+                }
+            },
+            
+            showMessage: function(text, colorClass = 'bg-gray-800') {
+                const msgBox = this.dom.messageBox;
+                const msgContent = this.dom.messageContent;
+                
+                if (!msgBox || !msgContent) return;
+
+                msgContent.textContent = text;
+                msgBox.className = `p-4 rounded-lg shadow-lg max-w-sm w-full transition-all duration-300 transform translate-x-0 ${colorClass}`;
+                msgBox.style.display = 'block';
+
+                setTimeout(() => {
+                    msgBox.classList.remove('translate-x-0');
+                    msgBox.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        msgBox.style.display = 'none';
+                    }, 300);
+                }, 3000);
+            }
+        };
+        
+        CUA_Engine.init();
+    </script>
+</body>
+</html>

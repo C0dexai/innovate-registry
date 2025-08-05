@@ -1,0 +1,116 @@
+<html>
+<head><title>CUAGemini Terminal with Tabs</title></head>
+<body>
+<div class="tabs">[Your original tab layout here]</div>
+<div class="cards">[Your original agent cards here]</div>
+<div id="terminal-container" style="width:100%;height:500px;background:black;color:white;"></div>
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const CUA_App = {
+        currentDirectory: 'C:\\Users\\CUAG',
+        currentShell: 'win',
+        term: null,
+        fitAddon: null,
+        commandHistory: [],
+        commandIndex: -1,
+        currentCommand: '',
+
+        init: function() {
+            this.fitAddon = new FitAddon.FitAddon();
+            this.term = new Terminal({
+                cursorBlink: true,
+                convertEol: true,
+                fontFamily: `'Roboto Mono', monospace`,
+                theme: { background: '#000000', foreground: '#CCCCCC', cursor: 'rgba(204, 204, 204, 0.5)' }
+            });
+            this.term.loadAddon(this.fitAddon);
+            this.term.open(document.getElementById('terminal-container'));
+            this.fitAddon.fit();
+
+            this.term.prompt = () => { 
+                let promptText;
+                if (this.currentShell === 'win') {
+                    promptText = `\r\n\x1b[36mCUAGemini>\x1b[0m`;
+                } else if (this.currentShell === 'bash' || this.currentShell === 'lyr') {
+                    promptText = `\r\n\x1b[32mLYRIX$\x1b[0m`;
+                } else if (this.currentShell === 'repo') {
+                    promptText = `\r\n\x1b[33mREPOTERM#\x1b[0m`;
+                }
+                this.term.write(promptText); 
+            };
+
+            this.term.writeln('Microsoft Windows [Version 10.0.19045.2846]');
+            this.term.writeln('(c) Microsoft Corporation. All rights reserved.');
+            this.term.prompt();
+
+            this.term.onKey(({ key, domEvent }) => {
+                const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+                if (domEvent.keyCode === 13) { 
+                    if (this.currentCommand.trim().length > 0) {
+                        this.term.writeln('');
+                        this.commandHistory.push(this.currentCommand);
+                        this.commandIndex = this.commandHistory.length;
+                        this.handleCliCommand(this.currentCommand);
+                        this.currentCommand = '';
+                    } else {
+                       this.term.prompt();
+                    }
+                } else if (domEvent.keyCode === 8) {
+                    if (this.currentCommand.length > 0) {
+                        this.currentCommand = this.currentCommand.slice(0, -1);
+                        this.term.write('\b \b');
+                    }
+                } else if (printable) {
+                    this.currentCommand += key;
+                    this.term.write(key);
+                }
+            });
+        },
+
+        handleCliCommand: async function(command) {
+            const encodedCommand = encodeURIComponent(command);
+            const encodedDir = encodeURIComponent(this.currentDirectory);
+            const encodedShell = encodeURIComponent(this.currentShell);
+
+            const url = `dual.php?command=${encodedCommand}&cd=${encodedDir}&shell=${encodedShell}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const output = await response.text();
+
+                const cdMatch = output.match(/^set current directory (.+?)$/im);
+                const shellMatch = output.match(/^set shell mode (win|bash|lyr|repo)$/im);
+
+                if (cdMatch && cdMatch[1]) {
+                    this.currentDirectory = cdMatch[1].trim();
+                } else if (shellMatch && shellMatch[1]) {
+                    this.currentShell = shellMatch[1].trim();
+                    if(this.currentShell === 'bash' || this.currentShell === 'lyr') {
+                        this.term.writeln('\r\n\x1b[33mSwitching to LYRIX persona...');
+                    } else if(this.currentShell === 'repo') {
+                        this.term.writeln('\r\n\x1b[33mEntering REPOTERM for repository tasks...');
+                    } else {
+                        this.term.writeln('\r\n\x1b[36mBack to CUAGemini...');
+                    }
+                } else {
+                    const formattedOutput = output.replace(/\n/g, '\r\n');
+                    this.term.write('\r\n' + formattedOutput);
+                }
+            } catch (error) {
+                this.term.writeln(`\r\n\x1b[31mError: ${error.message}\x1b[0m`);
+            } finally {
+                this.term.prompt();
+            }
+        }
+    };
+
+    CUA_App.init();
+});
+</script>
+
+</body>
+</html>

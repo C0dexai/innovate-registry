@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KARA Application Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-primary': '#1e40af', // A deep blue
+              'brand-secondary': '#3b82f6', // A vibrant blue
+              'brand-accent': '#60a5fa', // A lighter blue accent
+              'base-100': '#ffffff',
+              'base-200': '#f3f4f6',
+              'base-300': '#e5e7eb',
+              'base-content': '#1f2937',
+              'dark-base-100': '#1f2937',
+              'dark-base-200': '#374151',
+              'dark-base-300': '#4b5563',
+              'dark-base-content': '#f9fafb',
+            },
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react/": "https://esm.sh/react@^19.1.0/",
+      "react": "https://esm.sh/react@^19.1.0",
+      "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+    }
+  }
+  </script>
+  </head>
+  <body class="bg-dark-base-100 text-dark-base-content">
+    <div id="root"></div>
+    <script type="module" src="/preview.tsx"></script>
+  </body>
+</html>

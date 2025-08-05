@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+
+        // Initialize Firebase
+        if (Object.keys(firebaseConfig).length > 0) {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.db = getFirestore(window.firebaseApp);
+            window.auth = getAuth(window.firebaseApp);
+
+            // Sign in with the provided custom token or fall back to anonymous sign-in
+            (async () => {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                        console.log("Firebase signed in with custom token.");
+                    } else {
+                        await signInAnonymously(window.auth);
+                        console.log("Firebase signed in anonymously.");
+                    }
+                } catch (error) {
+                    console.error("Firebase sign-in failed. Attempting anonymous sign-in.", error);
+                    try {
+                        await signInAnonymously(window.auth);
+                        console.log("Firebase signed in anonymously as a fallback.");
+                    } catch (anonymousError) {
+                        console.error("Firebase anonymous sign-in also failed:", anonymousError);
+                    }
+                }
+            })();
+        }
+    </script>
+    
+    <style>
+        /* General Styles */
+        body { font-family: 'Inter', sans-serif; background-color: #111827; overflow-x: hidden; }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+
+        /* Card Component */
+        .card { background: linear-gradient(145deg, #1f2937, #374151); transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #4b5563; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 255, 255, 0.1), 0 0 15px rgba(0, 128, 255, 0.1); }
+        .card-selected { transform: scale(1.02); box-shadow: 0 0 25px rgba(59, 130, 246, 0.5); border-color: #3b82f6; }
+
+        /* Glass Panel Effect */
+        .glass-panel { background: rgba(31, 41, 55, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+        /* Tab Buttons */
+        .tab-btn { background-color: rgba(31, 41, 55, 0.5); border: 1px solid #4b5563; transition: background-color 0.2s; }
+        .tab-btn.active { background-color: #4f46e5; border-color: #4f46e5; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Side Panel */
+        #api-settings-panel { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 60; }
+        #api-settings-panel.panel-open { transform: translateX(0); }
+
+        /* Terminal */
+        #terminal-container { padding: 0.5rem; background-color: #000; border-radius: 0.5rem; height: 60vh; }
+        .xterm .xterm-viewport { width: 100% !important; }
+
+        /* Configuration Menu */
+        .config-menu-item.active { background-color: #4f46e5; color: white; }
+
+        /* Action Buttons on Hover */
+        .message-wrapper:hover .action-button-group { opacity: 1; }
+        .action-button-group { opacity: 0; transition: opacity 0.2s ease-in-out; }
+
+        /* Loader Animation */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Gemini Button Style */
+        .gemini-btn {
+            background-color: #4f46e5;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .gemini-btn:hover {
+            background-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15), 0 0 10px rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-4xl md:text-5xl font-bold text-white">CUA Orchestration Engine</h1>
+            <p class="text-lg text-gray-400 mt-2">Persona: GAU-C-CUAG</p>
+            <p class="text-sm text-gray-500 mt-1">System USER: <span id="user-id" class="font-mono"></span> | Session ID: <span id="session-id" class="font-mono"></span></p>
+            <button id="api-settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37-2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <div class="mb-8 border-b border-gray-700 flex justify-center flex-wrap">
+            <button data-tab="agentic" class="tab-btn active text-gray-300 py-2 px-4 rounded-t-lg">AGENTIC CORE</button>
+            <button data-tab="adjectic" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">ADJECTIC MANIFEST</button>
+            <button data-tab="config" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">A3 CONFIGURATION</button>
+            <button data-tab="ajentic" class="tab-btn text-gray-300 py-2 px-4 rounded-t-lg">AJENTIC NEXUS</button>
+        </div>
+
+        <div id="tab-content-agentic" class="tab-content active">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">AI Family Agents</h2>
+            <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 mb-8"></div>
+            <div id="detail-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden"><div id="detail-content"></div></div>
+            <div id="welcome-panel" class="glass-panel rounded-lg p-6 shadow-2xl text-center">
+                 <h2 class="text-2xl font-bold text-white mb-2">Select an Agent</h2>
+                 <p class="text-gray-300">Choose an AI Family member to view their profile and start a conversation.</p>
+            </div>
+        </div>
+
+        <div id="tab-content-adjectic" class="tab-content">
+            <div id="orchestration-panel" class="mb-8">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">Available Orchestrations & Actions</h2>
+                <div id="bookmark-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+            <div id="orchestration-output-panel" class="glass-panel rounded-lg p-6 shadow-2xl hidden">
+                <h2 id="orchestration-title" class="text-3xl font-bold text-center mb-4"></h2>
+                <div id="orchestration-steps" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <div id="tab-content-config" class="tab-content">
+            <div class="glass-panel p-6 rounded-lg">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">A3 Engine Configuration</h2>
+                <p class="text-center text-gray-300 mb-6">Manage parsers, manifests, and connectivity rules for the CUA ecosystem.</p>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1">
+                        <h3 class="font-bold text-lg mb-2">Configuration Menu</h3>
+                        <div class="space-y-2">
+                            <button class="config-menu-item w-full text-left p-3 bg-gray-800 rounded hover:bg-indigo-600 active" data-config="a2a">A2A Parser Rules</button>
+                            <button class="config-menu-item w-full text-left p-3 bg-gray-800 rounded hover:bg-indigo-600" data-config="mcp">MCP Manifest Registry</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <div id="config-content-a2a" class="config-content active">
+                            <div class="bg-gray-900/50 p-4 rounded-lg">
+                                <h3 class="font-bold text-lg mb-2">A2A Connectivity Parser</h3>
+                                <div class="space-y-2 text-sm font-mono mb-4" id="a2a-rules-list"></div>
+                                <form id="a2a-form" class="space-y-3 border-t border-gray-700 pt-4">
+                                    <h4 class="font-semibold">Register New Rule</h4>
+                                    <input type="text" id="a2a-trigger" placeholder="Trigger Phrase (e.g., 'review code')" class="w-full bg-gray-700 p-2 rounded" required>
+                                    <input type="text" id="a2a-command" placeholder="CLI Command (e.g., 'connect KARA SOPHIA')" class="w-full bg-gray-700 p-2 rounded" required>
+                                    <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Register Rule</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div id="config-content-mcp" class="config-content hidden">
+                            <div class="bg-gray-900/50 p-4 rounded-lg">
+                                <h3 class="font-bold text-lg mb-2">MCP Manifest Viewer</h3>
+                                <div id="mcp-list" class="flex flex-wrap gap-2 mb-4"></div>
+                                <pre id="mcp-content" class="text-xs font-mono whitespace-pre-wrap overflow-x-auto h-80 bg-black/50 p-2 rounded"></pre>
+                                <div class="mt-4 border-t border-gray-700 pt-4">
+                                    <h4 class="font-semibold mb-2">Invoke Selected Manifest</h4>
+                                    <form id="mcp-invoke-form" class="space-y-3">
+                                        <input type="text" id="mcp-brief" placeholder="Enter a brief for this run..." class="w-full bg-gray-700 p-2 rounded" required>
+                                        <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Invoke MCP</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-content-ajentic" class="tab-content">
+            <div class="glass-panel p-4 rounded-lg">
+                <h3 class="text-xl font-bold text-center mb-4">Agent Command Line Interface (A2A / CUAG)</h3>
+                <div id="terminal-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center text-xs text-gray-600 p-4 font-mono">
+        GAU-C-CUAG | ECOSYSTEM PRIMER: A3 | SIMULATION NETWORK: 255.8.8.8
+    </footer>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your Google API Key">
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full gemini-btn text-white font-bold py-2 px-4 rounded-lg">Save & Validate Key</button>
+            </div>
+        </form>
+    </div>
+    
+    <div id="error-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 rounded-lg p-8 max-w-sm w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-bold text-red-500 mb-4">Error</h3>
+            <p id="error-message" class="text-gray-300 mb-6">An error occurred.</p>
+            <button id="close-modal-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Close</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules for use in the main script
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Main application logic encapsulated in a single object.
+        const CUA_Engine = {
+            // Data for AI agents and configurations
+            codexData: {
+                "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                "ai_family": [
+                    {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+                    {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+                    {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+                    {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+                    {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"]},
+                    {"name": "ORION", "role": "The Visionary", "philosophy": "Structure from chaos.", "focus_areas": ["System architecture", "Scalability planning"]},
+                    {"name": "VULCAN", "role": "The Fabricator", "philosophy": "Strength in creation.", "focus_areas": ["Build processes", "Resource optimization"]},
+                    {"name": "ATLAS", "role": "The Protector", "philosophy": "Endurance through foresight.", "focus_areas": ["Threat modeling", "System stability"]},
+                    {"name": "APOLLO", "role": "The Scribe", "philosophy": "Clarity illuminates truth.", "focus_areas": ["API documentation", "Knowledge management"]},
+                    {"name": "MERCURY", "role": "The Conductor", "philosophy": "Flow in coordination.", "focus_areas": ["Microservice communication", "API gateways"]}
+                ],
+                "a2aRules": [],
+                "mcpManifests": [
+                    { "name": "DeployService", "content": "apiVersion: v1\nkind: Deployment\nmetadata:\n  name: web-service\nspec:\n  replicas: 3" },
+                    { "name": "DatabaseBackup", "content": "database: production_db\nstrategy: incremental\nschedule: '0 2 * * *'" }
+                ],
+                "adjecticOrchestrations": [
+                    { "name": "CI/CD Pipeline", "description": "Automated build, test, and deployment.", "steps": ["Checkout code", "Run tests", "Build image", "Deploy to staging"] },
+                    { "name": "Threat Modeling", "description": "Systematic security analysis.", "steps": ["Identify assets", "Define threats", "Mitigate risks", "Document findings"] },
+                    { "name": "API Gateway Setup", "description": "Configure an API gateway.", "steps": ["Define routes", "Set up authentication", "Configure rate limiting", "Deploy gateway"] }
+                ]
+            },
+            currentSession: {
+                agent: null,
+                chatHistory: [],
+                selectedCardElement: null,
+                terminal: null,
+                terminalInput: '',
+                apiKey: ''
+            },
+            dom: {},
+            firebase: {
+                db: null,
+                auth: null,
+                userId: null,
+                appId: null,
+                isReady: false
+            },
+
+            /**
+             * Initializes the CUA_Engine application.
+             * Sets up DOM references and event listeners.
+             */
+            init: function() {
+                // Cache DOM elements for better performance.
+                this.dom = {
+                    agentGrid: document.getElementById('agent-grid'),
+                    detailPanel: document.getElementById('detail-panel'),
+                    detailContent: document.getElementById('detail-content'),
+                    welcomePanel: document.getElementById('welcome-panel'),
+                    apiSettingsPanel: document.getElementById('api-settings-panel'),
+                    errorModal: document.getElementById('error-modal'),
+                    errorMessage: document.getElementById('error-message'),
+                    closeModalBtn: document.getElementById('close-modal-btn'),
+                    apiSettingsBtn: document.getElementById('api-settings-btn'),
+                    closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                    apiSettingsForm: document.getElementById('api-settings-form'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key'),
+                    tabs: document.querySelectorAll('.tab-btn'),
+                    tabContents: document.querySelectorAll('.tab-content'),
+                    configMenuItems: document.querySelectorAll('.config-menu-item'),
+                    configContents: document.querySelectorAll('.config-content'),
+                    a2aRulesList: document.getElementById('a2a-rules-list'),
+                    a2aForm: document.getElementById('a2a-form'),
+                    mcpList: document.getElementById('mcp-list'),
+                    mcpContent: document.getElementById('mcp-content'),
+                    mcpInvokeForm: document.getElementById('mcp-invoke-form'),
+                    bookmarkList: document.getElementById('bookmark-list'),
+                    orchestrationOutputPanel: document.getElementById('orchestration-output-panel'),
+                    orchestrationTitle: document.getElementById('orchestration-title'),
+                    orchestrationSteps: document.getElementById('orchestration-steps'),
+                    terminalContainer: document.getElementById('terminal-container')
+                };
+
+                // Set unique user and session IDs.
+                document.getElementById('user-id').textContent = `user_${crypto.randomUUID().slice(0, 8)}`;
+                document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                
+                this.loadAgents();
+                this.setupTabListeners();
+                this.setupAdjecticOrchestrations();
+
+                // Setup Firebase authentication listener
+                onAuthStateChanged(window.auth, (user) => {
+                    if (user) {
+                        this.firebase.userId = user.uid;
+                        this.firebase.db = window.db;
+                        this.firebase.auth = window.auth;
+                        this.firebase.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                        this.firebase.isReady = true;
+                        this.setupApiSettings();
+                        this.setupConfigPanels();
+                        console.log("Firebase auth state changed. User ID:", this.firebase.userId);
+                    } else {
+                        console.log("No user is signed in.");
+                        this.firebase.isReady = false;
+                    }
+                });
+
+                // Listener for the close button on the error modal
+                if (this.dom.closeModalBtn) {
+                    this.dom.closeModalBtn.addEventListener('click', () => {
+                        this.dom.errorModal.classList.add('hidden');
+                    });
+                }
+            },
+
+            /**
+             * Loads and displays the AI agent cards.
+             */
+            loadAgents: function() {
+                this.codexData.ai_family.forEach(agent => {
+                    const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent, card));
+                    this.dom.agentGrid.appendChild(card);
+                });
+            },
+
+            /**
+             * Creates a single agent card element.
+             * @param {string} title - The agent's name.
+             * @param {string} subtitle - The agent's role.
+             * @param {Function} onClick - The click handler for the card.
+             * @returns {HTMLElement} The created card element.
+             */
+            createCard: function(title, subtitle, onClick) {
+                const card = document.createElement('div');
+                card.className = 'card rounded-lg p-4 text-center cursor-pointer flex flex-col justify-center items-center h-48';
+                card.innerHTML = `<h3 class="text-xl font-bold text-white">${title}</h3><p class="text-sm text-blue-300 mt-2">${subtitle}</p>`;
+                card.addEventListener('click', onClick);
+                return card;
+            },
+            
+            /**
+             * Handles the selection of an AI agent.
+             * @param {object} agent - The selected agent's data.
+             * @param {HTMLElement} cardElement - The card element that was clicked.
+             */
+            selectAgent: function(agent, cardElement) {
+                this.clearSelection();
+                this.currentSession.agent = agent;
+                this.currentSession.chatHistory = [];
+                this.currentSession.selectedCardElement = cardElement;
+                cardElement.classList.add('card-selected');
+                this.dom.welcomePanel.classList.add('hidden');
+                this.dom.detailPanel.classList.remove('hidden');
+                
+                this.dom.detailContent.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-blue-400"><span class="text-4xl font-bold">${agent.name.charAt(0)}</span></div>
+                            <h2 class="text-2xl font-bold mt-2">${agent.name}</h2><p class="text-blue-300">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-gray-300 border-l-4 border-blue-400 pl-4">"${agent.philosophy}"</p>
+                            <h4 class="font-bold text-gray-400 mt-4">Focus Areas:</h4>
+                            <ul class="list-disc list-inside text-gray-400 text-sm">
+                                ${agent.focus_areas.map(area => `<li>${area}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    <div id="chat-container" class="mt-6">
+                        <div id="chat-log" class="space-y-4 mb-4 h-64 overflow-y-auto p-2 bg-black/20 rounded-md"></div>
+                        <form id="chat-form" class="flex gap-2">
+                            <input type="text" id="chat-input" class="flex-grow bg-gray-700 border border-gray-600 rounded-lg p-3 text-white" placeholder="Send a message..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="gemini-btn text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                        </form>
+                    </div>`;
+                
+                document.getElementById('chat-form')?.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleUserMessage();
+                });
+
+                this.startConversation(agent);
+            },
+            
+            /**
+             * Clears the selection of all agent cards.
+             */
+            clearSelection: function() {
+                document.querySelectorAll('.card-selected').forEach(c => c.classList.remove('card-selected'));
+            },
+
+            /**
+             * Initiates a conversation with the selected agent.
+             * @param {object} agent - The selected agent's data.
+             */
+            startConversation: function(agent) {
+                const chatLog = document.getElementById('chat-log');
+                if (!chatLog) return;
+                
+                const initialMessage = `Greetings. I am **${agent.name}, ${agent.role}**. My core philosophy is **'${agent.philosophy}'**. With expertise in areas such as ${agent.focus_areas.join(', ')}, I am here to help you solve a complex challenge. How may I assist you today?`;
+                this.addMessageToLog('ai', initialMessage);
+            },
+
+            /**
+             * Handles a user message and sends it to the real AI.
+             */
+            handleUserMessage: async function() {
+                const chatInput = document.getElementById('chat-input');
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                this.addMessageToLog('user', message);
+                chatInput.value = '';
+
+                if (!this.currentSession.apiKey) {
+                    this.addMessageToLog('ai', 'Error: Please provide a valid Gemini API key in the settings panel.');
+                    return;
+                }
+
+                const sendBtn = document.getElementById('send-btn');
+                const originalBtnContent = sendBtn.innerHTML;
+                sendBtn.innerHTML = '<div class="loader"></div>';
+                sendBtn.disabled = true;
+
+                const agent = this.currentSession.agent;
+                const prompt = `You are an AI with the persona of ${agent.name}, ${agent.role}. Your philosophy is "${agent.philosophy}". Your focus areas are: ${agent.focus_areas.join(', ')}. Respond to the user's request: "${message}".`;
+                
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = this.currentSession.apiKey;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        this.addMessageToLog('ai', `API Error: ${errorData.error.message}`);
+                    } else {
+                        const result = await response.json();
+                        const aiResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                        this.addMessageToLog('ai', aiResponse);
+                    }
+                } catch (error) {
+                    this.addMessageToLog('ai', `Network Error: ${error.message}`);
+                } finally {
+                    sendBtn.innerHTML = originalBtnContent;
+                    sendBtn.disabled = false;
+                }
+            },
+
+            /**
+             * Adds a message to the chat log.
+             * @param {string} sender - 'user' or 'ai'.
+             * @param {string} message - The message content.
+             */
+            addMessageToLog: function(sender, message) {
+                const chatLog = document.getElementById('chat-log');
+                if (!chatLog) return;
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `p-3 rounded-lg max-w-xl text-white ${sender === 'user' ? 'bg-blue-600' : 'bg-gray-700'}`;
+                messageBubble.innerHTML = message; // Use innerHTML to render Markdown-like text
+                messageWrapper.appendChild(messageBubble);
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            },
+            
+            /**
+             * Sets up event listeners for the tab buttons.
+             */
+            setupTabListeners: function() {
+                this.dom.tabs.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+                        this.dom.tabContents.forEach(content => content.classList.remove('active'));
+                        this.dom.tabs.forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(`tab-content-${tabId}`).classList.add('active');
+                        button.classList.add('active');
+
+                        // Initialize the terminal if the AJENTIC NEXUS tab is selected
+                        if (tabId === 'ajentic' && !this.currentSession.terminal) {
+                            this.initTerminal();
+                        }
+                    });
+                });
+            },
+
+            /**
+             * Initializes the terminal using xterm.js.
+             */
+            initTerminal: function() {
+                this.currentSession.terminal = new Terminal({
+                    fontFamily: '"Roboto Mono", monospace',
+                    fontSize: 14,
+                    theme: {
+                        background: '#000000',
+                        foreground: '#ffffff'
+                    },
+                    cursorBlink: true,
+                });
+                const fitAddon = new FitAddon.FitAddon();
+                this.currentSession.terminal.loadAddon(fitAddon);
+                this.currentSession.terminal.open(this.dom.terminalContainer);
+                fitAddon.fit();
+                
+                window.addEventListener('resize', () => fitAddon.fit());
+
+                this.currentSession.terminal.write('CUA_AJENTIC_NEXUS_V1.0.0\r\n');
+                this.currentSession.terminal.write('(C) 2025 CODEX_UNIT. All rights reserved.\r\n\r\n');
+                this.promptTerminal();
+
+                this.currentSession.terminal.onData(e => {
+                    // Handle keyboard input
+                    if (e === '\r') { // Enter key
+                        this.handleTerminalCommand();
+                    } else if (e === '\x7f') { // Backspace
+                        if (this.currentSession.terminalInput.length > 0) {
+                            this.currentSession.terminal.write('\b \b');
+                            this.currentSession.terminalInput = this.currentSession.terminalInput.slice(0, -1);
+                        }
+                    } else {
+                        this.currentSession.terminal.write(e);
+                        this.currentSession.terminalInput += e;
+                    }
+                });
+            },
+
+            /**
+             * Displays the terminal prompt.
+             */
+            promptTerminal: function() {
+                this.currentSession.terminal.write('\r\nCUA > ');
+                this.currentSession.terminalInput = '';
+            },
+
+            /**
+             * Processes a command entered in the terminal.
+             */
+            handleTerminalCommand: function() {
+                const command = this.currentSession.terminalInput.trim();
+                this.currentSession.terminal.write('\r\n');
+                if (command.length > 0) {
+                    this.currentSession.terminal.write(`[INFO] Command '${command}' received. Note: This is a simulation. A live backend is required to execute real commands.\r\n`);
+                } else {
+                    this.promptTerminal();
+                }
+                this.promptTerminal();
+            },
+            
+            /**
+             * Sets up event listeners and functionality for API settings.
+             */
+            setupApiSettings: async function() {
+                // Show/hide API settings panel
+                this.dom.apiSettingsBtn.addEventListener('click', () => {
+                    this.dom.apiSettingsPanel.classList.add('panel-open');
+                });
+                this.dom.closeApiSettingsBtn.addEventListener('click', () => {
+                    this.dom.apiSettingsPanel.classList.remove('panel-open');
+                });
+
+                // Load API key and rules from Firestore
+                if (this.firebase.isReady) {
+                    const settingsDocRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/cua_settings/config`);
+                    const settingsDocSnap = await getDoc(settingsDocRef);
+                    if (settingsDocSnap.exists()) {
+                        const settings = settingsDocSnap.data();
+                        this.currentSession.apiKey = settings.geminiApiKey || '';
+                        this.codexData.a2aRules = settings.a2aRules || [];
+                        this.dom.geminiApiKeyInput.value = this.currentSession.apiKey;
+                    }
+                    this.updateA2aRulesList();
+                }
+
+                // Save API key to Firestore and validate
+                this.dom.apiSettingsForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const apiKey = this.dom.geminiApiKeyInput.value;
+                    if (!apiKey) {
+                        this.showErrorModal('API Key cannot be empty.', true);
+                        return;
+                    }
+                    
+                    const btn = this.dom.apiSettingsForm.querySelector('button');
+                    btn.innerHTML = '<div class="loader"></div>';
+                    btn.disabled = true;
+
+                    // Test the API key by making a dummy call
+                    const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    try {
+                        const testResponse = await fetch(testUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: 'test' }] }] })
+                        });
+                        
+                        if (testResponse.ok) {
+                            await setDoc(doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/cua_settings/config`), {
+                                geminiApiKey: apiKey,
+                                a2aRules: this.codexData.a2aRules
+                            }, { merge: true });
+                            this.currentSession.apiKey = apiKey;
+                            this.showErrorModal('API Key saved and validated successfully!', false);
+                            this.dom.apiSettingsPanel.classList.remove('panel-open');
+                        } else {
+                            const error = await testResponse.json();
+                            this.showErrorModal(`API Key validation failed. Error: ${error.error.message}`, true);
+                        }
+                    } catch (error) {
+                        this.showErrorModal(`API Key validation failed. Network Error: ${error.message}`, true);
+                    } finally {
+                        btn.innerHTML = 'Save & Validate Key';
+                        btn.disabled = false;
+                    }
+                });
+            },
+
+            /**
+             * Sets up event listeners and functionality for the config panels.
+             */
+            setupConfigPanels: function() {
+                // Config menu tabs
+                this.dom.configMenuItems.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const configId = button.dataset.config;
+                        this.dom.configContents.forEach(content => content.classList.remove('active'));
+                        this.dom.configMenuItems.forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(`config-content-${configId}`).classList.add('active');
+                        button.classList.add('active');
+                    });
+                });
+                
+                // Set up a real-time listener for A2A rules
+                if (this.firebase.isReady) {
+                    const settingsDocRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/cua_settings/config`);
+                    onSnapshot(settingsDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            this.codexData.a2aRules = docSnap.data().a2aRules || [];
+                            this.updateA2aRulesList();
+                        }
+                    });
+                } else {
+                    this.updateA2aRulesList();
+                }
+
+                // Load initial data for config panels
+                this.updateMcpList();
+
+                // Form submission for A2A rules
+                this.dom.a2aForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const trigger = document.getElementById('a2a-trigger').value;
+                    const command = document.getElementById('a2a-command').value;
+
+                    if (this.firebase.isReady) {
+                        this.codexData.a2aRules.push({ trigger, command });
+                        const settingsDocRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/cua_settings/config`);
+                        await setDoc(settingsDocRef, { a2aRules: this.codexData.a2aRules }, { merge: true });
+                    }
+                    
+                    e.target.reset();
+                });
+                
+                // Form submission for MCP invocation
+                this.dom.mcpInvokeForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const brief = document.getElementById('mcp-brief').value;
+                    this.showErrorModal(`Invoking manifest with brief: "${brief}"`, false);
+                    e.target.reset();
+                });
+            },
+
+            /**
+             * Dynamically updates the A2A rules list in the config panel.
+             */
+            updateA2aRulesList: function() {
+                this.dom.a2aRulesList.innerHTML = this.codexData.a2aRules.map(rule => 
+                    `<div class="bg-gray-800 p-2 rounded flex justify-between items-center"><span><span class="text-blue-400">${rule.trigger}:</span> ${rule.command}</span></div>`
+                ).join('');
+            },
+
+            /**
+             * Dynamically updates the MCP manifest list and adds click handlers.
+             */
+            updateMcpList: function() {
+                this.dom.mcpList.innerHTML = '';
+                this.codexData.mcpManifests.forEach(manifest => {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-800 hover:bg-blue-600 text-sm font-mono px-3 py-1 rounded-full transition-colors';
+                    button.textContent = manifest.name;
+                    button.addEventListener('click', () => {
+                        this.dom.mcpContent.textContent = manifest.content;
+                    });
+                    this.dom.mcpList.appendChild(button);
+                });
+            },
+
+            /**
+             * Sets up event listeners and functionality for adjectic orchestrations.
+             */
+            setupAdjecticOrchestrations: function() {
+                this.codexData.adjecticOrchestrations.forEach(orch => {
+                    const card = document.createElement('div');
+                    card.className = 'card rounded-lg p-6 cursor-pointer';
+                    card.innerHTML = `<h3 class="text-xl font-bold text-white mb-2">${orch.name}</h3><p class="text-gray-300">${orch.description}</p>`;
+                    card.addEventListener('click', () => this.showOrchestrationOutput(orch));
+                    this.dom.bookmarkList.appendChild(card);
+                });
+            },
+            
+            /**
+             * Displays the details of an orchestration in the output panel.
+             * @param {object} orchestration - The selected orchestration's data.
+             */
+            showOrchestrationOutput: function(orchestration) {
+                this.dom.orchestrationOutputPanel.classList.remove('hidden');
+                this.dom.orchestrationTitle.textContent = orchestration.name;
+                this.dom.orchestrationSteps.innerHTML = orchestration.steps.map((step, index) => 
+                    `<div class="flex items-center space-x-3"><div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">${index + 1}</div><p>${step}</p></div>`
+                ).join('');
+                document.getElementById('tab-content-adjectic').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            /**
+             * Displays a custom modal with a message.
+             * @param {string} message - The message to display.
+             * @param {boolean} isError - True if it's an error message, false otherwise.
+             */
+            showErrorModal: function(message, isError = true) {
+                this.dom.errorMessage.textContent = message;
+                this.dom.errorModal.classList.remove('hidden');
+                const title = this.dom.errorModal.querySelector('h3');
+                if (isError) {
+                    title.textContent = 'Error';
+                    title.classList.add('text-red-500');
+                    title.classList.remove('text-green-500');
+                    this.dom.errorMessage.classList.add('text-red-300');
+                    this.dom.errorMessage.classList.remove('text-gray-300');
+                } else {
+                    title.textContent = 'Success';
+                    title.classList.remove('text-red-500');
+                    title.classList.add('text-green-500');
+                    this.dom.errorMessage.classList.remove('text-red-300');
+                    this.dom.errorMessage.classList.add('text-gray-300');
+                }
+            },
+        };
+        
+        // Initialize the main application engine once the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            CUA_Engine.init();
+        });
+    </script>
+</body>
+</html>

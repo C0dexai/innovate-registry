@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #E2E8F0; }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+        .glass-panel { background: rgba(31, 41, 55, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-btn { transition: all 0.3s ease; border-bottom: 2px solid transparent; color: #A0AEC0; }
+        .tab-btn.active { border-bottom-color: #6366F1; color: #6366F1; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { 
+            transition: transform 0.3s ease, box-shadow 0.3s ease; 
+            background-color: #2D3748; 
+            border: 2px solid #6366F1;
+            box-shadow: 0 0 10px #6366F1, 0 0 20px #6366F1;
+        }
+        .card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 0 15px #818CF8, 0 0 25px #818CF8; 
+        }
+        .chat-bubble { padding: 0.75rem; border-radius: 0.75rem; max-width: 95%; margin-bottom: 0.5rem; }
+        .chat-bubble-ai { 
+            background-color: #2D3748; 
+            border-bottom-left-radius: 0.125rem; 
+            align-self: flex-start;
+            border: 2px solid #4A5568;
+            box-shadow: 0 0 5px #4A5568, 0 0 10px #4A5568;
+        }
+        .chat-bubble-user { 
+            background-color: #6366F1; 
+            color: white; 
+            border-bottom-right-radius: 0.125rem; 
+            align-self: flex-end; 
+            border: 2px solid #818CF8;
+            box-shadow: 0 0 5px #818CF8, 0 0 10px #818CF8;
+        }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 2s linear infinite; margin: auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .dual-chat-container { border: 1px solid #4A5568; border-radius: 0.5rem; overflow: hidden; }
+        .chat-column { padding: 1rem; }
+        .chat-column-gemini { background-color: rgba(15, 23, 42, 0.5); }
+        .chat-column-lmstudio { background-color: rgba(15, 23, 42, 0.3); }
+        .chat-column h5 { color: #A0AEC0; font-weight: bold; margin-bottom: 0.5rem; }
+        #api-settings-panel { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 60; }
+        #api-settings-panel.panel-open { transform: translateX(0); }
+        #message-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 70; }
+        #message-box.visible { transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible; }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl md:text-5xl font-bold text-white"></h1>
+            <p class="mt-2 text-lg text-gray-400"></p>
+            <div class="mt-4 text-sm text-gray-400">
+                User ID: <span id="user-id" class="font-semibold text-indigo-400"></span> | Session ID: <span id="session-id" class="font-semibold text-indigo-400"></span>
+            </div>
+            <button id="api-settings-btn" class="absolute top-0 right-0 p-2 text-gray-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <main>
+            <div id="family" class="tab-content active">
+                <div class="max-w-7xl mx-auto">
+                    <h2 class="text-3xl font-bold mb-2 text-center text-white"></h2>
+                    <p class="text-lg text-gray-400 mb-8 text-center"></p>
+                    <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+                    <div id="agent-details" class="mt-8 glass-panel p-6 rounded-lg shadow-lg" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your Google API Key">
+            </div>
+            <div>
+                <label for="lmstudio-api-url" class="block text-sm font-medium text-gray-300 mb-1">LM Studio API URL</label>
+                <input type="text" id="lmstudio-api-url" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" value="http://192.168.1.111:1234" placeholder="Enter your LM Studio API URL">
+            </div>
+            <div>
+                <label for="lmstudio-api-key" class="block text-sm font-medium text-gray-300 mb-1">LM Studio API Key</label>
+                <input type="password" id="lmstudio-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white" placeholder="Enter your LM Studio API Key">
+            </div>
+            <div>
+                <label for="lmstudio-model" class="block text-sm font-medium text-gray-300 mb-1">LM Studio Model</label>
+                <select id="lmstudio-model" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white">
+                    <option value="yi-coder-9b-chat">yi-coder-9b-chat</option>
+                    <option value="qwen2.5-coder-7b-instruct">qwen2.5-coder-7b-instruct</option>
+                    <option value="deepseek-r1-distill-qwen-7b">deepseek-r1-distill-qwen-7b</option>
+                    <option value="starcoder2-7b">starcoder2-7b</option>
+                </select>
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg">Save Keys</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Custom Message Box -->
+    <div id="message-box" class="w-80 bg-gray-800 rounded-lg shadow-xl p-6 text-center">
+        <p id="message-box-text" class="text-white mb-4"></p>
+        <button id="message-box-close" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg w-full">OK</button>
+    </div>
+    
+    <script>
+        const CUA_Engine = {
+            codexData: {
+                "version": "1.0", "author": "CODEX System", "contact": "ANDOY AI",
+                "ai_family": [
+                    {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure."},
+                    {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution."},
+                    {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design."},
+                    {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared."},
+                    {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity."},
+                    {"name": "ORION", "role": "The Visionary", "philosophy": "Structure from chaos."},
+                    {"name": "VULCAN", "role": "The Fabricator", "philosophy": "Strength in creation."},
+                    {"name": "ATLAS", "role": "The Protector", "philosophy": "Endurance through foresight."},
+                    {"name": "APOLLO", "role": "The Scribe", "philosophy": "Clarity illuminates truth."},
+                    {"name": "MERCURY", "role": "The Conductor", "philosophy": "Flow in coordination."}
+                ]
+            },
+            currentSession: { agent: null, geminiChatHistory: [], lmstudioChatHistory: [] },
+            apiKeys: { gemini: '', lmstudio: '' },
+            dom: {},
+
+            init: function() {
+                this.dom = {
+                    agentGrid: document.getElementById('agent-grid'),
+                    agentDetails: document.getElementById('agent-details'),
+                    apiSettingsPanel: document.getElementById('api-settings-panel'),
+                    closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                    apiSettingsForm: document.getElementById('api-settings-form'),
+                    apiSettingsBtn: document.getElementById('api-settings-btn'),
+                    geminiApiKeyInput: document.getElementById('gemini-api-key'),
+                    lmstudioApiUrlInput: document.getElementById('lmstudio-api-url'),
+                    lmstudioApiKeyInput: document.getElementById('lmstudio-api-key'),
+                    lmstudioModelSelect: document.getElementById('lmstudio-model'),
+                    messageBox: document.getElementById('message-box'),
+                    messageBoxText: document.getElementById('message-box-text'),
+                    messageBoxClose: document.getElementById('message-box-close')
+                };
+
+                document.getElementById('user-id').textContent = `user_${crypto.randomUUID().slice(0, 8)}`;
+                document.getElementById('session-id').textContent = `session_${crypto.randomUUID().slice(0, 12)}`;
+                
+                this.codexData.ai_family.forEach(agent => {
+                    const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent));
+                    this.dom.agentGrid.appendChild(card);
+                });
+                
+                this.dom.apiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                this.dom.closeApiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                this.dom.apiSettingsForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveApiKeys();
+                });
+                this.dom.messageBoxClose.addEventListener('click', this.hideMessageBox.bind(this));
+                this.loadApiKeys();
+            },
+
+            createCard: function(title, subtitle, onClick) {
+                const card = document.createElement('div');
+                card.className = 'card p-6 rounded-lg shadow-dark cursor-pointer text-center';
+                card.innerHTML = `<h3 class="text-xl font-bold text-indigo-400">${title}</h3><p class="text-gray-400">${subtitle}</p>`;
+                card.addEventListener('click', onClick);
+                return card;
+            },
+            
+            selectAgent: async function(agent) {
+                this.currentSession = { agent, geminiChatHistory: [], lmstudioChatHistory: [] };
+                this.dom.agentDetails.style.display = 'block';
+                
+                this.dom.agentDetails.innerHTML = `
+                    <div class="flex flex-col md:flex-row gap-6 items-center mb-6">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2 border-indigo-500"><span class="text-4xl font-bold text-indigo-400">${agent.name.charAt(0)}</span></div>
+                            <h2 class="text-2xl font-bold text-white mt-2">${agent.name}</h2>
+                            <p class="text-indigo-400">${agent.role}</p>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="italic text-gray-400 border-l-4 border-indigo-500 pl-4">"${agent.philosophy}"</p>
+                        </div>
+                    </div>
+                    <div id="chat-interface">
+                        <div class="dual-chat-container grid grid-cols-1 md:grid-cols-2">
+                            <div class="chat-column chat-column-gemini">
+                                <h5><i class="fas fa-brain mr-2"></i>Gemini Response</h5>
+                                <div id="gemini-chat-log" class="space-y-2 overflow-y-auto max-h-96"></div>
+                            </div>
+                            <div class="chat-column chat-column-lmstudio">
+                                <h5><i class="fas fa-robot mr-2"></i>LM Studio Response</h5>
+                                <div id="lmstudio-chat-log" class="space-y-2 overflow-y-auto max-h-96"></div>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-4 rounded-lg glass-panel">
+                            <h6 class="text-indigo-400 font-bold mb-2">AI Hint & Suggestions</h6>
+                            <p class="text-sm text-gray-400">Hints will appear here. For example: "Try asking me to generate a new Python script."</p>
+                        </div>
+                        <form id="chat-form" class="flex gap-2 mt-4">
+                            <input type="text" id="chat-input" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg p-3 text-white" placeholder="Ask a question or provide a task..." required autocomplete="off">
+                            <button type="submit" id="send-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 rounded-lg flex items-center justify-center w-24">Send</button>
+                        </form>
+                    </div>`;
+                
+                document.getElementById('chat-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleUserMessage();
+                });
+
+                await this.startConversation(agent);
+            },
+            
+            startConversation: async function(agent) {
+                const geminiLog = document.getElementById('gemini-chat-log');
+                const lmstudioLog = document.getElementById('lmstudio-chat-log');
+                if (!geminiLog || !lmstudioLog) return;
+                geminiLog.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                lmstudioLog.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                
+                const prompt = `Introduce yourself as the AI agent named ${agent.name}. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Greet the user and ask how you can assist them based on your specific role.`;
+                
+                const [geminiResponse, lmstudioResponse] = await Promise.all([
+                    this.getGeminiResponse(prompt, []),
+                    this.getLMStudioResponse(prompt, [])
+                ]);
+
+                this.addMessageToLog('gemini-chat-log', 'ai', geminiResponse.success ? geminiResponse.data : geminiResponse.error, true);
+                if(geminiResponse.success) this.currentSession.geminiChatHistory.push({role: 'model', parts: [{text: geminiResponse.data}]});
+
+                this.addMessageToLog('lmstudio-chat-log', 'ai', lmstudioResponse.success ? lmstudioResponse.data : lmstudioResponse.error, true);
+                if(lmstudioResponse.success) this.currentSession.lmstudioChatHistory.push({role: 'assistant', content: lmstudioResponse.data});
+            },
+
+            handleUserMessage: async function() {
+                const chatInput = document.getElementById('chat-input');
+                const sendBtn = document.getElementById('send-btn');
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                this.addMessageToLog('gemini-chat-log', 'user', message);
+                this.addMessageToLog('lmstudio-chat-log', 'user', message);
+                this.currentSession.geminiChatHistory.push({role: 'user', parts: [{text: message}]});
+                this.currentSession.lmstudioChatHistory.push({role: 'user', content: message});
+                chatInput.value = '';
+                
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loader"></div>';
+                
+                const geminiPromise = this.getGeminiResponse(message, this.currentSession.geminiChatHistory.slice(0, -1));
+                const lmstudioPromise = this.getLMStudioResponse(message, this.currentSession.lmstudioChatHistory.slice(0, -1));
+
+                const [geminiResponse, lmstudioResponse] = await Promise.all([geminiPromise, lmstudioPromise]);
+
+                this.addMessageToLog('gemini-chat-log', 'ai', geminiResponse.success ? geminiResponse.data : geminiResponse.error);
+                if(geminiResponse.success) this.currentSession.geminiChatHistory.push({role: 'model', parts: [{text: geminiResponse.data}]});
+
+                this.addMessageToLog('lmstudio-chat-log', 'ai', lmstudioResponse.success ? lmstudioResponse.data : lmstudioResponse.error);
+                if(lmstudioResponse.success) this.currentSession.lmstudioChatHistory.push({role: 'assistant', content: lmstudioResponse.data});
+
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send';
+            },
+            
+            // Function to transform chat history to LM Studio format
+            transformChatHistory: function(history) {
+                const agent = this.currentSession.agent;
+                const systemPrompt = `You are ${agent.name}, an AI agent. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Keep your responses concise and in character.`;
+
+                const messages = [
+                    { role: "system", content: systemPrompt },
+                    ...history.map(m => ({
+                        role: m.role, 
+                        content: m.content
+                    }))
+                ];
+                return messages;
+            },
+
+            // Function to make API call to LM Studio
+            loadLMStudioResponse: async function(url, apiKey, model, messages) {
+                const payload = {
+                    model: model,
+                    messages: messages,
+                    temperature: 0.7,
+                    stream: false
+                };
+
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                    const result = await response.json();
+                    
+                    if (!result.choices || result.choices.length === 0) {
+                        return { success: false, error: "LM Studio API returned no choices." };
+                    }
+                    return { success: true, data: result.choices[0].message.content };
+                } catch (error) {
+                    console.error("LM Studio API Error:", error);
+                    return { success: false, error: `LM Studio API Error: ${error.message}` };
+                }
+            },
+
+            // New function for handling Gemini API calls
+            getGeminiResponse: async function(userMessage, history) {
+                // The API key is automatically handled by the environment.
+                const apiKey = "";
+                const agent = this.currentSession.agent;
+                const systemPrompt = `You are ${agent.name}, an AI agent. Your role is "${agent.role}" and your core philosophy is "${agent.philosophy}". Keep your responses concise and in character.`;
+                let chatHistory = history.map(m => ({
+                    role: m.role,
+                    parts: m.parts
+                }));
+                chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
+
+                const payload = {
+                    contents: chatHistory,
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                    const result = await response.json();
+                    
+                    if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content || !result.candidates[0].content.parts || result.candidates[0].content.parts.length === 0) {
+                        return { success: false, error: "API returned no content." };
+                    }
+                    return { success: true, data: result.candidates[0].content.parts[0].text };
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    return { success: false, error: `Gemini API Error: ${error.message}` };
+                }
+            },
+
+            // New function for handling LM Studio API calls
+            getLMStudioResponse: async function(userMessage, history) {
+                const apiKey = this.apiKeys.lmstudio;
+                const apiUrl = this.dom.lmstudioApiUrlInput.value;
+                const model = this.dom.lmstudioModelSelect.value;
+                
+                if (!apiKey || !apiUrl) {
+                    return { success: false, error: `LM Studio API URL and/or Key not set. Please set it in the API Settings.` };
+                }
+                
+                // Transform and load the chat history for LM Studio API
+                const messages = this.transformChatHistory(history);
+                messages.push({ role: "user", content: userMessage });
+                
+                return await this.loadLMStudioResponse(apiUrl + '/v1/chat/completions', apiKey, model, messages);
+            },
+
+            addMessageToLog: function(logId, sender, message, isFirstMessage = false) {
+                const chatLog = document.getElementById(logId);
+                if (!chatLog) return;
+                if(isFirstMessage) chatLog.innerHTML = '';
+
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} mb-2`;
+                
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = `flex flex-col relative group ${sender === 'user' ? 'items-end' : 'items-start'}`;
+                
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `chat-bubble ${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'} pr-10`;
+                messageBubble.innerHTML = marked.parse(message);
+                
+                const copyButton = document.createElement('button');
+                copyButton.innerHTML = `<i class="far fa-copy"></i>`;
+                copyButton.className = `absolute ${sender === 'user' ? 'right-2' : 'right-2'} top-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-700`;
+                copyButton.onclick = () => this.copyToClipboard(message);
+
+                contentWrapper.appendChild(messageBubble);
+                contentWrapper.appendChild(copyButton);
+                messageWrapper.appendChild(contentWrapper);
+                chatLog.appendChild(messageWrapper);
+                chatLog.scrollTop = chatLog.scrollHeight;
+            },
+            
+            copyToClipboard: function(text) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                this.showMessageBox('Copied to clipboard!');
+            },
+            
+            clearSelection: function() {
+                document.querySelectorAll('.card-selected').forEach(c => c.classList.remove('border-indigo-500', 'border-2'));
+            },
+            
+            toggleApiSettings: function() {
+                this.dom.apiSettingsPanel.classList.toggle('panel-open');
+            },
+
+            saveApiKeys: function() {
+                this.apiKeys.gemini = this.dom.geminiApiKeyInput.value;
+                this.apiKeys.lmstudio = this.dom.lmstudioApiKeyInput.value;
+                localStorage.setItem('cuaApiKeys', JSON.stringify(this.apiKeys));
+                this.showMessageBox('API Keys saved!');
+                this.toggleApiSettings();
+            },
+
+            loadApiKeys: function() {
+                const savedKeys = localStorage.getItem('cuaApiKeys');
+                if (savedKeys) {
+                    this.apiKeys = JSON.parse(savedKeys);
+                    this.dom.geminiApiKeyInput.value = this.apiKeys.gemini || '';
+                    this.dom.lmstudioApiKeyInput.value = this.apiKeys.lmstudio || '';
+                }
+            },
+            
+            // Function to show a custom message box
+            showMessageBox: function(message) {
+                this.dom.messageBoxText.textContent = message;
+                this.dom.messageBox.classList.add('visible');
+            },
+            
+            // Function to hide the custom message box
+            hideMessageBox: function() {
+                this.dom.messageBox.classList.remove('visible');
+            }
+        };
+        
+        CUA_Engine.init();
+    </script>
+</body>
+</html>

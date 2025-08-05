@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Whisperer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --color-bg: #030712; /* Tailwind gray-950 */
+        --color-surface: #111827; /* Tailwind gray-900 */
+        --color-text: #d1d5db; /* Tailwind gray-300 */
+        --color-neon-pink: #d946ef;
+        --color-neon-blue: #3b82f6;
+        --color-neon-green: #22c55e;
+        --color-neon-purple: #8b5cf6;
+      }
+      
+      /* For custom scrollbars to match the neon theme */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #fff;
+        border-radius: 3px;
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.7), 0 0 8px rgba(255, 255, 255, 0.5), 0 0 12px var(--color-neon-pink, #d946ef);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #e0e0e0;
+        box-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 18px var(--color-neon-pink, #d946ef);
+      }
+      
+      @keyframes pulse-slow {
+        50% {
+          opacity: .85;
+          box-shadow: 0 0 25px rgba(217, 70, 239, 0.7);
+        }
+      }
+      .animate-pulse-slow {
+        animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    </style>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.9.0",
+    "js-yaml": "https://esm.sh/js-yaml@^4.1.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-950 text-gray-300 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

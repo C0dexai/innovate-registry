@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charSet="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Chat Prompt Engineering Dashboard</title>
+    <meta name="description" content="Generate and refine AI prompts with ease"/>
+    <meta name="generator" content="v0.dev"/>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked.js CDN for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Custom CSS for smooth transitions and font */
+        body {
+            font-family: "Inter", sans-serif;
+        }
+        /* Dark mode transitions */
+        .dark .bg-background { background-color: #0d1117; transition: background-color 0.3s ease; }
+        .dark .text-foreground { color: #e2e8f0; transition: color 0.3s ease; }
+        .dark .border-border { border-color: #2d3748; transition: border-color 0.3s ease; }
+
+        /* Neon Card Specifics */
+        .dark .bg-card {
+            background-color: #161b22; /* Darker background for cards */
+            border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+            /* Neon glow effect using multiple box-shadows */
+            box-shadow:
+                0 0 5px var(--card-neon-color),    /* Inner glow */
+                0 0 10px var(--card-neon-color),    /* Medium glow */
+                0 0 20px var(--card-neon-color),    /* Outer glow */
+                inset 0 0 5px var(--card-neon-color); /* Inset glow */
+            transition: all 0.3s ease-in-out;
+        }
+        .dark .bg-card:hover {
+            box-shadow:
+                0 0 10px var(--card-neon-color),
+                0 0 25px var(--card-neon-color),
+                0 0 50px var(--card-neon-color),
+                inset 0 0 10px var(--card-neon-color);
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+
+        /* Adjust text color for neon cards to ensure readability */
+        .dark .bg-card .text-card-foreground { color: #e2e8f0; } /* Ensure text is light */
+        .dark .bg-card .text-muted-foreground { color: #a0aec0; } /* Ensure muted text is visible */
+
+        /* Adjust button styles within cards for dark mode */
+        .dark .ai-suggest-button {
+            background-color: #4299e1; /* Primary blue for dark mode */
+            color: #ffffff;
+            box-shadow: 0 0 5px #4299e1; /* Subtle glow for button */
+        }
+        .dark .ai-suggest-button:hover {
+            background-color: #3182ce;
+            box-shadow: 0 0 10px #4299e1;
+        }
+
+        /* Ensure icon colors are vibrant */
+        .dark .w-12.h-12.rounded-full svg {
+            color: var(--icon-color); /* Use the defined color directly */
+        }
+        .dark .w-12.h-12.rounded-full {
+            background-color: var(--icon-bg-color); /* Use the defined color with transparency */
+        }
+
+        /* Modal specific styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh; /* Limit height to enable scrolling for chat history */
+        }
+
+        .dark .modal-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            background-color: #f7fafc;
+        }
+
+        .dark .chat-history {
+            border-color: #4a5568;
+            background-color: #1a202c;
+        }
+
+        .chat-message {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            display: flex; /* Use flexbox for message and copy button */
+            align-items: flex-start; /* Align items to the top */
+            position: relative; /* For positioning the copy button */
+        }
+
+        .chat-message.user {
+            background-color: #e0f2fe; /* Light blue */
+            text-align: left; /* All messages left-aligned now */
+            margin-right: auto; /* Push to left */
+            max-width: 100%; /* Allow more width for content */
+        }
+
+        .dark .chat-message.user {
+            background-color: #3182ce; /* Darker blue */
+        }
+
+        .chat-message.ai {
+            background-color: #e6fffa; /* Light teal */
+            text-align: left;
+            margin-right: auto; /* Push to left */
+            max-width: 100%; /* Allow more width for content */
+        }
+
+        .dark .chat-message.ai {
+            background-color: #38b2ac; /* Darker teal */
+        }
+
+        .chat-message-content {
+            flex-grow: 1; /* Allow content to take available space */
+            word-wrap: break-word; /* Ensure long words wrap */
+            overflow-wrap: break-word; /* Modern equivalent */
+        }
+
+        .chat-message-copy-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            margin-left: 0.5rem;
+            opacity: 0.7;
+            transition: opacity 0.2s ease-in-out;
+            flex-shrink: 0; /* Prevent button from shrinking */
+            color: inherit; /* Inherit text color */
+        }
+
+        .chat-message-copy-button:hover {
+            opacity: 1;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .dark .close-button:hover,
+        .dark .close-button:focus {
+            color: #ddd;
+        }
+
+        /* Loading indicator styles */
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+            font-style: italic;
+            color: #6b7280;
+        }
+
+        /* Markdown specific styles for chat history */
+        .chat-history p {
+            margin-bottom: 0.5em; /* Reduced spacing between paragraphs */
+            line-height: 1.5; /* Ensure good readability */
+        }
+        .chat-history pre {
+            background-color: rgba(0,0,0,0.1); /* Light background for code blocks */
+            padding: 0.75em;
+            border-radius: 0.375rem;
+            overflow-x: auto; /* Enable horizontal scrolling for long code lines */
+            font-family: monospace;
+            margin-bottom: 0.5em; /* Reduced spacing */
+        }
+        .dark .chat-history pre {
+            background-color: rgba(255,255,255,0.1); /* Darker background for code blocks in dark mode */
+        }
+        .chat-history code {
+            font-family: monospace;
+        }
+        .chat-history pre code {
+            background-color: transparent; /* No extra background for inline code within pre */
+            padding: 0;
+        }
+
+        /* API Key Panel Styles */
+        #api-key-panel {
+            width: 0; /* Collapsed by default */
+            min-width: 0;
+            overflow: hidden;
+            transition: width 0.3s ease-in-out;
+            background-color: var(--tw-bg-background);
+            border-right: 1px solid var(--tw-border-border);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 0; /* No padding when collapsed */
+        }
+
+        #api-key-panel.expanded {
+            width: 250px; /* Expanded width */
+            padding: 1rem;
+        }
+
+        #api-key-panel-toggle {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1001; /* Above other content */
+            background-color: var(--tw-bg-background);
+            border: 1px solid var(--tw-border-border);
+            border-left: none;
+            border-radius: 0 0.5rem 0.5rem 0;
+            padding: 0.5rem 0.25rem;
+            cursor: pointer;
+            transition: left 0.3s ease-in-out;
+        }
+
+        #api-key-panel.expanded + #api-key-panel-toggle {
+            left: 250px; /* Moves with the expanded panel */
+        }
+
+        .dark #api-key-panel-toggle {
+            background-color: #1a202c;
+            border-color: #2d3748;
+        }
+
+        .status-indicator {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            display: inline-block;
+        }
+        .status-indicator.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .dark .status-indicator.success {
+            background-color: #285e61;
+            color: #9ae6b4;
+        }
+        .status-indicator.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .dark .status-indicator.error {
+            background-color: #822727;
+            color: #fbd38d;
+        }
+        .status-indicator.info {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        .dark .status-indicator.info {
+            background-color: #2c5282;
+            color: #90cdf4;
+        }
+
+        /* Category Sidebar Specific Styles */
+        #category-sidebar {
+            width: 200px; /* Default width */
+            min-width: 150px; /* Minimum width when resized */
+            max-width: 400px; /* Maximum width when resized */
+            transition: width 0.3s ease-in-out, padding 0.3s ease-in-out; /* Add padding transition */
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #category-sidebar.collapsed {
+            width: 50px; /* Collapsed width, showing icons */
+            padding-left: 0.25rem; /* Small padding for icons */
+            padding-right: 0.25rem;
+        }
+
+        #category-sidebar.collapsed h2 {
+            display: none; /* Hide title when collapsed */
+        }
+
+        #category-sidebar.collapsed .category-button-text {
+            display: none; /* Hide text label when collapsed */
+        }
+
+        /* New positioning for the sidebar toggle button */
+        #sidebar-category-toggle {
+            position: absolute;
+            left: calc(200px - 10px); /* Initial position: sidebar width - small offset */
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1001;
+            background-color: var(--tw-bg-background);
+            border: 1px solid var(--tw-border-border);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.25rem;
+            cursor: pointer;
+            transition: left 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+
+        /* Adjust position when sidebar is collapsed */
+        #category-sidebar.collapsed + #sidebar-category-toggle {
+            left: calc(50px - 10px); /* Moves with the collapsed sidebar */
+            transform: translateY(-50%) rotate(180deg); /* Rotate to point right */
+        }
+        #sidebar-category-toggle svg {
+            transition: transform 0.3s ease-in-out;
+        }
+        #category-sidebar.collapsed + #sidebar-category-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        #sidebar-resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 8px; /* Wider for easier grabbing */
+            cursor: ew-resize;
+            z-index: 10;
+            background-color: transparent; /* Invisible handle */
+        }
+        #sidebar-resize-handle:hover {
+            background-color: rgba(100, 100, 100, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground">
+    <div class="flex h-screen overflow-hidden">
+        <!-- API Key Panel -->
+        <div id="api-key-panel" class="bg-background border-r border-border">
+            <div class="p-4">
+                <h2 class="text-lg font-semibold mb-4">API Keys</h2>
+
+                <div class="mb-4">
+                    <label for="gemini-api-key" class="block text-sm font-medium mb-1">Gemini API Key</label>
+                    <input type="password" id="gemini-api-key" class="flex rounded-md border border-input bg-background px-3 py-2 text-sm w-full" placeholder="Enter Gemini API Key"/>
+                    <div class="flex items-center mt-2">
+                        <button id="validate-gemini-key" class="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-8 px-3 py-1">Validate</button>
+                        <span id="gemini-status" class="status-indicator ml-2"></span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="openai-api-key" class="block text-sm font-medium mb-1">OpenAI API Key</label>
+                    <input type="password" id="openai-api-key" class="flex rounded-md border border-input bg-background px-3 py-2 text-sm w-full" placeholder="Enter OpenAI API Key" disabled/>
+                    <div class="flex items-center mt-2">
+                        <button id="validate-openai-key" class="inline-flex items-center justify-center rounded-md text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-gray-400 text-white h-8 px-3 py-1" disabled>Validate</button>
+                        <span id="openai-status" class="status-indicator ml-2">Coming Soon</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle button for API Key Panel -->
+        <button id="api-key-panel-toggle" class="z-20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
+                <path d="m9 18 6-6-6-6"></path>
+            </svg>
+        </button>
+
+        <!-- Sidebar for Categories -->
+        <aside id="category-sidebar" class="bg-background border-r border-border flex flex-col h-screen relative">
+            <div class="p-4">
+                <h2 class="text-lg font-semibold mb-2">Prompt Categories</h2>
+            </div>
+            <div class="flex-1 overflow-auto">
+                <div class="space-y-1 p-4 pt-0" id="category-buttons">
+                    <!-- Category buttons will be dynamically loaded here -->
+                </div>
+            </div>
+            <!-- Sidebar Resize Handle -->
+            <div id="sidebar-resize-handle"></div>
+        </aside>
+
+        <!-- NEW POSITION FOR SIDEBAR TOGGLE -->
+        <button id="sidebar-category-toggle" class="z-20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left">
+                <path d="m15 18-6-6 6-6"></path>
+            </svg>
+        </button>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <div class="p-4 md:p-6 space-y-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Prompt Engineering</h1>
+                <!-- Theme Toggle Button -->
+                <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 w-10" type="button" id="theme-toggle">
+                    <!-- Sun Icon for Light Mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v2"></path>
+                        <path d="M12 20v2"></path>
+                        <path d="m4.93 4.93 1.41 1.41"></path>
+                        <path d="m17.66 17.66 1.41 1.41"></path>
+                        <path d="M2 12h2"></path>
+                        <path d="M20 12h2"></path>
+                        <path d="m6.34 17.66-1.41 1.41"></path>
+                        <path d="m19.07 4.93-1.41 1.41"></path>
+                    </svg>
+                    <!-- Moon Icon for Dark Mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100">
+                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                    </svg>
+                    <span class="sr-only">Toggle theme</span>
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="px-4 md:px-6">
+                <div class="relative mb-4">
+                    <input type="text" id="search-input" class="flex rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full h-10 pl-10 pr-4" placeholder="Search prompt categories..."/>
+                    <!-- Search Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Prompt Categories Grid -->
+            <div class="flex-1 overflow-auto px-4 md:px-6 py-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="integrations-grid">
+                    <!-- Prompt category cards will be dynamically loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Suggestion Modal -->
+    <div id="ai-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-modal">&times;</span>
+            <h2 id="modal-title" class="text-xl font-bold mb-4">Prompt Builder</h2>
+            <div class="chat-history flex flex-col space-y-2" id="chat-history">
+                <!-- Chat messages will appear here -->
+            </div>
+            <div class="loading-indicator" id="loading-indicator">AI is thinking...</div>
+            <div class="flex gap-2 mt-4">
+                <input type="text" id="user-input" class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Type your refinement or question..."/>
+                <button id="send-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">Send</button>
+            </div>
+            <button id="copy-prompt-button" class="mt-4 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">Copy Latest Prompt</button>
+        </div>
+    </div>
+
+    <script>
+        // Array of prompt categories/subjects
+        const promptCategories = [
+            {
+                subject: "Marketing Campaign",
+                prompt_description: "Generate creative and effective prompts for various marketing campaigns, including social media, email, and content marketing.",
+                category: "Marketing",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="m3 11 18-2L13 22 3 11z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>`,
+                color: "#FF5722"
+            },
+            {
+                subject: "Productivity Tools",
+                prompt_description: "Craft prompts to optimize your use of productivity tools, such as task managers, note-taking apps, and calendar organizers.",
+                category: "Productivity",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-square w-6 h-6 transition-transform duration-300 group-hover:scale-110"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`,
+                color: "#96BF48"
+            },
+            {
+                subject: "E-commerce Product Description",
+                prompt_description: "Develop compelling prompts for generating engaging and SEO-friendly product descriptions for your online store.",
+                category: "E-commerce",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M6 2L3 7v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-5Z"></path><line x1="3" y1="7" x2="21" y2="7"></line><path d="M12 22v-6"></path><path d="M12 7V2"></path><path d="M7 7V2"></path><path d="M17 7V2"></path></svg>`,
+                color: "#FFCC22"
+            },
+            {
+                subject: "Financial Analysis",
+                prompt_description: "Create prompts for analyzing financial data, generating reports, and gaining insights into market trends and investments.",
+                category: "Finance",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-line-chart w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M3 3v18h18"></path><path d="m18 13-6 6-4-4-5 5"></path><path d="m14 7 6-6"></path><path d="m18 3 4 4"></path></svg>`,
+                color: "#FFE01B"
+            },
+            {
+                subject: "Cloud Security Best Practices",
+                prompt_description: "Formulate prompts to understand and implement best practices for cloud security, data protection, and access management.",
+                category: "Security",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
+                color: "#0061FF"
+            },
+            {
+                subject: "Sales Pitch Generation",
+                prompt_description: "Develop prompts for creating compelling sales pitches, handling objections, and closing deals effectively.",
+                category: "Sales",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign w-6 h-6 transition-transform duration-300 group-hover:scale-110"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+                color: "#4CAF50"
+            },
+            {
+                subject: "Data Analytics Insights",
+                prompt_description: "Generate prompts for extracting meaningful insights from data, identifying trends, and making data-driven decisions.",
+                category: "Analytics",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up w-6 h-6 transition-transform duration-300 group-hover:scale-110"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>`,
+                color: "#00BCD4"
+            },
+            {
+                subject: "Communication Strategies",
+                prompt_description: "Craft prompts for improving communication strategies, writing clear messages, and fostering effective team collaboration.",
+                category: "Communication",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>`,
+                color: "#FF5722"
+            },
+            {
+                subject: "UI/UX Design Principles",
+                prompt_description: "Generate prompts for applying fundamental UI/UX design principles, user research, wireframing, and prototyping.",
+                category: "Design",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-template w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect width="20" height="14" x="2" y="3" rx="2"></rect><path d="M10 17v4"></path><path d="M10 7v4"></path><path d="M10 3v4"></path><path d="M14 17v4"></path><path d="M14 7v4"></path><path d="M14 3v4"></path><path d="M18 17v4"></path><path d="M18 7v4"></path><path d="M18 3v4"></path><path d="M6 17v4"></path><path d="M6 7v4"></path><path d="M6 3v4"></path></svg>`,
+                color: "#9C27B0"
+            },
+            {
+                subject: "Full-Stack Web Development",
+                prompt_description: "Craft prompts for developing comprehensive web applications, covering front-end, back-end, and database integration.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code-square w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="m10 10-2 2 2 2"></path><path d="m14 14 2-2-2-2"></path></svg>`,
+                color: "#607D8B"
+            },
+            {
+                subject: "Single Page Application (SPA) Design",
+                prompt_description: "Generate prompts for architecting and implementing Single Page Applications, focusing on client-side routing, state management, and API consumption.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>`,
+                color: "#8BC34A"
+            },
+            {
+                subject: "AI Model Selection & Application",
+                prompt_description: "Craft prompts for choosing the right AI models for specific tasks, understanding their capabilities, and integrating them into applications.",
+                category: "AI Technology",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-brain w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M12 18a6 6 0 0 0 0-12c1.7 0 3.4.6 4.4 1.6L22 4"></path><path d="M12 18v4"></path><path d="M12 12V2"></path><path d="M4.2 10.1c-1.3 2.1-1.3 4.6 0 6.7"></path><path d="M20.8 10.1c1.3 2.1 1.3 4.6 0 6.7"></path><path d="M10 4.2c-2.1-1.3-4.6-1.3-6.7 0"></path><path d="M10 20.8c-2.1 1.3-4.6 1.3-6.7 0"></path><path d="M14 4.2c2.1-1.3 4.6-1.3 6.7 0"></path><path d="M14 20.8c2.1 1.3 4.6 1.3 6.7 0"></path></svg>`,
+                color: "#673AB7"
+            },
+            {
+                subject: "DevOps Pipeline Automation",
+                prompt_description: "Formulate prompts for automating CI/CD pipelines, infrastructure as code, and monitoring strategies in DevOps environments.",
+                category: "DevOps",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-merge w-6 h-6 transition-transform duration-300 group-hover:scale-110"><circle cx="6" cy="18" r="3"></circle><path d="M6 15V6a3 3 0 0 1 3-3h6l2 3h4"></path><circle cx="18" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle></svg>`,
+                color: "#FFC107"
+            },
+            {
+                subject: "User Onboarding Flows",
+                prompt_description: "Design prompts for creating intuitive and engaging user onboarding experiences, tutorials, and first-time user guides.",
+                category: "User Experience",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-plus w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>`,
+                color: "#4CAF50"
+            },
+            {
+                subject: "API Integration Strategies",
+                prompt_description: "Generate prompts for designing robust API integrations, handling authentication, error management, and data mapping.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plug-zap w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="m13.4 2-3.6 3.6a2 2 0 0 0-1.3 3.4L6.6 12"></path><path d="M10.9 14.9 16 20l3.6-3.6a2 2 0 0 0-3.4-1.3L12 17.4"></path><path d="M2 12h10"></path><path d="M10 12v-2"></path><path d="M12 10v2"></path></svg>`,
+                color: "#FF9800"
+            },
+            {
+                subject: "Node.js Backend Development",
+                prompt_description: "Craft prompts for building scalable and efficient backend services using Node.js, Express, and database interactions.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-server w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>`,
+                color: "#607D8B"
+            },
+            {
+                subject: "Vite Frontend Optimization",
+                prompt_description: "Generate prompts for optimizing web development workflows with Vite, including fast refresh, module bundling, and build configurations.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap w-6 h-6 transition-transform duration-300 group-hover:scale-110"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
+                color: "#FFD700"
+            },
+            {
+                subject: "shadcn/ui Component Usage",
+                prompt_description: "Craft prompts for effectively using shadcn/ui components, customizing their appearance, and integrating them into React applications.",
+                category: "Design",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-component w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M5.5 8.5 9 12l-3.5 3.5L2 12l3.5-3.5Z"></path><path d="m12 2l3.5 3.5L12 9l-3.5-3.5L12 2Z"></path><path d="M18.5 8.5 22 12l-3.5 3.5L15 12l3.5-3.5Z"></path><path d="m12 15l3.5 3.5L12 22l-3.5-3.5L12 15Z"></path></svg>`,
+                color: "#00CED1"
+            },
+            {
+                subject: "Tailwind CSS Styling",
+                prompt_description: "Generate prompts for efficient styling with Tailwind CSS, utilizing utility-first classes, custom configurations, and responsive design.",
+                category: "Design",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-paint-bucket w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M18.8 13.4c1.2-1.2 1.2-3.1 0-4.3L16.2 6.6c-1.2-1.2-3.1-1.2-4.3 0L2 16.5V22h5.5l11.3-11.3z"></path><path d="M15 4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2z"></path></svg>`,
+                color: "#38B2AC"
+            },
+            {
+                subject: "Bootstrap Framework Usage",
+                prompt_description: "Formulate prompts for building responsive web interfaces using Bootstrap's grid system, components, and utility classes.",
+                category: "Development",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grid w-6 h-6 transition-transform duration-300 group-hover:scale-110"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="12" x2="21" y2="12"></line><line x1="12" y1="3" x2="12" y2="21"></line></svg>`,
+                color: "#7952B3"
+            },
+            {
+                subject: "GitHub Workflow & Collaboration",
+                prompt_description: "Craft prompts for managing repositories, collaborating on projects, and utilizing GitHub features like pull requests and issues.",
+                category: "Collaboration",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-github w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.2c3.5 0 4.1-2.2 4.1-3.6 0-3.6-1.3-4.9-5-5.2a3.8 3.8 0 0 0-1.2-.2c-3.7 0-5 1.3-5 5.2 0 1.4.6 3.6 4.1 3.6a4.8 4.8 0 0 0-1 3.2v4"></path><path d="M9 18c-2.3 0-3.7-1.4-3.7-3.6 0-3.6 1.3-4.9 5-5.2a3.8 3.8 0 0 0-1.2-.2c-3.7 0-5 1.3-5 5.2 0 1.4.6 3.6 4.1 3.6a4.8 4.8 0 0 0-1 3.2v4"></path><path d="M12 2c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"></path></svg>`,
+                color: "#181717"
+            },
+            {
+                subject: "Gemini API Integration",
+                prompt_description: "Generate prompts for integrating with the Gemini API, understanding its capabilities, and building AI-powered applications.",
+                category: "AI Technology",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M9.9 10.8c.4 1.3 1.5 2.4 2.7 2.7.9.2 1.8 0 2.5-.7L22 6.4 17.6 2 10.8 9.1c-.7.8-.7 1.9-.4 2.8Z"></path><path d="M2.2 14.2l4.6 4.6c.7.7 1.8.7 2.5 0l-.4-.4c-.7-.8-.7-1.9-.4-2.8.4-1.3 1.5-2.4 2.7-2.7.9-.2 1.8 0 2.5.7l.4.4L13 22l-4.6-4.6c-.7-.7-1.8-.7-2.5 0l-.4.4Z"></path></svg>`,
+                color: "#F4B400"
+            },
+            {
+                subject: "ChatGPT & OpenAI Prompting",
+                prompt_description: "Develop prompts for maximizing the effectiveness of ChatGPT and other OpenAI models, including role-playing, few-shot learning, and output formatting.",
+                category: "AI Technology",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-plus w-6 h-6 transition-transform duration-300 group-hover:scale-110"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="8" x2="12" y2="14"></line><line x1="9" y1="11" x2="15" y2="11"></line></svg>`,
+                color: "#10A37F"
+            }
+        ];
+
+        // Mapping of category names to Lucide SVG icons for the sidebar
+        const categoryIcons = {
+            "All": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grid-2 mr-2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>`,
+            "Marketing": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone mr-2"><path d="m3 11 18-2L13 22 3 11z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>`,
+            "Productivity": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-square mr-2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`,
+            "E-commerce": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag mr-2"><path d="M6 2L3 7v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-3-5Z"></path><line x1="3" y1="7" x2="21" y2="7"></line><path d="M12 22v-6"></path><path d="M12 7V2"></path><path d="M7 7V2"></path><path d="M17 7V2"></path></svg>`,
+            "Finance": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-line-chart mr-2"><path d="M3 3v18h18"></path><path d="m18 13-6 6-4-4-5 5"></path><path d="m14 7 6-6"></path><path d="m18 3 4 4"></path></svg>`,
+            "Security": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock mr-2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
+            "Sales": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-dollar-sign mr-2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+            "Analytics": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up mr-2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>`,
+            "Communication": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle mr-2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>`,
+            "Design": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette mr-2"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.76-.42-1.03-.27-.27-.64-.42-1.03-.42-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5c0 .39.15.76.42 1.03.27.27.64.42 1.03.42.83 0 1.5-.67 1.5-1.5C22 6.5 17.5 2 12 2z"></path><path d="M18.5 10.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"></path></svg>`,
+            "Development": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code mr-2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
+            "AI Technology": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-robot mr-2"><path d="M10 16.5c.3.3.6.5 1 .5h2c.4 0 .7-.2 1-.5"></path><path d="M8 9h8"></path><path d="M12 18v4"></path><path d="M10 22h4"></path><path d="M19 13V6.5a2.5 2.5 0 0 0-5 0V13H9V6.5a2.5 2.5 0 0 0-5 0V13"></path><path d="M12 2v2"></path><path d="M12 13h.01"></path></svg>`,
+            "DevOps": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck mr-2"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h11"></path><path d="M19 18h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1.44a1 1 0 0 0-.9-.66L14 14v4"></path><path d="M14 14h.01"></path><circle cx="12" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle></svg>`,
+            "User Experience": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+            "Collaboration": `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-handshake mr-2"><path d="m11 17 2 2 4-4"></path><path d="M5 12v-2a3 3 0 0 1 6 0v2"></path><path d="M18 12v-2a3 3 0 0 0-6 0v2"></path><path d="M12 10V2"></path><path d="M12 22V14"></path></svg>`,
+        };
+
+        // Get DOM elements
+        const categoryButtonsContainer = document.getElementById('category-buttons');
+        const integrationsGrid = document.getElementById('integrations-grid');
+        const searchInput = document.getElementById('search-input');
+        const themeToggle = document.getElementById('theme-toggle');
+        const aiModal = document.getElementById('ai-modal');
+        const closeModalButton = document.getElementById('close-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const chatHistoryDiv = document.getElementById('chat-history');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const copyPromptButton = document.getElementById('copy-prompt-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // API Key Panel Elements
+        const apiKeyPanel = document.getElementById('api-key-panel');
+        const apiKeyPanelToggle = document.getElementById('api-key-panel-toggle');
+        const geminiApiKeyInput = document.getElementById('gemini-api-key');
+        const validateGeminiKeyButton = document.getElementById('validate-gemini-key');
+        const geminiStatusIndicator = document.getElementById('gemini-status');
+        const openaiApiKeyInput = document.getElementById('openai-api-key');
+        const validateOpenAIKeyButton = document.getElementById('validate-openai-key');
+        const openaiStatusIndicator = document.getElementById('openai-status');
+
+        // Category Sidebar Elements
+        const categorySidebar = document.getElementById('category-sidebar');
+        const sidebarCategoryToggle = document.getElementById('sidebar-category-toggle');
+        const sidebarResizeHandle = document.getElementById('sidebar-resize-handle');
+
+        let currentCategory = "All"; // Track the currently selected category
+        let searchQuery = ""; // Track the current search query
+        let chatHistory = []; // Stores the conversation for the current prompt session
+        let geminiApiKey = localStorage.getItem('geminiApiKey') || ''; // Load key from local storage
+
+        let isSidebarExpanded = true; // Initial state for sidebar
+        let isResizingSidebar = false;
+        const MIN_SIDEBAR_WIDTH = 150;
+        const MAX_SIDEBAR_WIDTH = 400;
+
+        // Initialize input with stored key
+        geminiApiKeyInput.value = geminiApiKey;
+
+        // Declare categories globally but initialize within DOMContentLoaded
+        let categories = [];
+
+        /**
+         * Renders the category buttons in the sidebar.
+         */
+        function renderCategoryButtons() {
+            categoryButtonsContainer.innerHTML = ''; // Clear existing buttons
+            categories.forEach(category => {
+                const button = document.createElement('button');
+                button.className = `inline-flex items-center gap-2 whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 w-full justify-start text-sm py-1 px-2 h-auto ${
+                    category === currentCategory ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'
+                }`;
+                // Add icon and text span for conditional hiding
+                button.innerHTML = `${categoryIcons[category] || ''} <span class="category-button-text">${category}</span>`;
+                button.addEventListener('click', () => {
+                    currentCategory = category;
+                    renderCategoryButtons(); // Re-render to update active state
+                    filterAndRenderPromptCategories();
+                });
+                categoryButtonsContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * Renders the prompt category cards based on the filtered data.
+         * @param {Array} filteredCategories - The array of prompt categories to render.
+         */
+        function renderPromptCategories(filteredCategories) {
+            integrationsGrid.innerHTML = ''; // Clear existing cards
+            if (filteredCategories.length === 0) {
+                integrationsGrid.innerHTML = '<p class="text-center text-muted-foreground col-span-full">No prompt categories found matching your criteria.</p>';
+                return;
+            }
+
+            filteredCategories.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-lg transition-all duration-300 group h-full relative flex flex-col';
+                // Set the CSS variable for neon color dynamically
+                card.style.setProperty('--card-neon-color', item.color);
+
+                card.innerHTML = `
+                    <div class="p-4 flex flex-col h-full flex-grow">
+                        <div class="flex flex-col items-center text-center space-y-2 mb-2">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-300" style="background-color:${item.color}20; --icon-color: ${item.color}; --icon-bg-color: ${item.color}20;">
+                                ${item.icon}
+                            </div>
+                            <h3 class="font-semibold text-sm">${item.subject}</h3>
+                        </div>
+                        <p class="text-xs text-muted-foreground flex-grow overflow-hidden">${item.prompt_description}</p>
+                    </div>
+                    <div class="p-4 border-t border-border flex justify-center">
+                        <button class="ai-suggest-button inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 py-1" data-subject="${item.subject}" data-description="${item.prompt_description}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles mr-2"><path d="M9.9 10.8c.4 1.3 1.5 2.4 2.7 2.7.9.2 1.8 0 2.5-.7L22 6.4 17.6 2 10.8 9.1c-.7.8-.7 1.9-.4 2.8Z"></path><path d="M2.2 14.2l4.6 4.6c.7.7 1.8.7 2.5 0l-.4-.4c-.7-.8-.7-1.9-.4-2.8.4-1.3 1.5-2.4 2.7-2.7.9-.2 1.8 0 2.5.7l.4.4L13 22l-4.6-4.6c-.7-.7-1.8-.7-2.5 0l-.4.4Z"></path></svg>
+                            AI Suggest
+                        </button>
+                    </div>
+                `;
+                integrationsGrid.appendChild(card);
+            });
+
+            // Add event listeners to all AI Suggest buttons
+            document.querySelectorAll('.ai-suggest-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const subject = event.currentTarget.dataset.subject;
+                    const description = event.currentTarget.dataset.description;
+                    openAiModal(subject, description);
+                });
+            });
+        }
+
+        /**
+         * Filters prompt categories based on the selected category and search query, then renders them.
+         */
+        function filterAndRenderPromptCategories() {
+            let filtered = promptCategories;
+
+            // Filter by category
+            if (currentCategory !== "All") {
+                filtered = filtered.filter(item => item.category === currentCategory);
+            }
+
+            // Filter by search query
+            if (searchQuery) {
+                const lowerCaseSearchQuery = searchQuery.toLowerCase();
+                filtered = filtered.filter(item =>
+                    item.subject.toLowerCase().includes(lowerCaseSearchQuery) ||
+                    item.prompt_description.toLowerCase().includes(lowerCaseSearchQuery) ||
+                    item.category.toLowerCase().includes(lowerCaseSearchQuery)
+                );
+            }
+            renderPromptCategories(filtered);
+        }
+
+        /**
+         * Opens the AI modal and initiates the prompt generation.
+         * @param {string} subject - The subject of the prompt category.
+         * @param {string} description - The description of the prompt category.
+         */
+        async function openAiModal(subject, description) {
+            aiModal.style.display = 'flex'; // Show the modal
+            modalTitle.textContent = `Prompt Builder for "${subject}"`;
+            chatHistoryDiv.innerHTML = ''; // Clear previous chat history
+            chatHistory = []; // Reset chat history for new session
+            userInput.value = ''; // Clear user input field
+
+            // Initial AI suggestion
+            const initialPrompt = `Generate an initial detailed and creative prompt for a "${subject}" focusing on: ${description}. Also, provide some iterative contextual nuances or follow-up questions to refine this prompt.`;
+            await sendPromptToAI(initialPrompt, true);
+        }
+        
+        /**
+         * Calls the Gemini API with exponential backoff for retries.
+         * @param {Array} history - The chat history to send.
+         * @param {string} apiKey - The API key.
+         * @param {number} retries - Number of retries (default 0).
+         * @returns {Promise<any>} The API response or throws an error.
+         */
+        async function callGeminiAPIWithRetry(history, apiKey, retries = 0) {
+            const maxRetries = 3;
+            const delay = Math.pow(2, retries) * 1000; // Exponential delay: 1s, 2s, 4s
+
+            try {
+                const payload = { contents: history };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API returned status ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                if (retries < maxRetries) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return callGeminiAPIWithRetry(history, apiKey, retries + 1);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        /**
+         * Sends a prompt to the AI model and displays the response.
+         * @param {string} promptText - The text of the prompt to send.
+         * @param {boolean} isInitial - True if this is the initial prompt, false otherwise.
+         */
+        async function sendPromptToAI(promptText, isInitial = false) {
+            loadingIndicator.style.display = 'block'; // Show loading indicator
+            sendButton.disabled = true; // Disable send button during AI processing
+
+            const currentGeminiApiKey = localStorage.getItem('geminiApiKey') || '';
+            if (!currentGeminiApiKey) {
+                addMessageToChat('ai', 'Error: Gemini API Key is not set. Please enter and validate your API key in the left panel.');
+                loadingIndicator.style.display = 'none';
+                sendButton.disabled = false;
+                return;
+            }
+
+            if (!isInitial) {
+                addMessageToChat('user', promptText);
+            }
+
+            // Prepare chat history for the API call
+            const payloadChatHistory = chatHistory.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }]
+            }));
+            payloadChatHistory.push({ role: "user", parts: [{ text: promptText }] });
+
+            try {
+                const result = await callGeminiAPIWithRetry(payloadChatHistory, currentGeminiApiKey);
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const aiResponseText = result.candidates[0].content.parts[0].text;
+                    addMessageToChat('ai', aiResponseText);
+                    chatHistory.push({ role: "model", text: aiResponseText });
+                } else {
+                    addMessageToChat('ai', 'Error: Could not get a response from the AI. Please try again. Check your API key and network.');
+                    console.error('AI response structure unexpected:', result);
+                }
+            } catch (error) {
+                addMessageToChat('ai', 'Error: Failed to connect to the AI. Please check your network connection or API key.');
+                console.error('Error fetching AI response:', error);
+            } finally {
+                loadingIndicator.style.display = 'none'; // Hide loading indicator
+                sendButton.disabled = false; // Re-enable send button
+                chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight; // Scroll to bottom
+            }
+        }
+
+        /**
+         * Adds a message to the chat history display.
+         * @param {string} sender - 'user' or 'ai'.
+         * @param {string} text - The raw message text (Markdown).
+         */
+        function addMessageToChat(sender, text) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `chat-message ${sender}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'chat-message-content';
+            contentDiv.innerHTML = marked.parse(text);
+
+            const copyButton = document.createElement('button');
+            copyButton.className = 'chat-message-copy-button';
+            copyButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>`;
+            copyButton.title = 'Copy message';
+            copyButton.addEventListener('click', () => {
+                copyToClipboard(text, copyButton);
+            });
+
+            messageElement.appendChild(contentDiv);
+            messageElement.appendChild(copyButton);
+            chatHistoryDiv.appendChild(messageElement);
+
+            if (sender === 'user') {
+                chatHistory.push({ role: "user", text: text });
+            }
+        }
+
+        /**
+         * Copies text to the clipboard and provides visual feedback.
+         * @param {string} textToCopy - The text to be copied.
+         * @param {HTMLElement} buttonElement - The button element that triggered the copy.
+         */
+        function copyToClipboard(textToCopy, buttonElement) {
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const originalButtonContent = buttonElement.innerHTML;
+                buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                setTimeout(() => {
+                    buttonElement.innerHTML = originalButtonContent;
+                }, 1500);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        /**
+         * Copies the latest AI-generated prompt to the clipboard.
+         */
+        function copyLatestPrompt() {
+            const lastAiMessage = chatHistory.slice().reverse().find(msg => msg.role === 'model');
+            if (lastAiMessage) {
+                const promptToCopy = lastAiMessage.text;
+                copyToClipboard(promptToCopy, copyPromptButton);
+            } else {
+                console.warn('No AI prompt to copy yet.');
+            }
+        }
+
+        /**
+         * Validates the Gemini API key by making a test call.
+         * @param {string} key - The Gemini API key to validate.
+         */
+        async function validateGeminiApiKey(key) {
+            geminiStatusIndicator.className = 'status-indicator info';
+            geminiStatusIndicator.textContent = 'Validating...';
+            validateGeminiKeyButton.disabled = true;
+
+            try {
+                const testPrompt = [{ role: "user", parts: [{ text: "hello" }] }];
+                const result = await callGeminiAPIWithRetry(testPrompt, key);
+
+                if (result.candidates && result.candidates.length > 0) {
+                    geminiStatusIndicator.className = 'status-indicator success';
+                    geminiStatusIndicator.textContent = 'Valid';
+                    localStorage.setItem('geminiApiKey', key); // Save valid key
+                } else {
+                    geminiStatusIndicator.className = 'status-indicator error';
+                    geminiStatusIndicator.textContent = 'Invalid';
+                    localStorage.removeItem('geminiApiKey'); // Remove invalid key
+                    console.error('Gemini API validation failed:', result);
+                }
+            } catch (error) {
+                geminiStatusIndicator.className = 'status-indicator error';
+                geminiStatusIndicator.textContent = 'Error';
+                localStorage.removeItem('geminiApiKey'); // Remove key on network error
+                console.error('Gemini API validation error:', error);
+            } finally {
+                validateGeminiKeyButton.disabled = false;
+            }
+        }
+
+        // Event listener for search input
+        searchInput.addEventListener('input', (event) => {
+            searchQuery = event.target.value;
+            filterAndRenderPromptCategories();
+        });
+
+        // Event listener for sending user input in modal
+        sendButton.addEventListener('click', () => {
+            const text = userInput.value.trim();
+            if (text) {
+                sendPromptToAI(text);
+                userInput.value = ''; // Clear input after sending
+            }
+        });
+
+        // Allow sending with Enter key in modal
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        // Event listener for copying prompt
+        copyPromptButton.addEventListener('click', copyLatestPrompt);
+
+        // Theme toggle functionality
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // Close modal button
+        closeModalButton.addEventListener('click', () => {
+            aiModal.style.display = 'none';
+        });
+
+        // Close modal when clicking outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target === aiModal) {
+                aiModal.style.display = 'none';
+            }
+        });
+
+        // API Key Panel Toggle
+        let isApiKeyPanelExpanded = false;
+        apiKeyPanelToggle.addEventListener('click', () => {
+            isApiKeyPanelExpanded = !isApiKeyPanelExpanded;
+            apiKeyPanel.classList.toggle('expanded', isApiKeyPanelExpanded);
+            apiKeyPanelToggle.classList.toggle('expanded', isApiKeyPanelExpanded);
+            apiKeyPanelToggle.querySelector('svg').innerHTML = isApiKeyPanelExpanded ?
+                '<path d="m15 18-6-6 6-6"></path>' : // Chevron left
+                '<path d="m9 18 6-6-6-6"></path>';    // Chevron right
+        });
+
+        // Save Gemini API Key on input change
+        geminiApiKeyInput.addEventListener('input', (event) => {
+            geminiApiKey = event.target.value;
+            localStorage.setItem('geminiApiKey', geminiApiKey); // Save as user types
+            geminiStatusIndicator.className = 'status-indicator info';
+            geminiStatusIndicator.textContent = 'Unvalidated';
+        });
+
+        // Validate Gemini API Key on button click
+        validateGeminiKeyButton.addEventListener('click', () => {
+            if (geminiApiKey) {
+                validateGeminiApiKey(geminiApiKey);
+            } else {
+                geminiStatusIndicator.className = 'status-indicator error';
+                geminiStatusIndicator.textContent = 'Empty Key';
+                localStorage.removeItem('geminiApiKey');
+            }
+        });
+
+        // Sidebar Toggle
+        sidebarCategoryToggle.addEventListener('click', () => {
+            isSidebarExpanded = !isSidebarExpanded;
+            categorySidebar.classList.toggle('collapsed', !isSidebarExpanded);
+            if (isSidebarExpanded) {
+                categorySidebar.style.width = '200px';
+                sidebarCategoryToggle.style.left = 'calc(200px - 10px)';
+            } else {
+                categorySidebar.style.width = '50px';
+                sidebarCategoryToggle.style.left = 'calc(50px - 10px)';
+            }
+        });
+
+        // Sidebar Resize Logic
+        sidebarResizeHandle.addEventListener('mousedown', (e) => {
+            isResizingSidebar = true;
+            document.addEventListener('mousemove', handleSidebarMouseMove);
+            document.addEventListener('mouseup', handleSidebarMouseUp);
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'ew-resize';
+        });
+
+        function handleSidebarMouseMove(e) {
+            if (!isResizingSidebar) return;
+            let newWidth = e.clientX - categorySidebar.getBoundingClientRect().left;
+            newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(newWidth, MAX_SIDEBAR_WIDTH));
+            categorySidebar.style.width = `${newWidth}px`;
+            sidebarCategoryToggle.style.left = `calc(${newWidth}px - 10px)`;
+            isSidebarExpanded = true;
+            categorySidebar.classList.remove('collapsed');
+        }
+
+        function handleSidebarMouseUp() {
+            isResizingSidebar = false;
+            document.removeEventListener('mousemove', handleSidebarMouseMove);
+            document.removeEventListener('mouseup', handleSidebarMouseUp);
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+        }
+
+        // Initial validation check for Gemini key on load
+        document.addEventListener('DOMContentLoaded', () => {
+            categories = ["All", ...new Set(promptCategories.map(item => item.category))];
+            renderCategoryButtons();
+            filterAndRenderPromptCategories();
+            if (geminiApiKey) {
+                validateGeminiApiKey(geminiApiKey);
+            } else {
+                geminiStatusIndicator.className = 'status-indicator info';
+                geminiStatusIndicator.textContent = 'No Key Set';
+            }
+            categorySidebar.style.width = '200px';
+            sidebarCategoryToggle.style.left = 'calc(200px - 10px)';
+        });
+    </script>
+</body>
+</html>

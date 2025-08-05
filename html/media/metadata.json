@@ -1,0 +1,6 @@
+{
+  "name": "React MP3 Radio Player",
+  "description": "A retro-futuristic MP3 radio player with a dark, neon-glowing interface. Upload music, stream radio, and customize your sound with an equalizer and amplifier.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

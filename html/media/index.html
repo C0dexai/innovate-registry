@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React MP3 Radio Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react/": "https://esm.sh/react@^19.1.0/",
+          "react": "https://esm.sh/react@^19.1.0",
+          "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --neon-cyan: #00ffff;
+        --neon-pink: #ff10f0;
+        --neon-purple: #c628f9;
+        --neon-green: #39ff14;
+        --glow-cyan: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+        --glow-pink: 0 0 5px var(--neon-pink), 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+        --glow-purple: 0 0 5px var(--neon-purple), 0 0 10px var(--neon-purple), 0 0 20px var(--neon-purple);
+      }
+
+      /* Custom scrollbar for WebKit browsers */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #fff;
+        border-radius: 3px;
+        box-shadow: 0 0 3px #fff, 0 0 5px #fff;
+      }
+      
+      /* Custom scrollbar for Firefox */
+      * {
+        scrollbar-color: #fff #000;
+        scrollbar-width: thin;
+      }
+      
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
+
+      .neon-text-glow-cyan {
+        text-shadow: 0 0 4px rgba(255,255,255,0.7), 0 0 8px var(--neon-cyan), 0 0 12px var(--neon-cyan);
+      }
+      
+      .font-on-neon {
+        color: black;
+        font-weight: 600;
+      }
+
+    </style>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-[#121212] text-white">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

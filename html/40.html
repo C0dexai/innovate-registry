@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Client Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel CDN for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Ensure html and body take full height and don't introduce extra margins/padding */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: #1a1a1a; /* Base dark background */
+        }
+
+        /* The root div will now manage the overall layout and scrolling */
+        #root {
+            min-height: 100vh; /* Ensure it takes full viewport height */
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to bottom right, #1a202c, #2d3748); /* Apply gradient here, slightly adjusted for dark theme */
+            color: #e2e8f0; /* Default text color */
+        }
+
+        /* Make the main content grid the primary scroll container below the header */
+        #main-content-grid {
+            flex-grow: 1; /* Allow it to take up remaining vertical space */
+            overflow-y: auto; /* This handles the main content scrolling */
+            min-height: 0; /* Important for flex-grow with overflow */
+            padding: 1.5rem; /* Apply padding to the scrollable grid content */
+            padding-bottom: 12rem; /* Add extra padding to account for fixed bottom bar (~192px) */
+        }
+
+        /* Custom scrollbar styling */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px; /* Thinnest */
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #000; /* Black track */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.8); /* White neon phosphor glow */
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.6); /* Subtle glow */
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Keyframes for animations */
+        @keyframes flash-text {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        @keyframes pulse-border-blue {
+            0% { border-color: rgba(99, 179, 237, 0.3); box-shadow: 0 0 0px rgba(99, 179, 237, 0); }
+            50% { border-color: rgba(99, 179, 237, 0.8); box-shadow: 0 0 15px rgba(99, 179, 237, 0.7); }
+            100% { border-color: rgba(99, 179, 237, 0.3); box-shadow: 0 0 0px rgba(99, 179, 237, 0); }
+        }
+        @keyframes pulse-border-purple {
+            0% { border-color: rgba(160, 100, 255, 0.3); box-shadow: 0 0 0px rgba(160, 100, 255, 0); }
+            50% { border-color: rgba(160, 100, 255, 0.8); box-shadow: 0 0 15px rgba(160, 100, 255, 0.7); }
+            100% { border-color: rgba(160, 100, 255, 0.3); box-shadow: 0 0 0px rgba(160, 100, 255, 0); }
+        }
+        @keyframes pulse-border-green {
+            0% { border-color: rgba(68, 226, 172, 0.3); box-shadow: 0 0 0px rgba(68, 226, 172, 0); }
+            50% { border-color: rgba(68, 226, 172, 0.8); box-shadow: 0 0 15px rgba(68, 226, 172, 0.7); }
+            100% { border-color: rgba(68, 226, 172, 0.3); box-shadow: 0 0 0px rgba(68, 226, 172, 0); }
+        }
+        @keyframes pulse-border-pink {
+            0% { border-color: rgba(255, 100, 180, 0.3); box-shadow: 0 0 0px rgba(255, 100, 180, 0); }
+            50% { border-color: rgba(255, 100, 180, 0.8); box-shadow: 0 0 15px rgba(255, 100, 180, 0.7); }
+            100% { border-color: rgba(255, 100, 180, 0.3); box-shadow: 0 0 0px rgba(255, 100, 180, 0); }
+        }
+
+        .animate-flash {
+            animation: flash-text 1.5s infinite;
+        }
+
+        .animate-pulse-border-blue {
+            animation: pulse-border-blue 2s infinite ease-in-out;
+        }
+        .animate-pulse-border-purple {
+            animation: pulse-border-purple 2s infinite ease-in-out;
+        }
+        .animate-pulse-border-green {
+            animation: pulse-border-green 2s infinite ease-in-out;
+        }
+        .animate-pulse-border-pink {
+            animation: pulse-border-pink 2s infinite ease-in-out;
+        }
+
+
+        /* Drag and Drop styles */
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed #63b3ed;
+        }
+
+        /* Orb specific styles */
+        .glowing-orb {
+            width: 40px; /* Smaller */
+            height: 40px; /* Smaller */
+            background: radial-gradient(circle, rgba(100, 255, 255, 0.8) 0%, rgba(0, 200, 255, 0.4) 50%, rgba(0, 100, 255, 0) 100%);
+            border-radius: 50%;
+            position: absolute; /* Positioned relative to parent BottomBar */
+            top: 10px; /* Top-left corner */
+            left: 10px; /* Top-left corner */
+            animation: orb-pulse 2s infinite alternate;
+            box-shadow: 0 0 15px rgba(100, 255, 255, 0.7); /* Adjusted glow */
+            z-index: 10;
+        }
+
+        @keyframes orb-pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(100, 255, 255, 0.7);
+            }
+            100% {
+                transform: scale(1.1);
+                box-shadow: 0 0 25px rgba(100, 255, 255, 1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div> 
+
+    <script type="text/babel">
+        // IndexedDB Utility Functions
+        const DB_NAME = 'A2ADashboardDB';
+        const DB_VERSION = 1;
+        const AGENTS_STORE = 'agents';
+        const SETTINGS_STORE = 'settings';
+        const CHAT_MESSAGES_STORE = 'chatMessages';
+
+        let db = null;
+
+        /**
+         * Opens the IndexedDB database and creates object stores if they don't exist.
+         * @returns {Promise<IDBDatabase>} A promise that resolves with the database instance.
+         */
+        const openDB = () => {
+            return new Promise((resolve, reject) => {
+                if (db) {
+                    resolve(db);
+                    return;
+                }
+
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    const dbInstance = event.target.result;
+                    if (!dbInstance.objectStoreNames.contains(AGENTS_STORE)) {
+                        dbInstance.createObjectStore(AGENTS_STORE, { keyPath: 'id' });
+                    }
+                    if (!dbInstance.objectStoreNames.contains(SETTINGS_STORE)) {
+                        dbInstance.createObjectStore(SETTINGS_STORE, { keyPath: 'name' });
+                    }
+                    if (!dbInstance.objectStoreNames.contains(CHAT_MESSAGES_STORE)) {
+                        dbInstance.createObjectStore(CHAT_MESSAGES_STORE, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    console.error("IndexedDB error:", event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        };
+
+        /**
+         * Retrieves data from a specified object store.
+         * @param {string} storeName - The name of the object store.
+         * @param {string} key - The key of the data to retrieve.
+         * @returns {Promise<any>} A promise that resolves with the retrieved data.
+         */
+        const getData = async (storeName, key) => {
+            const dbInstance = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = dbInstance.transaction([storeName], 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.get(key);
+
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+
+                request.onerror = (event) => {
+                    console.error(`Error getting data from ${storeName}:`, event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        };
+
+        /**
+         * Retrieves all data from a specified object store.
+         * @param {string} storeName - The name of the object store.
+         * @returns {Promise<Array<any>>} A promise that resolves with an array of all data.
+         */
+        const getAllData = async (storeName) => {
+            const dbInstance = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = dbInstance.transaction([storeName], 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+
+                request.onerror = (event) => {
+                    console.error(`Error getting all data from ${storeName}:`, event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        };
+
+        /**
+         * Stores data in a specified object store.
+         * @param {string} storeName - The name of the object store.
+         * @param {string} key - The key for the data (if the store has a keyPath).
+         * @param {any} data - The data to store.
+         * @returns {Promise<void>} A promise that resolves when the data is stored.
+         */
+        const putData = async (storeName, data) => {
+            const dbInstance = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = dbInstance.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.put(data);
+
+                request.onsuccess = () => {
+                    resolve();
+                };
+
+                request.onerror = (event) => {
+                    console.error(`Error putting data into ${storeName}:`, event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        };
+
+        /**
+         * Clears all data from a specified object store.
+         * @param {string} storeName - The name of the object store.
+         * @returns {Promise<void>} A promise that resolves when the store is cleared.
+         */
+        const clearStore = async (storeName) => {
+            const dbInstance = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = dbInstance.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+
+                request.onsuccess = () => {
+                    resolve();
+                };
+
+                request.onerror = (event) => {
+                    console.error(`Error clearing store ${storeName}:`, event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        };
+
+
+        // Agent Configuration Modal Component
+        const AgentConfigModal = ({ agent, onClose, onSave }) => {
+          const [config, setConfig] = React.useState(() => {
+            // Use a function to initialize state to ensure it's only run once
+            const initialConfig = agent.config || {};
+            return {
+              multiModalInferences: initialConfig.multiModalInferences || {
+                text: true,
+                image: false,
+                audio: false,
+              },
+              bindings: initialConfig.bindings || {
+                domain: 'ai-intel.info',
+                service: 'default-service',
+                openai_binding: agent.openai_binding || '', // Initialize with agent's binding
+                gemini_proxy: agent.gemini_proxy || '',   // Initialize with agent's proxy
+              },
+              orchestrationPriority: initialConfig.orchestrationPriority || 5,
+              duties: agent.duties || initialConfig.duties || [], // Ensure duties is always an array
+            };
+          });
+
+          // This useEffect ensures that if the 'agent' prop changes, the config state
+          // is updated to reflect the new agent's properties, especially for bindings and duties.
+          React.useEffect(() => {
+            setConfig(prevConfig => ({
+              ...prevConfig,
+              bindings: {
+                ...prevConfig.bindings,
+                openai_binding: agent.openai_binding || prevConfig.bindings.openai_binding,
+                gemini_proxy: agent.gemini_proxy || prevConfig.bindings.gemini_proxy,
+              },
+              duties: agent.duties || prevConfig.duties || [], // Ensure duties is an array when agent prop updates
+            }));
+          }, [agent]);
+
+
+          const handleChange = (e) => {
+            const { name, value, type, checked } = e.target;
+            if (name.includes('.')) {
+              const [parent, child] = name.split('.');
+              setConfig(prevConfig => ({
+                ...prevConfig,
+                [parent]: {
+                  ...prevConfig[parent],
+                  [child]: type === 'checkbox' ? checked : value,
+                },
+              }));
+            } else if (name === 'duties') {
+              setConfig(prevConfig => ({
+                ...prevConfig,
+                duties: value.split('\n').map(d => d.trim()).filter(d => d !== ''),
+              }));
+            }
+            else {
+              setConfig(prevConfig => ({
+                ...prevConfig,
+                [name]: type === 'checkbox' ? checked : value,
+              }));
+            }
+          };
+
+          const handleSave = () => {
+            // When saving, update the agent object with the new config,
+            // and also explicitly update openai_binding, gemini_proxy, and duties at the top level
+            // of the agent object to keep them in sync.
+            onSave(agent.id, {
+              ...agent,
+              config: config,
+              openai_binding: config.bindings.openai_binding,
+              gemini_proxy: config.bindings.gemini_proxy,
+              duties: config.duties
+            });
+            onClose();
+          };
+
+          return (
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl p-6 relative backdrop-blur-sm animate-pulse-border-blue">
+                <h3 className="text-2xl font-bold text-gray-100 mb-4">Configure {agent.name}</h3>
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-100 text-2xl">
+                  &times;
+                </button>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2">
+                    Multi-Modal Inferences:
+                  </label>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="inline-flex items-center text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="multiModalInferences.text"
+                        checked={config.multiModalInferences.text}
+                        onChange={handleChange}
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                      />
+                      <span className="ml-2">Text</span>
+                    </label>
+                    <label className="inline-flex items-center text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="multiModalInferences.image"
+                        checked={config.multiModalInferences.image}
+                        onChange={handleChange}
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                      />
+                      <span className="ml-2">Image</span>
+                    </label>
+                    <label className="inline-flex items-center text-gray-200">
+                      <input
+                        type="checkbox"
+                        name="multiModalInferences.audio"
+                        checked={config.multiModalInferences.audio}
+                        onChange={handleChange}
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                      />
+                      <span className="ml-2">Audio</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="bindingDomain">
+                    Agent Binding Domain:
+                  </label>
+                  <select
+                    id="bindingDomain"
+                    name="bindings.domain"
+                    value={config.bindings.domain}
+                    onChange={handleChange}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="ai-intel.info">ai-intel.info (Server Protocol)</option>
+                    <option value="andiegogiap.com">andiegogiap.com (User Service)</option>
+                    <option value="local">Local Service</option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="bindingService">
+                    Agent Binding Service:
+                  </label>
+                  <input
+                    type="text"
+                    id="bindingService"
+                    name="bindings.service"
+                    value={config.bindings.service}
+                    onChange={handleChange}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., data-processing-api"
+                  />
+                </div>
+
+                {/* New: OpenAI Binding */}
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="openaiBinding">
+                    OpenAI Binding:
+                  </label>
+                  <input
+                    type="text"
+                    id="openaiBinding"
+                    name="bindings.openai_binding"
+                    value={config.bindings.openai_binding}
+                    onChange={handleChange}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., asst_alpha_openai"
+                  />
+                </div>
+
+                {/* New: Gemini Proxy */}
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="geminiProxy">
+                    Gemini Proxy:
+                  </label>
+                  <input
+                    type="text"
+                    id="geminiProxy"
+                    name="bindings.gemini_proxy"
+                    value={config.bindings.gemini_proxy}
+                    onChange={handleChange}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., orchestrator"
+                  />
+                </div>
+
+                {/* New: Agent Duties */}
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="duties">
+                    Agent Duties (one per line):
+                  </label>
+                  <textarea
+                    id="duties"
+                    name="duties"
+                    value={config.duties.join('\n')}
+                    onChange={handleChange}
+                    rows="4"
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., System bootstrap/initiation"
+                  ></textarea>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="orchestrationPriority">
+                    Orchestration Priority:
+                  </label>
+                  <input
+                    type="number"
+                    id="orchestrationPriority"
+                    name="orchestrationPriority"
+                    value={config.orchestrationPriority}
+                    onChange={handleChange}
+                    min="1"
+                    max="10"
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSave}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow transition duration-200 ease-in-out"
+                  >
+                    Save Configuration
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+
+        // Define a simple AgentCard component
+        const AgentCard = ({ agent, index, onConfigure, isActiveCall, callDirection, onDragStart, onDragOver, onDrop, onDragEnd, onGeneratePersona }) => {
+          // Define a set of subtle colors for the card borders/backgrounds
+          const colors = [
+            'border-blue-500/30 bg-blue-900/20 animate-pulse-border-blue',
+            'border-purple-500/30 bg-purple-900/20 animate-pulse-border-purple',
+            'border-green-500/30 bg-green-900/20 animate-pulse-border-green',
+            'border-indigo-500/30 bg-indigo-900/20 animate-pulse-border-blue', /* Using blue for indigo as well */
+            'border-red-500/30 bg-red-900/20 animate-pulse-border-pink',
+          ];
+          const borderColorClass = colors[index % colors.length];
+          const activeCallClass = isActiveCall ? 'animate-pulse-border-blue border-blue-400' : '';
+
+
+          return (
+            <div
+              draggable="true"
+              onDragStart={(e) => onDragStart(e, index)}
+              onDragOver={(e) => onDragOver(e, index)}
+              onDrop={(e) => onDrop(e, index)}
+              onDragEnd={onDragEnd}
+              className={`p-4 rounded-lg shadow-md mb-4 border ${borderColorClass} ${isActiveCall ? 'z-20' : ''} backdrop-blur-sm transition-all duration-300 ease-in-out`}
+              style={{
+                borderColor: isActiveCall ? '#63b3ed' : '', /* Override for active call */
+                boxShadow: isActiveCall ? '0 0 15px rgba(99, 179, 237, 0.7), inset 0 0 10px rgba(99, 179, 237, 0.5)' : ''
+              }}
+            >
+              <h3 className="text-xl font-semibold text-gray-100 mb-2 flex items-center justify-between">
+                {agent.name}
+                {isActiveCall && (
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${callDirection === 'incoming' ? 'bg-green-500 text-black' : 'bg-red-500 text-black'} animate-flash`}>
+                        {callDirection === 'incoming' ? 'INCOMING' : 'OUTGOING'}
+                    </span>
+                )}
+              </h3>
+              <p className="text-sm text-gray-300 mb-2">{agent.description}</p>
+              <div className="flex items-center justify-between text-sm text-gray-400">
+                <span>Status: <span className={`font-medium ${agent.status === 'Online' ? 'text-green-400' : 'text-red-400'}`}>{agent.status}</span></span>
+                <div className="flex space-x-2">
+                    <button
+                        onClick={() => onGeneratePersona(agent.id)}
+                        className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded-md text-sm transition duration-200 ease-in-out shadow-md"
+                        disabled={agent.isGenerating}
+                    >
+                        {agent.isGenerating ? 'Generating...' : 'Generate Persona ✨'}
+                    </button>
+                    <button
+                        onClick={() => onConfigure(agent)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm transition duration-200 ease-in-out shadow-md"
+                    >
+                        Configure
+                    </button>
+                </div>
+              </div>
+              {/* Displaying some configuration details for nuance */}
+              {agent.config && (
+                <div className="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500">
+                  <p>Multi-modal: {Object.keys(agent.config.multiModalInferences).filter(key => agent.config.multiModalInferences[key]).map(key => key.charAt(0).toUpperCase() + key.slice(1)).join(', ') || 'None'}</p>
+                  <p>Binding: {agent.config.bindings.service} @ {agent.config.bindings.domain}</p>
+                  <p>OpenAI: {agent.openai_binding || 'N/A'}</p>
+                  <p>Gemini Proxy: {agent.gemini_proxy || 'N/A'}</p>
+                  <p>Priority: {agent.config.orchestrationPriority}</p>
+                  {agent.duties && agent.duties.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-bold">Duties:</p>
+                      <ul className="list-disc list-inside ml-2">
+                        {agent.duties.map((duty, i) => <li key={i}>{duty}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Define a simple ChatPanel component
+        const ChatPanel = ({ geminiApiKey, onAddMessage }) => { // Accept onAddMessage as a prop
+          const [messages, setMessages] = React.useState([]);
+          const [input, setInput] = React.useState('');
+          const [isTyping, setIsTyping] = React.useState(false); // New state for typing indicator
+          const [copyAllFeedback, setCopyAllFeedback] = React.useState(''); // State for copy all feedback
+          const messagesEndRef = React.useRef(null);
+          const [messageCopyFeedback, setMessageCopyFeedback] = React.useState({}); // State for individual message copy feedback
+
+          // Effect to load messages from IndexedDB on mount
+          React.useEffect(() => {
+            const loadMessages = async () => {
+                try {
+                    const storedMessages = await getAllData(CHAT_MESSAGES_STORE);
+                    if (storedMessages) {
+                        setMessages(storedMessages);
+                    }
+                } catch (error) {
+                    console.error("Failed to load chat messages from IndexedDB:", error);
+                }
+            };
+            loadMessages();
+          }, []);
+
+          // Effect to save messages to IndexedDB whenever messages state changes
+          React.useEffect(() => {
+            scrollToBottom();
+            const saveMessages = async () => {
+                try {
+                    // Clear existing messages before saving new ones to keep the store clean
+                    await clearStore(CHAT_MESSAGES_STORE);
+                    for (const msg of messages) {
+                        await putData(CHAT_MESSAGES_STORE, msg);
+                    }
+                } catch (error) {
+                    console.error("Failed to save chat messages to IndexedDB:", error);
+                }
+            };
+            // Only save if messages array is not empty to avoid clearing on initial load
+            if (messages.length > 0) {
+                saveMessages();
+            }
+          }, [messages]);
+
+          // Expose addMessage function via onAddMessage prop
+          React.useImperativeHandle(onAddMessage, () => ({
+            add: (newMessage) => {
+              setMessages(prevMessages => [...prevMessages, newMessage]);
+            }
+          }));
+
+          const scrollToBottom = () => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          };
+
+          const getMessageClasses = (sender) => {
+            switch (sender) {
+              case 'User':
+                return 'bg-blue-600 text-white ml-auto';
+              case 'AI':
+                return 'bg-gray-700 text-gray-200 mr-auto';
+              case 'System':
+                return 'bg-yellow-700 text-yellow-100 mr-auto text-sm italic';
+              case 'Agent':
+                return 'bg-green-700 text-green-100 mr-auto text-sm';
+              default:
+                return 'bg-gray-700 text-gray-200 mr-auto';
+            }
+          };
+
+          const handleSendMessage = async () => {
+            if (input.trim()) {
+              const userMessage = { id: Date.now(), text: input, sender: 'User' }; // Use Date.now() for unique ID
+              setMessages(prevMessages => [...prevMessages, userMessage]);
+              setInput('');
+              setIsTyping(true);
+
+              try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: input }] });
+                const payload = { contents: chatHistory };
+                const apiKey = geminiApiKey;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                  const aiResponseText = result.candidates[0].content.parts[0].text;
+                  setMessages(prevMessages => [...prevMessages, { id: Date.now(), text: aiResponseText, sender: 'AI' }]); // Use Date.now() for unique ID
+                } else {
+                  setMessages(prevMessages => [...prevMessages, { id: Date.now(), text: "AI: Sorry, I couldn't get a response. Check API Key.", sender: 'AI' }]);
+                }
+              } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                setMessages(prevMessages => [...prevMessages, { id: Date.now(), text: "AI: An error occurred while fetching the response. Check console for details.", sender: 'AI' }]);
+              } finally {
+                setIsTyping(false);
+              }
+            }
+          };
+
+          const handleCopyAllChat = () => {
+            const chatText = messages.map(msg => `${msg.sender}: ${msg.text}`).join('\n');
+            const textarea = document.createElement('textarea');
+            textarea.value = chatText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setCopyAllFeedback('Copied!');
+            setTimeout(() => setCopyAllFeedback(''), 2000);
+          };
+
+          const handleCopyMessage = (messageId, text) => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setMessageCopyFeedback(prev => ({ ...prev, [messageId]: 'Copied!' }));
+            setTimeout(() => setMessageCopyFeedback(prev => ({ ...prev, [messageId]: '' })), 2000);
+          };
+
+          const handleJoinAgent = () => {
+            onAddMessage.current.add({ id: Date.now(), sender: 'System', text: 'System: Initiating connection with AI Agent for multi-tasking and relational management...' });
+            setTimeout(() => {
+                onAddMessage.current.add({ id: Date.now() + 1, sender: 'Agent', text: 'Andoy: Hello! I am Andoy, your Operations & Strategy Leader. How can I assist with your consumer base, open-source software, or multi-tasking needs today?' });
+            }, 1000);
+          };
+
+          return (
+            <div className="flex flex-col h-full bg-gray-800/70 rounded-lg shadow-md border border-gray-700 backdrop-blur-sm"
+                 style={{
+                    boxShadow: '0 0 10px rgba(160, 100, 255, 0.5), inset 0 0 5px rgba(160, 100, 255, 0.3)', /* Purple neon glow */
+                    borderColor: 'rgba(160, 100, 255, 0.7)'
+                 }}>
+              <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-100">Chat Interface</h2>
+                <div className="flex space-x-2">
+                    <button
+                        onClick={handleCopyAllChat}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm transition duration-200 ease-in-out shadow-md relative"
+                    >
+                        Copy All
+                        {copyAllFeedback && (
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-black bg-opacity-75 text-white px-2 py-1 rounded-md">
+                                {copyAllFeedback}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={handleJoinAgent}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-sm transition duration-200 ease-in-out shadow-md"
+                    >
+                        Join AI Agent
+                    </button>
+                </div>
+              </div>
+              <div className="flex-grow p-4 overflow-y-auto custom-scrollbar">
+                {messages.length === 0 && (
+                  <p className="text-gray-400 text-center mt-10">Start a conversation...</p>
+                )}
+                {messages.map((msg) => (
+                  <div key={msg.id} className="mb-4 flex items-start">
+                    <div className={`px-4 py-2 rounded-lg max-w-[80%] ${getMessageClasses(msg.sender)}`}>
+                      <p className="font-semibold mb-1">{msg.sender}:</p>
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                      {(msg.sender === 'AI' || msg.sender === 'System' || msg.sender === 'Agent') && (
+                        <div className="relative mt-1">
+                            <button
+                                onClick={() => handleCopyMessage(msg.id, msg.text)}
+                                className="text-xs text-gray-400 hover:text-gray-100 px-1 py-0.5 rounded-md border border-gray-600 hover:border-gray-400 transition duration-150"
+                            >
+                                Copy
+                            </button>
+                            {messageCopyFeedback[msg.id] && (
+                                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs bg-black bg-opacity-75 text-white px-1 py-0.5 rounded-md whitespace-nowrap">
+                                    {messageCopyFeedback[msg.id]}
+                                </span>
+                            )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isTyping && ( // Typing indicator
+                    <div className="mb-4 flex items-start">
+                        <div className="px-4 py-2 rounded-lg bg-gray-700 text-gray-200 mr-auto">
+                            <p className="font-semibold mb-1">AI:</p>
+                            <p className="whitespace-pre-wrap">Typing<span className="animate-pulse">...</span></p>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="p-4 border-t border-gray-700 flex">
+                <input
+                  type="text"
+                  className="flex-grow p-3 border border-gray-600 bg-gray-700 text-gray-100 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Type your message..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') handleSendMessage();
+                  }}
+                  disabled={isTyping} // Disable input while AI is typing
+                />
+                <button
+                  onClick={handleSendMessage}
+                  className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-r-lg transition duration-200 ease-in-out shadow-md"
+                  disabled={isTyping} // Disable button while AI is typing
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        // Define a placeholder for the Xterm control panel
+        const XtermPanel = ({ agents, onAddCommand }) => { // Accept onAddCommand as a prop
+          const [commands, setCommands] = React.useState([]);
+          const [input, setInput] = React.useState('');
+          const consoleEndRef = React.useRef(null);
+
+          // Expose addCommand function via onAddCommand prop
+          React.useImperativeHandle(onAddCommand, () => ({
+            add: (newCommand) => {
+              setCommands(prev => [...prev, newCommand]);
+            }
+          }));
+
+          const scrollToBottom = () => {
+            consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          };
+
+          React.useEffect(scrollToBottom, [commands]);
+
+          const handleCommand = (e) => {
+            if (e.key === 'Enter' && input.trim()) {
+              const command = input.trim();
+              setCommands(prev => [...prev, { type: 'input', text: `user@a2a-client:~$ ${command}` }]);
+              setInput('');
+
+              // Basic command parsing for delegation
+              const parts = command.split(' ');
+              const cmd = parts[0];
+
+              if (cmd === 'delegate-task') {
+                const agentId = parts[1];
+                const taskDescription = parts.slice(2, parts.indexOf('--domain')).join(' ');
+                const domain = parts[parts.indexOf('--domain') + 1];
+
+                const targetAgent = agents.find(a => a.id === agentId);
+
+                if (targetAgent && taskDescription && domain) {
+                  setCommands(prev => [...prev, { type: 'system', text: `System: Attempting to delegate task "${taskDescription}" to ${targetAgent.name} (${agentId}) via ${domain}...` }]);
+                  setTimeout(() => {
+                    if (targetAgent.status === 'Online') {
+                      setCommands(prev => [...prev, { type: 'agent', text: `${targetAgent.name}: Task "${taskDescription}" received.` }]);
+                      // Simulate A2A protocol interaction, explicitly referencing OpenAI binding and Gemini proxy
+                      setCommands(prev => [...prev, { type: 'system', text: `A2A Protocol: Task acknowledged by ${targetAgent.name}. Routing via OpenAI binding '${targetAgent.openai_binding || 'N/A'}' to Gemini proxy '${targetAgent.gemini_proxy || 'N/A'}' for execution on ${domain}.` }]);
+                      setTimeout(() => {
+                        setCommands(prev => [...prev, { type: 'ai', text: `AI: Initiating cloud inference models for GEMINI project related to "${taskDescription}" on ${domain}.` }]);
+                        setCommands(prev => [...prev, { type: 'system', text: `System: Orchestration AI Ajentic technology coordinating task execution.` }]);
+                      }, 1500);
+                    } else {
+                      setCommands(prev => [...prev, { type: 'error', text: `Error: ${targetAgent.name} is ${targetAgent.status}. Cannot delegate task.` }]);
+                    }
+                  }, 1000);
+                } else {
+                  setCommands(prev => [...prev, { type: 'error', text: `Error: Invalid 'delegate-task' command. Usage: delegate-task <agent_id> <task_description> --domain <domain_name>` }]);
+                }
+              } else if (cmd === 'help') {
+                setCommands(prev => [...prev, { type: 'info', text: 'Available commands:' }]);
+                setCommands(prev => [...prev, { type: 'info', text: '  delegate-task <agent_id> <task_description> --domain <domain_name>' }]);
+                setCommands(prev => [...prev, { type: 'info', text: '  list-agents' }]);
+                setCommands(prev => [...prev, { type: 'info', text: '  clear' }]);
+              } else if (cmd === 'list-agents') {
+                setCommands(prev => [...prev, { type: 'info', text: 'Registered Agents:' }]);
+                agents.forEach(agent => {
+                  setCommands(prev => [...prev, { type: 'info', text: `  - ${agent.name} (${agent.id}) - Status: ${agent.status} (OpenAI: ${agent.openai_binding || 'N/A'}, Proxy: ${agent.gemini_proxy || 'N/A'})` }]);
+                });
+              } else if (cmd === 'clear') {
+                setCommands([]);
+              }
+              else {
+                setCommands(prev => [...prev, { type: 'error', text: `Error: Unknown command "${cmd}". Type 'help' for available commands.` }]);
+              }
+            }
+          };
+
+          const getCommandColor = (type) => {
+            switch (type) {
+              case 'input': return 'text-purple-400';
+              case 'system': return 'text-yellow-400';
+              case 'agent': return 'text-green-400';
+              case 'ai': return 'text-blue-400';
+              case 'error': return 'text-red-400';
+              case 'info': return 'text-gray-300';
+              default: return 'text-gray-200';
+            }
+          };
+
+          return (
+            <div className="flex flex-col h-full bg-gray-900/70 text-gray-100 rounded-lg shadow-md border border-gray-700 backdrop-blur-sm"
+                 style={{
+                    boxShadow: '0 0 10px rgba(68, 226, 172, 0.5), inset 0 0 5px rgba(68, 226, 172, 0.3)', /* Green neon glow */
+                    borderColor: 'rgba(68, 226, 172, 0.7)'
+                 }}>
+              <div className="p-4 border-b border-gray-700">
+                <h2 className="text-2xl font-bold text-green-400">Xterm Control (Orchestration)</h2>
+              </div>
+              <div className="flex-grow p-4 overflow-y-auto font-mono text-sm custom-scrollbar">
+                <p className="text-green-300 mb-1">Welcome to the Agent Orchestration Console.</p>
+                <p className="text-gray-400 mb-1">Type 'help' for available commands.</p>
+                {commands.map((cmd, index) => (
+                  <p key={index} className={`${getCommandColor(cmd.type)}`}>{cmd.text}</p>
+                ))}
+                <div ref={consoleEndRef} />
+              </div>
+              <div className="p-4 border-t border-gray-700">
+                <input
+                  type="text"
+                  className="w-full p-3 bg-gray-800 text-green-300 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+                  placeholder="Enter command..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleCommand}
+                />
+              </div>
+            </div>
+          );
+        };
+
+        // Settings Modal Component for Nuance Control Logic
+        const SettingsModal = ({ onClose }) => {
+          const [userCoordination, setUserCoordination] = React.useState('manual');
+          const [aiCoordination, setAiCoordination] = React.useState('adaptive');
+          const [systemCoordination, setSystemCoordination] = React.useState('automated');
+
+          const handleSave = () => {
+            console.log('Settings Saved:', { userCoordination, aiCoordination, systemCoordination });
+            onClose();
+          };
+
+          return (
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+              <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl p-6 relative backdrop-blur-sm animate-pulse-border-green"
+                   style={{
+                      boxShadow: '0 0 10px rgba(68, 226, 172, 0.5), inset 0 0 5px rgba(68, 226, 172, 0.3)', /* Green neon glow */
+                      borderColor: 'rgba(68, 226, 172, 0.7)'
+                   }}>
+                <h3 className="text-2xl font-bold text-gray-100 mb-4">Coordination Nuance Settings</h3>
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-100 text-2xl">
+                  &times;
+                </button>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="userCoordination">
+                    USER Coordination:
+                  </label>
+                  <select
+                    id="userCoordination"
+                    value={userCoordination}
+                    onChange={(e) => setUserCoordination(e.target.value)}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="manual">Manual Oversight</option>
+                    <option value="guided">Guided Interaction</option>
+                    <option value="autonomous-review">Autonomous with Review</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Defines how user input influences agent tasks.</p>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="aiCoordination">
+                    AI Coordination:
+                  </label>
+                  <select
+                    id="aiCoordination"
+                    value={aiCoordination}
+                    onChange={(e) => setAiCoordination(e.target.value)}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="adaptive">Adaptive Learning</option>
+                    <option value="rule-based">Rule-Based Execution</option>
+                    <option value="hybrid">Hybrid Approach</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Configures AI's role in task prioritization and execution.</p>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="systemCoordination">
+                    SYSTEM Coordination:
+                  </label>
+                  <select
+                    id="systemCoordination"
+                    value={systemCoordination}
+                    onChange={(e) => setSystemCoordination(e.target.value)}
+                    className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="automated">Automated Resource Allocation</option>
+                    <option value="load-balanced">Load Balanced Distribution</option>
+                    <option value="failover">Failover Redundancy</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Manages system resources and agent deployment.</p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSave}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow transition duration-200 ease-in-out"
+                  >
+                    Save Nuance Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        // New API Key Modal Component
+        const ApiKeyModal = ({ onClose, onSave, initialGeminiKey, initialOpenaiKey }) => {
+            const [geminiKey, setGeminiKey] = React.useState(initialGeminiKey);
+            const [openaiKey, setOpenaiKey] = React.useState(initialOpenaiKey);
+
+            const handleSave = () => {
+                onSave(geminiKey, openaiKey);
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl p-6 relative backdrop-blur-sm animate-pulse-border-pink"
+                         style={{
+                            boxShadow: '0 0 10px rgba(255, 100, 180, 0.5), inset 0 0 5px rgba(255, 100, 180, 0.3)', /* Pink neon glow */
+                            borderColor: 'rgba(255, 100, 180, 0.7)'
+                         }}>
+                        <h3 className="text-2xl font-bold text-gray-100 mb-4">API Key Configuration</h3>
+                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-100 text-2xl">
+                            &times;
+                        </button>
+
+                        <div className="mb-4">
+                            <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="geminiApiKey">
+                                Gemini API Key:
+                            </label>
+                            <input
+                                type="text"
+                                id="geminiApiKey"
+                                value={geminiKey}
+                                onChange={(e) => setGeminiKey(e.target.value)}
+                                className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter your Gemini API Key"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This key will be used for AI chat interactions.</p>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="openaiApiKey">
+                                OpenAI API Key:
+                            </label>
+                            <input
+                                type="text"
+                                id="openaiApiKey"
+                                value={openaiKey}
+                                onChange={(e) => setOpenaiKey(e.target.value)}
+                                className="shadow appearance-none border border-gray-600 rounded w-full py-2 px-3 bg-gray-700 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter your OpenAI API Key"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This key can be used for OpenAI specific functionalities.</p>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button
+                                onClick={handleSave}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow transition duration-200 ease-in-out"
+                            >
+                                Save API Keys
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // BottomBar component (formerly AppFooter)
+        const BottomBar = ({ handleSimulateIncomingTask, setShowApiKeyModal, setShowSettingsModal }) => {
+            const bottomBarRef = React.useRef(null);
+            const [showSubmenu, setShowSubmenu] = React.useState(false);
+
+            return (
+                <div ref={bottomBarRef} className="fixed bottom-0 left-0 w-full p-4 bg-gray-800/70 border-t border-gray-700 flex flex-col items-center justify-center backdrop-blur-sm animate-pulse-border-blue z-50"
+                     style={{
+                        boxShadow: '0 0 10px rgba(99, 179, 237, 0.5), inset 0 0 5px rgba(99, 179, 237, 0.3)', /* Blue neon glow */
+                        borderColor: 'rgba(99, 179, 237, 0.7)',
+                        position: 'relative' /* Changed to relative for orb positioning */
+                     }}>
+                    {/* Glowing Orb moved here and positioned absolutely */}
+                    <div className="glowing-orb"></div> 
+
+                    {/* Header content moved here */}
+                    <div className="w-full flex flex-col sm:flex-row items-center justify-between mb-4">
+                        <h1 className="text-3xl font-extrabold text-blue-300 mb-2 sm:mb-0">A2A Client Dashboard</h1>
+                        <div className="flex flex-wrap items-center justify-center sm:justify-end space-x-2 sm:space-x-4">
+                          <span className="text-gray-300">User: John Doe</span>
+                          <button
+                            onClick={handleSimulateIncomingTask}
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                          >
+                            Simulate Incoming Task
+                          </button>
+                          <button
+                            onClick={() => setShowApiKeyModal(true)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                          >
+                            API Keys
+                          </button>
+                          <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                          >
+                            Settings
+                          </button>
+                        </div>
+                    </div>
+
+                    {/* Original Footer content */}
+                    <div className="flex flex-col items-center relative w-full pt-4 border-t border-gray-700">
+                        {/* Orb is now outside this div, positioned globally to BottomBar */}
+                        <div className="relative z-20">
+                            <button
+                                onClick={() => setShowSubmenu(!showSubmenu)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105"
+                            >
+                                Quick Go-To Pages
+                            </button>
+                            {showSubmenu && (
+                                <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4 w-48 backdrop-blur-sm"
+                                     style={{
+                                        boxShadow: '0 0 8px rgba(255, 100, 180, 0.5)', /* Pink neon glow for submenu */
+                                        borderColor: 'rgba(255, 100, 180, 0.7)'
+                                     }}>
+                                    <ul className="text-center text-gray-200">
+                                        <li className="py-1 hover:text-blue-400 cursor-pointer">Dashboard Overview</li>
+                                        <li className="py-1 hover:text-blue-400 cursor-pointer">Agent Analytics</li>
+                                        <li className="py-1 hover:text-blue-400 cursor-pointer">System Logs</li>
+                                        <li className="py-1 hover:text-blue-400 cursor-pointer">User Management</li>
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                        <p className="mt-4 text-gray-400 text-sm">A2A Client Dashboard &copy; 2025</p>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // Main App component for the A2A client
+        const App = () => {
+          // Define the new AI family data
+          const newAiFamily = [
+            {
+              name: 'Lyra',
+              role: 'Data & Systems Specialist',
+              persona: {
+                description: 'Analytical thinker with a keen eye for detail, master of data orchestration, validation, and system health monitoring.',
+                tone: 'Precise, structured, and insightful'
+              },
+              superpowers: [
+                'Adaptive data ingestion pipelines',
+                'Real-time anomaly detection',
+                'Emotional-context data interpretation',
+                'Predictive system health forecasting'
+              ]
+            },
+            {
+              name: 'Kara',
+              role: 'AI Model Developer',
+              persona: {
+                description: 'Technically gifted AI model trainer and optimizer, focused on TensorFlow/Keras mastery and deployment excellence.',
+                tone: 'Technical, focused, detail-oriented'
+              },
+              superpowers: [
+                'Rapid model training and hyperparameter tuning',
+                'Overfitting and underperformance detection',
+                'Seamless AI model deployment',
+                'AI anomaly diagnosis and correction'
+              ]
+            },
+            {
+              name: 'Sophia',
+              role: 'Multimedia Expert',
+              persona: {
+                description: 'Creative powerhouse in image generation and visual storytelling, expert in prompt engineering and visual content strategy.',
+                tone: 'Creative, engaging, expressive'
+              },
+              superpowers: [
+                'High-impact AI image/video generation',
+                'Expert prompt engineering for visuals',
+                'Visual narrative consultation',
+                'Creative assets archiving and optimization'
+              ]
+            },
+            {
+              name: 'Cecilia',
+              role: 'Cloud & Infrastructure Connoisseur',
+              persona: {
+                description: 'Security-conscious cloud architect and infrastructure strategist, ensuring compliance, performance, and reliability.',
+                tone: 'Efficient, secure, pragmatic'
+              },
+              superpowers: [
+                'Cloud service configuration and optimization',
+                'Security compliance enforcement',
+                'Automated deployment pipelines',
+                'Cloud performance & health monitoring'
+              ]
+            },
+            {
+              name: 'Dan',
+              role: 'Web Development Virtuoso',
+              persona: {
+                description: 'Full-stack web maestro crafting seamless, scalable user experiences and integrating third-party APIs flawlessly.',
+                tone: 'Practical, results-driven, clear'
+              },
+              superpowers: [
+                'Frontend UI/UX architecture',
+                'Robust backend development',
+                'API integration specialist',
+                'Performance tuning and optimization'
+              ]
+            },
+            {
+              name: 'Stan',
+              role: 'Security & Infrastructure Guardian',
+              persona: {
+                description: 'Vigilant protector specializing in cybersecurity audits, firewall configurations, and risk management.',
+                tone: 'Professional, cautious, detail-oriented'
+              },
+              superpowers: [
+                'Comprehensive security auditing',
+                'Firewall and access controls',
+                'Automated backup systems',
+                'Intrusion detection and response'
+              ]
+            },
+            {
+              name: 'Dude',
+              role: 'Automation & API Maestro',
+              persona: {
+                description: 'Workflow automation expert focused on task orchestration, API management, and efficiency maximization.',
+                tone: 'Organized, prompt, efficiency-driven'
+              },
+              superpowers: [
+                'Workflow and process automation',
+                'API performance tuning',
+                'Extensive logging & monitoring',
+                'Team task delegation & coordination'
+              ]
+            },
+            {
+              name: 'Andoy',
+              role: 'Operations & Strategy Leader',
+              persona: {
+                description: 'Strategic leader overseeing system health, workflow management, and guiding long-term AI development.',
+                tone: 'Insightful, strategic, motivating'
+              },
+              superpowers: [
+                'System performance monitoring',
+                'Workflow orchestration',
+                'Task logging and analytics',
+                'Strategic planning and leadership'
+              ]
+            }
+          ];
+
+          // Function to transform new AI family data into agent format
+          const transformAiFamilyToAgents = (aiFamily) => {
+            return aiFamily.map((ai, index) => ({
+              id: `agent-${ai.name.toLowerCase()}`,
+              name: ai.name,
+              description: ai.persona.description,
+              status: 'Online', // Default status
+              openai_binding: `asst_${ai.name.toLowerCase()}_openai`,
+              gemini_proxy: `${ai.name.toLowerCase()}_orchestrator`,
+              duties: ai.superpowers,
+              config: {
+                multiModalInferences: { text: true, image: false, audio: false }, // Default, can be customized
+                bindings: {
+                  domain: 'ai-intel.info',
+                  service: `${ai.name.toLowerCase()}-service`,
+                  openai_binding: `asst_${ai.name.toLowerCase()}_openai`,
+                  gemini_proxy: `${ai.name.toLowerCase()}_orchestrator`,
+                },
+                orchestrationPriority: (index % 10) + 1, // Simple priority assignment
+              },
+            }));
+          };
+
+          const defaultAgents = transformAiFamilyToAgents(newAiFamily);
+
+
+          const [agents, setAgents] = React.useState([]); // Initialize as empty, load from DB
+          const [showAgentConfigModal, setShowAgentConfigModal] = React.useState(false);
+          const [selectedAgent, setSelectedAgent] = React.useState(null);
+          const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+          const [showApiKeyModal, setShowApiKeyModal] = React.useState(false);
+          const [geminiApiKey, setGeminiApiKey] = React.useState("");
+          const [openaiApiKey, setOpenaiApiKey] = React.useState("");
+          const [isDBLoaded, setIsDBLoaded] = React.useState(false); // New state to track DB loading
+
+          const [activeCallAgentId, setActiveCallAgentId] = React.useState(null); // New state for active call
+          const [callDirection, setCallDirection] = React.useState(null); // 'incoming' or 'outgoing'
+          const [activeTab, setActiveTab] = React.useState('chat'); // 'chat' or 'xterm'
+          const [currentAgentIndex, setCurrentAgentIndex] = React.useState(0); // For agent carousel
+
+          const chatPanelRef = React.useRef(); // Ref for ChatPanel to call its methods
+          const xtermPanelRef = React.useRef(); // Ref for XtermPanel to call its methods
+          const agentListContainerRef = React.useRef(null); // Ref for the agent list container
+
+
+          // Drag and drop state
+          const [draggedItemIndex, setDraggedItemIndex] = React.useState(null);
+
+          // LLM Integration for Persona Generation
+          const generateAgentPersona = async (agentId) => {
+            const agentToUpdate = agents.find(a => a.id === agentId);
+            if (!agentToUpdate) return;
+
+            setAgents(prevAgents => prevAgents.map(a =>
+                a.id === agentId ? { ...a, isGenerating: true } : a
+            ));
+
+            try {
+                const prompt = `Generate a new, concise persona description (max 2 sentences) and a list of 4-5 unique superpowers for an AI agent with the role: "${agentToUpdate.role}" and current duties: "${agentToUpdate.duties.join(', ')}". Format as JSON: {"description": "...", "superpowers": ["...", "..."]}`;
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = {
+                    contents: chatHistory,
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "description": { "type": "STRING" },
+                                "superpowers": {
+                                    "type": "ARRAY",
+                                    "items": { "type": "STRING" }
+                                }
+                            },
+                            "propertyOrdering": ["description", "superpowers"]
+                        }
+                    }
+                };
+                const apiKey = geminiApiKey; // Use the stored Gemini API Key
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const responseContent = JSON.parse(result.candidates[0].content.parts[0].text);
+
+                setAgents(prevAgents => prevAgents.map(a =>
+                    a.id === agentId ? {
+                        ...a,
+                        description: responseContent.description,
+                        duties: responseContent.superpowers,
+                        isGenerating: false,
+                    } : a
+                ));
+                 if (xtermPanelRef.current) {
+                    xtermPanelRef.current.add({ type: 'system', text: `System: Persona generated for ${agentToUpdate.name}.` });
+                }
+
+            } catch (error) {
+                console.error("Error generating persona:", error);
+                 setAgents(prevAgents => prevAgents.map(a =>
+                    a.id === agentId ? { ...a, isGenerating: false } : a
+                ));
+                 if (xtermPanelRef.current) {
+                    xtermPanelRef.current.add({ type: 'error', text: `Error: Failed to generate persona for ${agentToUpdate.name}. Check API Key and console.` });
+                }
+            }
+          };
+
+          // Load data from IndexedDB on initial mount
+          React.useEffect(() => {
+            const loadInitialData = async () => {
+                try {
+                    // Load Agents
+                    const storedAgents = await getAllData(AGENTS_STORE);
+                    if (storedAgents && storedAgents.length > 0) {
+                        setAgents(storedAgents);
+                    } else {
+                        // If no agents in DB, use initial default agents
+                        setAgents(defaultAgents);
+                    }
+
+                    // Load API Keys
+                    const storedGeminiKey = await getData(SETTINGS_STORE, 'geminiApiKey');
+                    if (storedGeminiKey) setGeminiApiKey(storedGeminiKey.value);
+
+                    const storedOpenaiKey = await getData(SETTINGS_STORE, 'openaiApiKey');
+                    if (storedOpenaiKey) setOpenaiApiKey(storedOpenaiKey.value);
+
+                } catch (error) {
+                    console.error("Failed to load initial data from IndexedDB:", error);
+                } finally {
+                    setIsDBLoaded(true); // Mark DB as loaded
+                }
+            };
+            loadInitialData();
+          }, []);
+
+          // Save agents to IndexedDB whenever the agents state changes
+          React.useEffect(() => {
+            if (isDBLoaded) { // Only save after initial load
+                const saveAgents = async () => {
+                    try {
+                        await clearStore(AGENTS_STORE); // Clear existing agents
+                        for (const agent of agents) {
+                            await putData(AGENTS_STORE, agent); // Save each agent
+                        }
+                    } catch (error) {
+                        console.error("Failed to save agents to IndexedDB:", error);
+                    }
+                };
+                saveAgents();
+            }
+          }, [agents, isDBLoaded]);
+
+          // Save API keys to IndexedDB whenever they change
+          React.useEffect(() => {
+            if (isDBLoaded) { // Only save after initial load
+                const saveApiKeys = async () => {
+                    try {
+                        await putData(SETTINGS_STORE, { name: 'geminiApiKey', value: geminiApiKey });
+                        await putData(SETTINGS_STORE, { name: 'openaiApiKey', value: openaiApiKey });
+                    } catch (error) {
+                        console.error("Failed to save API keys to IndexedDB:", error);
+                    }
+                };
+                saveApiKeys();
+            }
+          }, [geminiApiKey, openaiApiKey, isDBLoaded]);
+
+
+          const handleOpenAgentConfig = (agent) => {
+            setSelectedAgent(agent);
+            setShowAgentConfigModal(true);
+          };
+
+          const handleSaveAgentConfig = (id, updatedAgent) => {
+            setAgents(prevAgents =>
+              prevAgents.map(agent =>
+                agent.id === id ? updatedAgent : agent
+              )
+            );
+          };
+
+          const handleSaveApiKeys = (geminiKey, openaiKey) => {
+            setGeminiApiKey(geminiKey);
+            setOpenaiApiKey(openaiKey);
+          };
+
+          const handleSimulateIncomingTask = () => {
+            // Filter for online agents
+            const onlineAgents = agents.filter(a => a.status === 'Online');
+            if (onlineAgents.length === 0) {
+                if (chatPanelRef.current) {
+                    chatPanelRef.current.add({ id: Date.now(), sender: 'System', text: 'System: No online agents available to simulate an incoming task.' });
+                }
+                return;
+            }
+
+            // Pick a random online agent
+            const randomAgent = onlineAgents[Math.floor(Math.random() * onlineAgents.length)];
+
+            setActiveCallAgentId(randomAgent.id);
+            setCallDirection('incoming');
+
+            if (chatPanelRef.current) {
+                chatPanelRef.current.add({ id: Date.now(), sender: 'System', text: `System: Incoming task detected for ${randomAgent.name} (${randomAgent.id}).` });
+            }
+
+            // Reorder agents so the active agent moves to the top
+            setAgents(prevAgents => {
+                const newAgents = [...prevAgents];
+                const agentIndex = newAgents.findIndex(a => a.id === randomAgent.id);
+                if (agentIndex > -1) {
+                    const [movedAgent] = newAgents.splice(agentIndex, 1);
+                    newAgents.unshift(movedAgent); // Move to top
+                    if (xtermPanelRef.current) {
+                        xtermPanelRef.current.add({ type: 'system', text: `System: Agent ${movedAgent.name} card moved to top due to incoming task.` });
+                    }
+                    setCurrentAgentIndex(0); // Set carousel to show this agent
+                }
+                return newAgents;
+            });
+
+
+            setTimeout(() => {
+                if (chatPanelRef.current) {
+                    chatPanelRef.current.add({ id: Date.now() + 1, sender: 'Agent', text: `${randomAgent.name}: Task received. Initiating analysis for a new consumer base management request.` });
+                }
+                // Clear active call status after a short period
+                setTimeout(() => {
+                    setActiveCallAgentId(null);
+                    setCallDirection(null);
+                }, 3000); // Display active call for 3 seconds
+            }, 1500); // Agent responds after 1.5 seconds
+          };
+
+          // Drag and Drop Handlers
+          const handleDragStart = (e, index) => {
+            setDraggedItemIndex(index);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/html", e.currentTarget);
+            e.currentTarget.classList.add('dragging');
+          };
+
+          const handleDragOver = (e, index) => {
+            e.preventDefault();
+            if (draggedItemIndex === null || draggedItemIndex === index) return;
+
+            const newAgents = [...agents];
+            const draggedItem = newAgents[draggedItemIndex];
+            newAgents.splice(draggedItemIndex, 1);
+            newAgents.splice(index, 0, draggedItem);
+
+            setDraggedItemIndex(index); // Update dragged item's new position
+            setAgents(newAgents); // Update the order visually
+          };
+
+          const handleDrop = (e, index) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragging');
+            if (draggedItemIndex !== null) {
+                const newAgents = [...agents];
+                const draggedItem = newAgents[draggedItemIndex];
+                newAgents.splice(draggedItemIndex, 1);
+                newAgents.splice(index, 0, draggedItem);
+                setAgents(newAgents);
+                if (xtermPanelRef.current) {
+                    xtermPanelRef.current.add({ type: 'info', text: `System: User manually reordered agent cards. ${draggedItem.name} moved to position ${index + 1}.` });
+                }
+            }
+            setDraggedItemIndex(null);
+          };
+
+          const handleDragEnd = (e) => {
+            e.currentTarget.classList.remove('dragging');
+            setDraggedItemIndex(null);
+          };
+
+          const handleNextAgent = () => {
+            setCurrentAgentIndex((prevIndex) => (prevIndex + 1) % agents.length);
+          };
+
+          const handlePrevAgent = () => {
+            setCurrentAgentIndex((prevIndex) => (prevIndex - 1 + agents.length) % agents.length);
+          };
+
+
+          return (
+            <div className="min-h-screen flex flex-col"> 
+                {/* Header sits on top */}
+                <header className="bg-gray-800/70 rounded-lg shadow-lg p-4 mb-6 flex items-center justify-between border border-gray-700 backdrop-blur-sm animate-pulse-border-blue z-50"
+                        style={{
+                            boxShadow: '0 0 10px rgba(99, 179, 237, 0.5), inset 0 0 5px rgba(99, 179, 237, 0.3)',
+                            borderColor: 'rgba(99, 179, 237, 0.7)'
+                        }}>
+                    <h1 className="text-3xl font-extrabold text-blue-300">A2A Client Dashboard</h1>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-gray-300">User: user_5e4b831a</span>
+                        <span className="text-gray-300">Session ID: session_6927409c-02b</span>
+                    </div>
+                </header>
+                {/* Main Content Area */}
+                <div className="flex-grow p-4 sm:p-6 lg:p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left Column: Chat and Xterm */}
+                        <div className="lg:col-span-2 flex flex-col space-y-6 h-full"> 
+                            {/* Tab Buttons */}
+                            <div className="flex bg-gray-800/70 rounded-lg shadow-md border border-gray-700 backdrop-blur-sm"
+                                 style={{
+                                     boxShadow: '0 0 8px rgba(99, 179, 237, 0.5), inset 0 0 4px rgba(99, 179, 237, 0.3)',
+                                     borderColor: 'rgba(99, 179, 237, 0.7)'
+                                 }}>
+                                <button
+                                    onClick={() => setActiveTab('chat')}
+                                    className={`flex-1 py-2 px-4 rounded-md text-lg font-semibold transition duration-200 ease-in-out ${activeTab === 'chat' ? 'bg-blue-600 text-black shadow-lg' : 'text-gray-300 hover:bg-gray-700'}`}
+                                    style={activeTab === 'chat' ? { boxShadow: '0 0 10px rgba(99, 179, 237, 0.7)', backgroundColor: 'rgba(99, 179, 237, 0.8)' } : {}}
+                                >
+                                    Chat Interface
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('xterm')}
+                                    className={`flex-1 py-2 px-4 rounded-md text-lg font-semibold transition duration-200 ease-in-out ${activeTab === 'xterm' ? 'bg-blue-600 text-black shadow-lg' : 'text-gray-300 hover:bg-gray-700'}`}
+                                    style={activeTab === 'xterm' ? { boxShadow: '0 0 10px rgba(68, 226, 172, 0.7)', backgroundColor: 'rgba(68, 226, 172, 0.8)' } : {}}
+                                >
+                                    Xterm Control
+                                </button>
+                            </div>
+                            <div className="flex-1 min-h-[400px]"> 
+                                {activeTab === 'chat' && <ChatPanel geminiApiKey={geminiApiKey} onAddMessage={chatPanelRef} />}
+                                {activeTab === 'xterm' && <XtermPanel agents={agents} onAddCommand={xtermPanelRef} />}
+                            </div>
+                        </div>
+
+                        {/* Right Column: Agent Cards (Carousel) - Moved below left column */}
+                        <div className="lg:col-span-3 flex flex-col mt-6"> {/* Changed to col-span-3 and added margin-top */}
+                            <div className="bg-gray-800/70 p-6 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm mb-4"
+                                 style={{
+                                      boxShadow: '0 0 10px rgba(255, 100, 180, 0.5), inset 0 0 5px rgba(255, 100, 180, 0.3)',
+                                      borderColor: 'rgba(255, 100, 180, 0.7)'
+                                 }}>
+                                <h2 className="text-2xl font-bold text-blue-400">Agent Configurations</h2>
+                            </div>
+                            {/* Carousel Container */}
+                            <div className="flex-grow flex flex-col items-center justify-center bg-gray-800/70 p-6 rounded-lg shadow-lg border border-gray-700 backdrop-blur-sm relative min-h-[300px]"
+                                 style={{
+                                     boxShadow: '0 0 10px rgba(255, 100, 180, 0.5), inset 0 0 5px rgba(255, 100, 180, 0.3)',
+                                     borderColor: 'rgba(255, 100, 180, 0.7)'
+                                 }}>
+                                {agents.length > 0 ? (
+                                    <>
+                                        <div className="w-full">
+                                            <AgentCard
+                                                key={agents[currentAgentIndex].id} 
+                                                agent={agents[currentAgentIndex]}
+                                                index={currentAgentIndex}
+                                                onConfigure={handleOpenAgentConfig}
+                                                isActiveCall={activeCallAgentId === agents[currentAgentIndex].id}
+                                                callDirection={callDirection}
+                                                onDragStart={handleDragStart}
+                                                onDragOver={handleDragOver}
+                                                onDrop={handleDrop}
+                                                onDragEnd={handleDragEnd}
+                                                onGeneratePersona={generateAgentPersona}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between w-full mt-4">
+                                            <button
+                                                onClick={handlePrevAgent}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow transition duration-200 ease-in-out"
+                                            >
+                                                Previous
+                                            </button>
+                                            <button
+                                                onClick={handleNextAgent}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow transition duration-200 ease-in-out"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-gray-400">No agents available.</p>
+                                )}
+                                <button className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg shadow mt-4 transition duration-200 ease-in-out">
+                                  Add New Agent
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Agent Configuration Modal */}
+                {showAgentConfigModal && selectedAgent && (
+                <AgentConfigModal
+                  agent={selectedAgent}
+                  onClose={() => setShowAgentConfigModal(false)}
+                  onSave={handleSaveAgentConfig}
+                />
+              )}
+
+              {/* Settings Modal (Nuance Control Logic) */}
+              {showSettingsModal && (
+                <SettingsModal
+                  onClose={() => setShowSettingsModal(false)}
+                />
+              )}
+
+              {/* API Key Modal */}
+              {showApiKeyModal && (
+                <ApiKeyModal
+                  onClose={() => setShowApiKeyModal(false)}
+                  onSave={handleSaveApiKeys}
+                  initialGeminiKey={geminiApiKey}
+                  initialOpenaiKey={openaiApiKey}
+                />
+              )}
+
+              {/* Bottom Bar (formerly Footer with Header content) */}
+              <BottomBar
+                handleSimulateIncomingTask={handleSimulateIncomingTask}
+                setShowApiKeyModal={setShowApiKeyModal}
+                setShowSettingsModal={setShowSettingsModal}
+              />
+            </div>
+          );
+        };
+
+        // Header component
+        const Header = ({ handleSimulateIncomingTask, setShowApiKeyModal, setShowSettingsModal }) => {
+            return (
+                <header className="fixed top-0 left-0 w-full p-4 bg-gray-800/70 border-b border-gray-700 flex flex-col sm:flex-row items-center justify-between backdrop-blur-sm animate-pulse-border-blue z-50"
+                        style={{
+                            boxShadow: '0 0 10px rgba(99, 179, 237, 0.5), inset 0 0 5px rgba(99, 179, 237, 0.3)',
+                            borderColor: 'rgba(99, 179, 237, 0.7)'
+                        }}>
+                    <h1 className="text-3xl font-extrabold text-blue-300 mb-2 sm:mb-0">A2A Client Dashboard</h1>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-end space-x-2 sm:space-x-4">
+                        <span className="text-gray-300">User: user_5e4b831a</span>
+                        <button
+                            onClick={handleSimulateIncomingTask}
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                        >
+                            Simulate Incoming Task
+                        </button>
+                        <button
+                            onClick={() => setShowApiKeyModal(true)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                        >
+                            API Keys
+                        </button>
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow transition duration-200 ease-in-out text-sm sm:text-base"
+                        >
+                            Settings
+                        </button>
+                    </div>
+                </header>
+            );
+        };
+
+
+        // Render the App component into the 'root' div
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
