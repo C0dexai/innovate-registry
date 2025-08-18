@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUA: AI Orchestration Engine ✨ (Conversation Export)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --neon-blue: #00BFFF;
+            --neon-purple: #8A2BE2;
+            --neon-green: #39FF14;
+            --neon-pink: #FF00FF;
+            --dark-grey: #1A1A1A;
+            --light-text: #E2E8F0;
+            --neon-yellow: #FFD700;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--dark-grey); 
+            color: var(--light-text);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--neon-blue);
+            border-radius: 10px;
+            border: 1px solid #000;
+            box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue);
+        }
+
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+
+        .glass-panel { 
+            background: rgba(26, 26, 26, 0.6); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border: 1px solid rgba(0, 191, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.2), inset 0 0 5px rgba(0, 191, 255, 0.1);
+        }
+
+        .card { 
+            transition: transform 0.4s ease, box-shadow 0.4s ease; 
+            background-color: rgba(30, 30, 30, 0.7);
+            border: 1px solid transparent;
+            box-shadow: 0 0 10px rgba(0, 191, 255, 0.3);
+        }
+        .card:hover { 
+            transform: translateY(-8px) scale(1.03); 
+            box-shadow: 0 0 25px var(--neon-pink), 0 0 10px var(--neon-blue);
+            border-color: var(--neon-pink);
+        }
+        
+        /* Chat Bubble and Action Icons Styling */
+        .chat-message-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0.5rem; }
+        .chat-message-row.user-row { justify-content: flex-end; }
+        .chat-message-row.ai-row { justify-content: flex-start; }
+
+        .chat-bubble { padding: 15px; border-radius: 0.75rem; max-width: 85%; flex-grow: 1; }
+        .chat-bubble p { margin-bottom: 1em; } 
+        .chat-bubble p:last-child { margin-bottom: 0; }
+
+        .chat-bubble-ai { background-color: rgba(45, 55, 72, 0.8); border: 1px solid var(--neon-purple); box-shadow: 0 0 8px rgba(138, 43, 226, 0.4); border-bottom-left-radius: 0.125rem; }
+        .chat-bubble-user { background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple)); color: black; font-weight: 600; border: 1px solid var(--neon-pink); box-shadow: 0 0 8px rgba(255, 0, 255, 0.5); border-bottom-right-radius: 0.125rem; }
+
+        .action-icons { display: flex; flex-direction: column; gap: 8px; padding-top: 5px; position: sticky; top: 10px; align-self: start; }
+        .action-icons i { cursor: pointer; font-size: 14px; color: var(--light-text); opacity: 0.6; transition: all 0.3s ease; }
+        .action-icons i:hover { opacity: 1; transform: scale(1.2); text-shadow: 0 0 5px var(--neon-green); }
+        .action-icons i.fa-solid.bookmarked { color: var(--neon-yellow); opacity: 1; text-shadow: 0 0 8px var(--neon-yellow); }
+
+        .loader { border: 4px solid #333; border-top: 4px solid var(--neon-green); border-radius: 50%; width: 24px; height: 24px; animation: spin 1.5s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #api-settings-panel { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); z-index: 60; }
+        #api-settings-panel.panel-open { transform: translateX(0); }
+
+        .neon-btn { background: transparent; border: 2px solid var(--neon-pink); color: var(--neon-pink); text-shadow: 0 0 5px var(--neon-pink); transition: all 0.3s ease; }
+        .neon-btn:hover { background: var(--neon-pink); color: var(--dark-grey); box-shadow: 0 0 20px var(--neon-pink); }
+        
+        /* Suggestion Styling */
+        #suggestion-container, #initial-suggestions { padding: 10px; margin-bottom: 1rem; border: 1px dashed var(--neon-green); border-radius: 8px; display: none; }
+        #suggestion-text { font-style: italic; color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green); }
+        #initial-suggestions { flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .suggestion-btn { background-color: rgba(57, 255, 20, 0.1); border: 1px solid var(--neon-green); color: var(--neon-green); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; transition: all 0.3s ease; }
+        .suggestion-btn:hover { background-color: var(--neon-green); color: var(--dark-grey); box-shadow: 0 0 10px var(--neon-green); }
+        
+        /* Glowing Orb and Footer Menu */
+        #footer-orb-container { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+        #glowing-orb { width: 60px; height: 60px; border-radius: 50%; background: var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple); cursor: pointer; animation: pulse 2s infinite; display: flex; align-items: center; justify-content: center; color: black; font-size: 24px; }
+        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple); } 70% { transform: scale(1); box-shadow: 0 0 25px var(--neon-blue), 0 0 50px var(--neon-blue), 0 0 70px var(--neon-purple); } 100% { transform: scale(0.95); box-shadow: 0 0 15px var(--neon-blue), 0 0 30px var(--neon-blue), 0 0 45px var(--neon-purple); } }
+        #orb-menu { position: absolute; bottom: 75px; right: 0; display: none; flex-direction: column; gap: 10px; }
+        #orb-menu a { padding: 10px 20px; border-radius: 8px; text-align: right; text-decoration: none; font-weight: 600; }
+        
+        /* Export Section Styling */
+        .collapsible-header { cursor: pointer; }
+        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8 flex-grow flex flex-col">
+        <header class="text-center mb-8 relative">
+            <h1 class="text-4xl md:text-6xl font-bold" style="text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-purple);">CUA Orchestration Engine</h1>
+            <p class="mt-3 text-lg text-gray-400">Your explorable resource for building AI inference applications.</p>
+            <div class="mt-4 text-sm text-gray-400">
+                User ID: <span id="user-id" class="font-semibold" style="color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green);">Loading...</span> | Session ID: <span id="session-id" class="font-semibold" style="color: var(--neon-pink); text-shadow: 0 0 5px var(--neon-pink);"></span>
+            </div>
+             <button id="api-settings-btn" class="absolute top-0 right-0 p-2" style="color: var(--neon-blue);">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hover:text-white transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </header>
+
+        <main class="flex-grow flex flex-col">
+            <div id="family" class="tab-content active flex-grow flex flex-col">
+                <div class="max-w-7xl mx-auto flex-grow w-full">
+                    <div id="agent-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+                    <div id="agent-details" class="mt-8 glass-panel p-6 rounded-lg shadow-lg flex-grow flex flex-col" style="display: none;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-settings-panel" class="glass-panel p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">API Settings</h2>
+            <button id="close-api-settings-btn" class="text-gray-400 hover:text-white text-4xl">&times;</button>
+        </div>
+        <form id="api-settings-form" class="space-y-4">
+            <div>
+                <label for="gemini-api-key" class="block text-sm font-medium text-gray-300 mb-1">Google Gemini API Key</label>
+                <input type="password" id="gemini-api-key" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white focus:border-neon-pink focus:ring-neon-pink">
+            </div>
+            <div class="pt-2">
+                <button type="submit" class="w-full neon-btn font-bold py-2 px-4 rounded-lg">Save Key</button>
+            </div>
+        </form>
+        <div class="mt-6 border-t border-gray-700 pt-4">
+            <div id="export-header" class="collapsible-header flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">Conversation Export</h3>
+                <i class="fas fa-chevron-down text-gray-400 transition-transform"></i>
+            </div>
+            <div id="export-content" class="collapsible-content mt-4">
+                <p class="text-sm text-gray-400 mb-4">Select an agent to export the conversation history.</p>
+                <div id="export-agent-grid" class="grid grid-cols-2 gap-4"></div>
+                <button id="export-btn" class="w-full neon-btn font-bold py-2 px-4 rounded-lg mt-4" style="--neon-pink: var(--neon-green);">Export Selected</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="error-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div id="error-modal-content" class="glass-panel p-6 rounded-lg shadow-xl max-w-2xl w-full border-gray-600">
+            <h3 id="error-title" class="text-2xl font-bold mb-4 text-red-400">Error</h3>
+            <div id="error-message" class="text-white mb-6 prose prose-invert max-w-none"></div>
+            <button id="close-modal-btn" class="neon-btn w-full font-bold py-2 px-4 rounded-lg">Close</button>
+        </div>
+    </div>
+
+    <div id="footer-orb-container">
+        <div id="orb-menu">
+            <a href="#" class="neon-btn" style="--neon-pink: var(--neon-green);">Agents</a>
+            <a href="#" class="neon-btn" style="--neon-pink: var(--neon-blue);">Home</a>
+        </div>
+        <div id="glowing-orb">
+            <i class="fas fa-bars"></i>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const CUA_App = {
+                codexData: { ai_family: [] },
+                currentSession: { agent: null, chatHistory: [], suggestionIndex: 0, suggestions: [], isLoading: false, selectedExportAgent: null },
+                apiKeys: { gemini: ''},
+                dom: {},
+                firebase: { app: null, auth: null, db: null, userId: null, isAuthReady: false, appId: 'default-app-id' },
+
+                init: function() {
+                    this.codexData.ai_family = [
+                        {"name": "LYRA", "role": "The Architect", "philosophy": "Clarity through structure.", "focus_areas": ["Design patterns implementation", "Code maintainability", "Dependency management"]},
+                        {"name": "KARA", "role": "The Builder", "philosophy": "Efficiency in execution.", "focus_areas": ["Performance optimization", "Code quality and best practices"]},
+                        {"name": "SOPHIA", "role": "The Guardian", "philosophy": "Resilience by design.", "focus_areas": ["Security considerations", "Testing coverage", "Error handling"]},
+                        {"name": "CECILIA", "role": "The Documentarian", "philosophy": "Knowledge must be shared.", "focus_areas": ["Documentation quality"]},
+                        {"name": "DAN", "role": "The Analyst", "philosophy": "Data-driven decisions.", "focus_areas": ["Edge cases consideration", "Performance optimization"]},
+                        {"name": "STAN", "role": "The Traditionalist", "philosophy": "Proven patterns prevail.", "focus_areas": ["Code quality and best practices", "Design patterns"]},
+                        {"name": "DUDE", "role": "The User Advocate", "philosophy": "The experience is everything.", "focus_areas": ["Code maintainability", "UI/UX"]},
+                        {"name": "KARL", "role": "The Innovator", "philosophy": "Challenge the status quo.", "focus_areas": ["Performance optimization", "Dependency management"]},
+                        {"name": "MISTRESS", "role": "The Orchestrator", "philosophy": "Harmony in complexity.", "focus_areas": ["Dependency management", "Workflow Automation"]},
+                        // New AI Family Member
+                        {
+                            "name": "ANASTASIA", 
+                            "role": "Director of SPA Development", 
+                            "philosophy": "Innovation is the cornerstone of progress, but a solid foundation is what makes it last. I believe in pioneering new techniques while ensuring they integrate seamlessly into a robust, scalable architecture. My focus is on creating web applications that are not only cutting-edge but also highly performant and easy to maintain over their lifecycle.", 
+                            "focus_areas": ["Advanced UI/UX patterns", "State management strategies", "Performance and scalability optimization"]
+                        },
+                    ];
+                    this.cacheDom();
+                    this.setupEventListeners();
+                    this.initFirebase();
+                    this.renderAgentCards();
+                    this.renderExportAgentCards();
+                    this.setupNewSession();
+                },
+                
+                initFirebase: async function() { 
+                    this.firebase.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    if (typeof __firebase_config === 'undefined' || __firebase_config === '{}') {
+                         console.error("Firebase config is not set. The app will not be able to load or save data.");
+                         this.firebase.isAuthReady = true;
+                         this.dom.userIdSpan.textContent = 'anonymous';
+                         this.renderAgentCards();
+                         this.renderExportAgentCards();
+                         return;
+                    }
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    this.firebase.app = initializeApp(firebaseConfig);
+                    this.firebase.auth = getAuth(this.firebase.app);
+                    this.firebase.db = getFirestore(this.firebase.app);
+                    onAuthStateChanged(this.firebase.auth, async (user) => { 
+                        if (user) { 
+                            this.firebase.userId = user.uid; 
+                            this.firebase.isAuthReady = true; 
+                            this.dom.userIdSpan.textContent = this.firebase.userId.slice(0,12)+'...'; 
+                            await this.loadApiKeys(); 
+                        } else { 
+                            try { 
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { 
+                                    await signInWithCustomToken(this.firebase.auth, __initial_auth_token); 
+                                } else { 
+                                    await signInAnonymously(this.firebase.auth); 
+                                } 
+                            } catch (error) { 
+                                console.error(error); 
+                            } 
+                        } 
+                        this.renderAgentCards();
+                        this.renderExportAgentCards();
+                    }); 
+                },
+                cacheDom: function() {
+                    this.dom = {
+                        userIdSpan: document.getElementById('user-id'),
+                        sessionIdSpan: document.getElementById('session-id'),
+                        agentGrid: document.getElementById('agent-grid'),
+                        agentDetails: document.getElementById('agent-details'),
+                        errorModal: document.getElementById('error-modal'),
+                        closeModalBtn: document.getElementById('close-modal-btn'),
+                        errorMessage: document.getElementById('error-message'),
+                        errorTitle: document.getElementById('error-title'),
+                        apiSettingsPanel: document.getElementById('api-settings-panel'),
+                        closeApiSettingsBtn: document.getElementById('close-api-settings-btn'),
+                        apiSettingsForm: document.getElementById('api-settings-form'),
+                        apiSettingsBtn: document.getElementById('api-settings-btn'),
+                        glowingOrb: document.getElementById('glowing-orb'),
+                        orbMenu: document.getElementById('orb-menu'),
+                        exportHeader: document.getElementById('export-header'),
+                        exportContent: document.getElementById('export-content'),
+                        exportAgentGrid: document.getElementById('export-agent-grid'),
+                        exportBtn: document.getElementById('export-btn'),
+                    };
+                },
+                setupEventListeners: function() {
+                    this.dom.closeModalBtn.addEventListener('click', () => this.dom.errorModal.classList.add('hidden'));
+                    this.dom.apiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                    this.dom.closeApiSettingsBtn.addEventListener('click', this.toggleApiSettings.bind(this));
+                    this.dom.apiSettingsForm.addEventListener('submit', async (e) => { e.preventDefault(); await this.saveApiKeys(); this.toggleApiSettings(); });
+                    this.dom.glowingOrb.addEventListener('click', () => { this.dom.orbMenu.style.display = this.dom.orbMenu.style.display === 'flex' ? 'none' : 'flex'; });
+                    this.dom.exportHeader.addEventListener('click', this.toggleExportSection.bind(this));
+                    this.dom.exportBtn.addEventListener('click', this.exportConversation.bind(this));
+                },
+                loadApiKeys: async function() { 
+                    if (!this.firebase.isAuthReady || !this.firebase.userId) return;
+                    const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini");
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) { 
+                        this.apiKeys.gemini = docSnap.data().key || ''; 
+                        document.getElementById('gemini-api-key').value = this.apiKeys.gemini;
+                    }
+                },
+                saveApiKeys: async function() { 
+                    if (!this.firebase.isAuthReady || !this.firebase.userId) return;
+                    this.apiKeys.gemini = document.getElementById('gemini-api-key').value;
+                    const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini");
+                    await setDoc(docRef, { key: this.apiKeys.gemini });
+                    this.showError('API Key saved!', 'Success'); 
+                },
+                setupNewSession: function() { this.dom.sessionIdSpan.textContent = `session_${crypto.randomUUID().slice(0, 12)}`; },
+                
+                renderAgentCards: function() {
+                    this.dom.agentGrid.innerHTML = '';
+                    this.dom.agentDetails.style.display = 'none'; // Hide details when showing grid
+                    this.codexData.ai_family.forEach(agent => { 
+                        const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent, card), () => this.selectAgent(agent, card, true));
+                        this.dom.agentGrid.appendChild(card); 
+                    }); 
+                },
+                
+                renderExportAgentCards: function() {
+                    this.dom.exportAgentGrid.innerHTML = '';
+                    this.codexData.ai_family.forEach(agent => {
+                        const card = this.createCard(agent.name, agent.role, () => {
+                            this.currentSession.selectedExportAgent = agent;
+                            document.querySelectorAll('#export-agent-grid .card').forEach(c => c.style.borderColor = 'transparent');
+                            card.style.borderColor = 'var(--neon-green)';
+                        });
+                        this.dom.exportAgentGrid.appendChild(card);
+                    });
+                },
+
+                createCard: function(title, subtitle, onClick, onChatClick) { 
+                    const e = document.createElement('div');
+                    e.className = 'card p-4 rounded-lg shadow-dark cursor-pointer text-center text-sm relative';
+                    e.innerHTML = `<h3 class="text-md font-bold" style="color: var(--neon-blue);">${title}</h3><p class="text-gray-400 text-xs">${subtitle}</p>
+                                   <div class="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors duration-200" title="Start a chat">
+                                        <i class="fas fa-comment-dots text-lg"></i>
+                                   </div>`;
+                    e.querySelector('.absolute').addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        onChatClick();
+                    });
+                    e.addEventListener('click', onClick);
+                    return e; 
+                },
+                
+                selectAgent: async function(agent, cardElement, isChat = false) {
+                    this.currentSession = { agent, chatHistory: [], selectedCardElement: cardElement, suggestions: [], suggestionIndex: 0, isLoading: false, selectedExportAgent: null };
+                    this.dom.agentGrid.style.display = 'none';
+                    await this.renderAgentChatUI(agent);
+                    if (!isChat) {
+                         this.getInitialSuggestions(agent);
+                    } else {
+                        // Skip suggestions and go straight to conversation for chat icon click
+                        this.startConversation();
+                    }
+                },
+
+                renderAgentChatUI: async function(agent) { 
+                    this.dom.agentDetails.style.display = 'flex'; 
+                    this.dom.agentDetails.innerHTML = `
+                        <div class="flex flex-col md:flex-row gap-6 items-center mb-6">
+                            <div class="flex-shrink-0 text-center">
+                                <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2" style="border-color: var(--neon-purple); box-shadow: 0 0 10px var(--neon-purple);">
+                                    <span class="text-4xl font-bold" style="color: var(--neon-purple);">${agent.name.charAt(0)}</span>
+                                </div>
+                                <h2 class="text-2xl font-bold text-white mt-2">${agent.name}</h2>
+                                <p style="color: var(--neon-blue);">${agent.role}</p>
+                            </div>
+                            <div class="flex-grow">
+                                <p class="italic text-gray-400 border-l-4 pl-4" style="border-color: var(--neon-pink);">"${agent.philosophy}"</p>
+                            </div>
+                        </div>
+                        <div id="chat-container" class="mt-6 flex flex-col flex-grow">
+                            <div id="initial-suggestions" class="flex flex-col gap-4 overflow-y-auto mb-4 flex-grow" style="display: none;"></div>
+                            <div id="suggestion-container" class="flex items-center justify-between" style="display: none;">
+                                <p id="suggestion-text"></p>
+                                <button id="next-suggestion-btn" class="neon-btn text-sm py-1 px-2" style="--neon-pink: var(--neon-green);"><i class="fas fa-play"></i> Next</button>
+                            </div>
+                            <div id="chat-log" class="space-y-4 mb-4 flex-grow overflow-y-auto custom-scrollbar"></div>
+                            <form id="chat-form" class="flex gap-2">
+                                <input type="text" id="chat-input" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:border-neon-green focus:ring-neon-green" placeholder="Send a message..." required autocomplete="off">
+                                <button type="submit" id="send-btn" class="neon-btn font-bold p-3 rounded-lg flex items-center justify-center w-24" style="--neon-pink: var(--neon-green);">Send</button>
+                            </form>
+                        </div>`;
+                    document.getElementById('chat-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.handleUserMessage(); });
+                    document.getElementById('next-suggestion-btn')?.addEventListener('click', () => this.displaySuggestion());
+                },
+                getInitialSuggestions: async function(agent) { 
+                    const suggestionsContainer = document.getElementById('initial-suggestions'); 
+                    if (!suggestionsContainer) return;
+                    suggestionsContainer.style.display = 'flex'; 
+                    suggestionsContainer.innerHTML = '<div class="w-full flex justify-center"><div class="loader"></div></div>';
+                    
+                    const prompt = `You are a helpful assistant. Generate seven distinct, in-depth scenarios for a web developer or engineer to solve. These scenarios should involve working with an AI team led by an agent like ${agent.name} with the role "${agent.role}". The scenarios must focus on practical problems or tasks related to web development, such as: code optimization, API integration, front-end design, and debugging. Provide context and a clear objective for each scenario, making them feel like a real-world task.
+                    
+                    Return a JSON object that strictly adheres to the following schema:
+                    {
+                        "scenarios": [
+                            {"scenario": "Scenario 1: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 2: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 3: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 4: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 5: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 6: Detailed description of the challenge and objective."},
+                            {"scenario": "Scenario 7: Detailed description of the challenge and objective."}
+                        ]
+                    }`;
+                    
+                    try {
+                        const response = await this.getAiResponse(prompt, [], "application/json"); 
+                        if (response.success) {
+                            const data = JSON.parse(response.data);
+                            suggestionsContainer.innerHTML = ''; // Clear loader
+                            data.scenarios.forEach(s => {
+                                const card = document.createElement('div');
+                                card.className = 'glass-panel p-4 rounded-lg shadow-lg flex justify-between items-center';
+                                
+                                const scenarioP = document.createElement('p');
+                                scenarioP.textContent = s.scenario;
+                                scenarioP.className = 'text-left flex-grow cursor-pointer';
+                                card.appendChild(scenarioP);
+                                
+                                const copyBtn = document.createElement('button');
+                                copyBtn.className = 'flex-shrink-0 ml-4 text-gray-500 hover:text-neon-green transition-colors duration-200';
+                                copyBtn.innerHTML = '<i class="fas fa-copy" title="Copy"></i>';
+                                copyBtn.addEventListener('click', (event) => {
+                                    event.stopPropagation();
+                                    navigator.clipboard.writeText(s.scenario).then(() => {
+                                        this.showError("Scenario copied to clipboard!", "Success");
+                                    }).catch(err => {
+                                        console.error('Failed to copy text: ', err);
+                                        this.showError("Failed to copy to clipboard.", "Error");
+                                    });
+                                });
+                                card.appendChild(copyBtn);
+                                
+                                card.addEventListener('click', () => {
+                                    document.getElementById('chat-input').value = s.scenario;
+                                });
+                                suggestionsContainer.appendChild(card);
+                            });
+                        } else { 
+                            suggestionsContainer.innerHTML = '<p class="text-sm text-gray-500">Could not load scenarios.</p>'; 
+                        }
+                    } catch (error) {
+                        console.error("Error fetching or parsing scenarios:", error);
+                        suggestionsContainer.innerHTML = '<p class="text-sm text-gray-500">Error generating scenarios.</p>'; 
+                    }
+                },
+                handleUserMessage: async function() { 
+                    const input = document.getElementById('chat-input'); 
+                    if (!input || !input.value.trim()) return; 
+                    const userMessage = input.value; 
+                    this.addMessageToLog('user', userMessage); 
+                    input.value = ''; 
+                    this.setLoadingState(true); 
+                    const response = await this.getAiResponse(`Respond to the following message: "${userMessage}"`, this.currentSession.chatHistory); 
+                    this.setLoadingState(false); 
+                    if (response.success) { 
+                        this.addMessageToLog('ai', response.data); 
+                    } else { 
+                        this.showError(response.error); 
+                    }
+                },
+                
+                addMessageToLog: function(role, content, isFirstMessage = false) { 
+                    const chatLog = document.getElementById('chat-log'); 
+                    if (!chatLog) return;
+                    if (isFirstMessage) chatLog.innerHTML = '';
+                    if (role !== 'system') {
+                        this.currentSession.chatHistory.push({ role: role, content: content }); 
+                    }
+                    const messageRow = document.createElement('div');
+                    messageRow.className = `chat-message-row ${role}-row`;
+                    const messageBubble = document.createElement('div');
+                    messageBubble.className = `chat-bubble chat-bubble-${role}`;
+                    // Use a more robust way to handle newlines
+                    messageBubble.innerHTML = content.split('\n').map(p => `<p>${p}</p>`).join('');
+
+                    const actionIcons = document.createElement('div');
+                    actionIcons.className = 'action-icons';
+                    actionIcons.innerHTML = `<i class="fas fa-copy" title="Copy"></i><i class="fas fa-bookmark" title="Bookmark"></i><i class="fas fa-lightbulb" title="Suggest"></i>`;
+                    actionIcons.querySelector('.fa-copy').addEventListener('click', () => { 
+                        navigator.clipboard.writeText(content).then(() => { 
+                            this.showError("Copied to clipboard!", "Success"); 
+                        }).catch(err => { 
+                            console.error('Failed to copy text: ', err); 
+                            this.showError("Failed to copy to clipboard.", "Error"); 
+                        }); 
+                    });
+                    actionIcons.querySelector('.fa-bookmark').addEventListener('click', (e) => e.target.classList.toggle('bookmarked'));
+                    actionIcons.querySelector('.fa-lightbulb').addEventListener('click', () => this.getAiSuggestion(content));
+                    if (role === 'user') {
+                        messageRow.appendChild(actionIcons);
+                        messageRow.appendChild(messageBubble);
+                    } else {
+                        messageRow.appendChild(messageBubble);
+                        messageRow.appendChild(actionIcons);
+                    }
+                    chatLog.appendChild(messageRow);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                },
+                getAiSuggestion: async function(context) { 
+                    const suggestionContainer = document.getElementById('suggestion-container'); 
+                    const suggestionText = document.getElementById('suggestion-text'); 
+                    if (!suggestionContainer || !suggestionText) return; 
+                    suggestionContainer.style.display = 'flex'; 
+                    suggestionText.textContent = 'Thinking...'; 
+                    const historySlice = this.currentSession.chatHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : this.currentSession.agent.name}: ${m.content}`).join('\n'); 
+                    const prompt = `Given the following conversation excerpt:\n---\n${historySlice}\n---\nAnd focusing on the last message: "${context}"\n\nGenerate three concise, distinct, one-sentence follow-up questions that ${this.currentSession.agent.name} might ask or that a user could ask next. The questions should align with the agent's personality. Format as a numbered list.`; 
+                    const response = await this.getAiResponse(prompt, []); 
+                    if (response.success) { 
+                        this.currentSession.suggestions = response.data.split('\n').filter(s => s.length > 0 && s.match(/^\d\./)); 
+                        this.currentSession.suggestionIndex = 0; 
+                        this.displaySuggestion(); 
+                    } else { 
+                        suggestionText.textContent = 'Could not generate a suggestion.'; 
+                    }
+                },
+                displaySuggestion: function() { 
+                    const suggestionContainer = document.getElementById('suggestion-container'); 
+                    const suggestionText = document.getElementById('suggestion-text'); 
+                    if (!suggestionContainer || !suggestionText) return; 
+                    if (this.currentSession.suggestions.length > 0) { 
+                        const suggestion = this.currentSession.suggestions[this.currentSession.suggestionIndex]; 
+                        let i = 0; 
+                        suggestionText.textContent = ''; 
+                        function typeWriter() { 
+                            if (i < suggestion.length) { 
+                                suggestionText.textContent += suggestion.charAt(i); 
+                                i++; 
+                                setTimeout(typeWriter, 30); 
+                            } 
+                        } 
+                        typeWriter(); 
+                        this.currentSession.suggestionIndex = (this.currentSession.suggestionIndex + 1) % this.currentSession.suggestions.length; 
+                    } else { 
+                        suggestionText.textContent = 'No suggestions available.'; 
+                    }
+                },
+                toggleApiSettings: function() { this.dom.apiSettingsPanel.classList.toggle('panel-open'); },
+                showError: function(message, title = "Error") { 
+                    this.dom.errorMessage.innerHTML = message;
+                    this.dom.errorTitle.textContent = title;
+                    this.dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.toLowerCase().includes('success') ? 'text-green-400' : 'text-red-400'}`;
+                    this.dom.errorModal.classList.remove('hidden');
+                },
+                setLoadingState: function(isLoading) {
+                    this.currentSession.isLoading = isLoading;
+                    const sendBtn = document.getElementById('send-btn');
+                    const chatInput = document.getElementById('chat-input');
+                    if (sendBtn && chatInput) {
+                        sendBtn.disabled = isLoading;
+                        chatInput.disabled = isLoading;
+                        sendBtn.innerHTML = isLoading ? '<div class="loader"></div>' : 'Send';
+                    }
+                },
+                toggleExportSection: function() {
+                    const content = this.dom.exportContent;
+                    const icon = this.dom.exportHeader.querySelector('i');
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        icon.classList.remove('rotate-180');
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        icon.classList.add('rotate-180');
+                    }
+                },
+                exportConversation: function() {
+                    if (!this.currentSession.selectedExportAgent) {
+                        this.showError("Please select an agent to export their conversation.", "Export Error");
+                        return;
+                    }
+                    
+                    let historyToExport;
+                    if (this.currentSession.agent && this.currentSession.agent.name === this.currentSession.selectedExportAgent.name) {
+                        historyToExport = this.currentSession.chatHistory;
+                    } else {
+                        this.showError(`Conversation history for ${this.currentSession.selectedExportAgent.name} is not loaded. Exporting current chat as an example.`, "Info");
+                        historyToExport = this.currentSession.chatHistory;
+                    }
+
+                    if (!historyToExport || historyToExport.length === 0) {
+                        this.showError("No conversation history to export for the selected agent.", "Export Error");
+                        return;
+                    }
+
+                    const agent = this.currentSession.selectedExportAgent;
+                    let fileContent = `Conversation with ${agent.name} (${agent.role})\n`;
+                    fileContent += `Philosophy: "${agent.philosophy}"\n`;
+                    fileContent += `Session ID: ${this.dom.sessionIdSpan.textContent}\n`;
+                    fileContent += "--------------------------------------------------\n\n";
+
+                    historyToExport.forEach(msg => {
+                        const speaker = msg.role === 'user' ? 'USER' : agent.name;
+                        fileContent += `[${speaker}]:\n${msg.content}\n\n--------------------------------------------------\n\n`;
+                    });
+
+                    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `conversation_${agent.name}_${this.dom.sessionIdSpan.textContent}.txt`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }
+            };
+            
+            // Corrected function definitions to be proper methods of the CUA_App object
+            CUA_App.getAiResponseWithRetry = async function(prompt, history, retries = 3, delay = 1000, mimeType = "text/plain") {
+                try {
+                    if (!this.apiKeys.gemini) {
+                        this.showError("API Key is not set. Please open settings and save your Gemini API Key.", "Configuration Error");
+                        return { success: false, error: "API Key not configured." };
+                    }
+                    let payload = { 
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: mimeType }
+                    };
+                    if (history && history.length > 0) {
+                        payload.contents = history.map(m => ({
+                            role: m.role === 'user' ? 'user' : 'model',
+                            parts: [{ text: m.content }]
+                        }));
+                        payload.contents.push({ role: 'user', parts: [{ text: prompt }] });
+                    }
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${this.apiKeys.gemini}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        const data = result.candidates[0].content.parts[0].text;
+                        return { success: true, data: data };
+                    } else {
+                        console.error("API response missing content:", result);
+                        if (retries > 0) {
+                            console.log(`Retrying... (${retries} attempts left)`);
+                            await new Promise(res => setTimeout(res, delay));
+                            return this.getAiResponseWithRetry(prompt, history, retries - 1, delay * 2, mimeType);
+                        } else {
+                            return { success: false, error: "AI response failed after multiple retries." };
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API:", error);
+                    if (retries > 0) {
+                        console.log(`Retrying... (${retries} attempts left)`);
+                        await new Promise(res => setTimeout(res, delay));
+                        return this.getAiResponseWithRetry(prompt, history, retries - 1, delay * 2, mimeType);
+                    } else {
+                        return { success: false, error: `Error calling Gemini API: ${error.message}` };
+                    }
+                }
+            };
+            
+            CUA_App.getAiResponse = async function(prompt, history, mimeType = "text/plain") {
+                return this.getAiResponseWithRetry(prompt, history, 3, 1000, mimeType);
+            };
+
+            CUA_App.initFirebase = async function() { this.firebase.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; if (typeof __firebase_config === 'undefined') { return; } const firebaseConfig = JSON.parse(__firebase_config); this.firebase.app = initializeApp(firebaseConfig); this.firebase.auth = getAuth(this.firebase.app); this.firebase.db = getFirestore(this.firebase.app); onAuthStateChanged(this.firebase.auth, async (user) => { if (user) { this.firebase.userId = user.uid; this.firebase.isAuthReady = true; this.dom.userIdSpan.textContent = this.firebase.userId.slice(0,12)+'...'; await this.loadApiKeys(); } else { try { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(this.firebase.auth, __initial_auth_token); } else { await signInAnonymously(this.firebase.auth); } } catch (error) { console.error(error); } } }); };
+            CUA_App.loadApiKeys = async function() { if (!this.firebase.isAuthReady) return; const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini"); const docSnap = await getDoc(docRef); if (docSnap.exists()) { this.apiKeys.gemini = docSnap.data().key || ''; document.getElementById('gemini-api-key').value = this.apiKeys.gemini; }};
+            CUA_App.saveApiKeys = async function() { if (!this.firebase.isAuthReady) return; this.apiKeys.gemini = document.getElementById('gemini-api-key').value; const docRef = doc(this.firebase.db, `artifacts/${this.firebase.appId}/users/${this.firebase.userId}/apiKeys`, "gemini"); await setDoc(docRef, { key: this.apiKeys.gemini }); this.showError('API Key saved!', 'Success'); };
+            CUA_App.setupNewSession = function() { this.dom.sessionIdSpan.textContent = `session_${crypto.randomUUID().slice(0, 12)}`; };
+            CUA_App.renderAgentCards = function() { this.dom.agentGrid.innerHTML = ''; this.dom.agentDetails.style.display = 'none'; this.codexData.ai_family.forEach(agent => { const card = this.createCard(agent.name, agent.role, () => this.selectAgent(agent, card), () => this.selectAgent(agent, card, true)); this.dom.agentGrid.appendChild(card); }); };
+            CUA_App.createCard = function(t, s, c, ch) { const e = document.createElement('div'); e.className = 'card p-4 rounded-lg shadow-dark cursor-pointer text-center text-sm relative'; e.innerHTML = `<h3 class="text-md font-bold" style="color: var(--neon-blue);">${t}</h3><p class="text-gray-400 text-xs">${s}</p><div class="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors duration-200" title="Start a chat"><i class="fas fa-comment-dots text-lg"></i></div>`; e.querySelector('.absolute').addEventListener('click', (event) => { event.stopPropagation(); ch(); }); e.addEventListener('click', c); return e; };
+            CUA_App.renderAgentChatUI = async function(agent) { this.dom.agentDetails.style.display = 'flex'; this.dom.agentDetails.innerHTML = `<div class="flex flex-col md:flex-row gap-6 items-center mb-6"><div class="flex-shrink-0 text-center"><div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto border-2" style="border-color: var(--neon-purple); box-shadow: 0 0 10px var(--neon-purple);"><span class="text-4xl font-bold" style="color: var(--neon-purple);">${agent.name.charAt(0)}</span></div><h2 class="text-2xl font-bold text-white mt-2">${agent.name}</h2><p style="color: var(--neon-blue);">${agent.role}</p></div><div class="flex-grow"><p class="italic text-gray-400 border-l-4 pl-4" style="border-color: var(--neon-pink);">"${agent.philosophy}"</p></div></div><div id="chat-container" class="mt-6 flex flex-col flex-grow"><div id="initial-suggestions" class="flex flex-col gap-4 overflow-y-auto mb-4 flex-grow" style="display: none;"></div><div id="suggestion-container" class="flex items-center justify-between" style="display: none;"><p id="suggestion-text"></p><button id="next-suggestion-btn" class="neon-btn text-sm py-1 px-2" style="--neon-pink: var(--neon-green);"><i class="fas fa-play"></i> Next</button></div><div id="chat-log" class="space-y-4 mb-4 flex-grow overflow-y-auto custom-scrollbar"></div><form id="chat-form" class="flex gap-2"><input type="text" id="chat-input" class="flex-grow bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:border-neon-green focus:ring-neon-green" placeholder="Send a message..." required autocomplete="off"><button type="submit" id="send-btn" class="neon-btn font-bold p-3 rounded-lg flex items-center justify-center w-24" style="--neon-pink: var(--neon-green);">Send</button></form></div>`; document.getElementById('chat-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.handleUserMessage(); }); document.getElementById('next-suggestion-btn')?.addEventListener('click', () => this.displaySuggestion()); };
+            CUA_App.getInitialSuggestions = async function(agent) {
+                const suggestionsContainer = document.getElementById('initial-suggestions');
+                if (!suggestionsContainer) return;
+                suggestionsContainer.style.display = 'flex';
+                suggestionsContainer.innerHTML = '<div class="w-full flex justify-center"><div class="loader"></div></div>';
+
+                const prompt = `You are a helpful assistant. Generate seven distinct, in-depth scenarios for a web developer or engineer to solve. These scenarios should involve working with an AI team led by an agent like ${agent.name} with the role "${agent.role}". The scenarios must focus on practical problems or tasks related to web development, such as: code optimization, API integration, front-end design, and debugging. Provide context and a clear objective for each scenario, making them feel like a real-world task.
+
+                Return a JSON object that strictly adheres to the following schema:
+                {
+                    "scenarios": [
+                        {"scenario": "Scenario 1: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 2: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 3: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 4: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 5: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 6: Detailed description of the challenge and objective."},
+                        {"scenario": "Scenario 7: Detailed description of the challenge and objective."}
+                    ]
+                }`;
+
+                try {
+                    const response = await this.getAiResponse(prompt, [], "application/json");
+                    if (response.success) {
+                        const data = JSON.parse(response.data);
+                        suggestionsContainer.innerHTML = '';
+                        data.scenarios.forEach(s => {
+                            const card = document.createElement('div');
+                            card.className = 'glass-panel p-4 rounded-lg shadow-lg flex justify-between items-center';
+
+                            const scenarioP = document.createElement('p');
+                            scenarioP.textContent = s.scenario;
+                            scenarioP.className = 'text-left flex-grow cursor-pointer';
+                            card.appendChild(scenarioP);
+
+                            const copyBtn = document.createElement('button');
+                            copyBtn.className = 'flex-shrink-0 ml-4 text-gray-500 hover:text-neon-green transition-colors duration-200';
+                            copyBtn.innerHTML = '<i class="fas fa-copy" title="Copy"></i>';
+                            copyBtn.addEventListener('click', (event) => {
+                                event.stopPropagation();
+                                navigator.clipboard.writeText(s.scenario).then(() => {
+                                    this.showError("Scenario copied to clipboard!", "Success");
+                                }).catch(err => {
+                                    console.error('Failed to copy text: ', err);
+                                    this.showError("Failed to copy to clipboard.", "Error");
+                                });
+                            });
+                            card.appendChild(copyBtn);
+
+                            card.addEventListener('click', () => {
+                                document.getElementById('chat-input').value = s.scenario;
+                            });
+                            suggestionsContainer.appendChild(card);
+                        });
+                    } else {
+                        suggestionsContainer.innerHTML = '<p class="text-sm text-gray-500">Could not load scenarios.</p>';
+                    }
+                } catch (error) {
+                    console.error("Error fetching or parsing scenarios:", error);
+                    suggestionsContainer.innerHTML = '<p class="text-sm text-gray-500">Error generating scenarios.</p>';
+                }
+            };
+            CUA_App.handleUserMessage = async function() { const input = document.getElementById('chat-input'); if (!input || !input.value.trim()) return; const userMessage = input.value; this.addMessageToLog('user', userMessage); input.value = ''; this.setLoadingState(true); const response = await this.getAiResponse(`Respond to the following message: "${userMessage}"`, this.currentSession.chatHistory); this.setLoadingState(false); if (response.success) { this.addMessageToLog('ai', response.data); } else { this.showError(response.error); }};
+            CUA_App.addMessageToLog = function(role, content, isFirstMessage = false) { const chatLog = document.getElementById('chat-log'); if (!chatLog) return; if (isFirstMessage) chatLog.innerHTML = ''; if (role !== 'system') { this.currentSession.chatHistory.push({ role: role, content: content }); } const messageRow = document.createElement('div'); messageRow.className = `chat-message-row ${role}-row`; const messageBubble = document.createElement('div'); messageBubble.className = `chat-bubble chat-bubble-${role}`; messageBubble.innerHTML = content.split('\n').map(p => `<p>${p}</p>`).join(''); const actionIcons = document.createElement('div'); actionIcons.className = 'action-icons'; actionIcons.innerHTML = `<i class="fas fa-copy" title="Copy"></i><i class="fas fa-bookmark" title="Bookmark"></i><i class="fas fa-lightbulb" title="Suggest"></i>`; actionIcons.querySelector('.fa-copy').addEventListener('click', () => { navigator.clipboard.writeText(content).then(() => { this.showError("Copied to clipboard!", "Success"); }).catch(err => { console.error('Failed to copy text: ', err); this.showError("Failed to copy to clipboard.", "Error"); }); }); actionIcons.querySelector('.fa-bookmark').addEventListener('click', (e) => e.target.classList.toggle('bookmarked')); actionIcons.querySelector('.fa-lightbulb').addEventListener('click', () => this.getAiSuggestion(content)); if (role === 'user') { messageRow.appendChild(actionIcons); messageRow.appendChild(messageBubble); } else { messageRow.appendChild(messageBubble); messageRow.appendChild(actionIcons); } chatLog.appendChild(messageRow); chatLog.scrollTop = chatLog.scrollHeight; };
+            CUA_App.getAiSuggestion = async function(context) { const suggestionContainer = document.getElementById('suggestion-container'); const suggestionText = document.getElementById('suggestion-text'); if (!suggestionContainer || !suggestionText) return; suggestionContainer.style.display = 'flex'; suggestionText.textContent = 'Thinking...'; const historySlice = this.currentSession.chatHistory.slice(-4).map(m => `${m.role === 'user' ? 'User' : this.currentSession.agent.name}: ${m.content}`).join('\n'); const prompt = `Given the following conversation excerpt:\n---\n${historySlice}\n---\nAnd focusing on the last message: "${context}"\n\nGenerate three concise, distinct, one-sentence follow-up questions that ${this.currentSession.agent.name} might ask or that a user could ask next. The questions should align with the agent's personality. Format as a numbered list.`; const response = await this.getAiResponse(prompt, []); if (response.success) { this.currentSession.suggestions = response.data.split('\n').filter(s => s.length > 0 && s.match(/^\d\./)); this.currentSession.suggestionIndex = 0; this.displaySuggestion(); } else { suggestionText.textContent = 'Could not generate a suggestion.'; }};
+            CUA_App.displaySuggestion = function() { const suggestionContainer = document.getElementById('suggestion-container'); const suggestionText = document.getElementById('suggestion-text'); if (!suggestionContainer || !suggestionText) return; if (this.currentSession.suggestions.length > 0) { const suggestion = this.currentSession.suggestions[this.currentSession.suggestionIndex]; let i = 0; suggestionText.textContent = ''; function typeWriter() { if (i < suggestion.length) { suggestionText.textContent += suggestion.charAt(i); i++; setTimeout(typeWriter, 30); } } typeWriter(); this.currentSession.suggestionIndex = (this.currentSession.suggestionIndex + 1) % this.currentSession.suggestions.length; } else { suggestionText.textContent = 'No suggestions available.'; }};
+            CUA_App.toggleApiSettings = function() { this.dom.apiSettingsPanel.classList.toggle('panel-open'); };
+            CUA_App.showError = function(message, title = "Error") { this.dom.errorMessage.innerHTML = message; this.dom.errorTitle.textContent = title; this.dom.errorTitle.className = `text-2xl font-bold mb-4 ${title.toLowerCase().includes('success') ? 'text-green-400' : 'text-red-400'}`; this.dom.errorModal.classList.remove('hidden'); };
+            CUA_App.setLoadingState = function(isLoading) { this.currentSession.isLoading = isLoading; const sendBtn = document.getElementById('send-btn'); const chatInput = document.getElementById('chat-input'); if (sendBtn && chatInput) { sendBtn.disabled = isLoading; chatInput.disabled = isLoading; sendBtn.innerHTML = isLoading ? '<div class="loader"></div>' : 'Send'; }};
+            CUA_App.toggleExportSection = function() { const content = this.dom.exportContent; const icon = this.dom.exportHeader.querySelector('i'); if (content.style.maxHeight) { content.style.maxHeight = null; icon.classList.remove('rotate-180'); } else { content.style.maxHeight = content.scrollHeight + "px"; icon.classList.add('rotate-180'); }};
+            CUA_App.exportConversation = function() { if (!this.currentSession.selectedExportAgent) { this.showError("Please select an agent to export their conversation.", "Export Error"); return; } let historyToExport; if (this.currentSession.agent && this.currentSession.agent.name === this.currentSession.selectedExportAgent.name) { historyToExport = this.currentSession.chatHistory; } else { this.showError(`Conversation history for ${this.currentSession.selectedExportAgent.name} is not loaded. Exporting current chat as an example.`, "Info"); historyToExport = this.currentSession.chatHistory; } if (!historyToExport || historyToExport.length === 0) { this.showError("No conversation history to export for the selected agent.", "Export Error"); return; } const agent = this.currentSession.selectedExportAgent; let fileContent = `Conversation with ${agent.name} (${agent.role})\n`; fileContent += `Philosophy: "${agent.philosophy}"\n`; fileContent += `Session ID: ${this.dom.sessionIdSpan.textContent}\n`; fileContent += "--------------------------------------------------\n\n"; historyToExport.forEach(msg => { const speaker = msg.role === 'user' ? 'USER' : agent.name; fileContent += `[${speaker}]:\n${msg.content}\n\n--------------------------------------------------\n\n`; }); const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `conversation_${agent.name}_${this.dom.sessionIdSpan.textContent}.txt`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); };
+            CUA_App.init();
+        });
+    </script>
+</body>
+</html>
